@@ -27,6 +27,7 @@ export const metadata: Metadata = {
 };
 
 import { BottomNav } from "@/components/navigation/BottomNav";
+import { TopNavbar } from "@/components/navigation/TopNavbar";
 import { PWAProvider } from "@/components/pwa/PWAProvider";
 
 export default function RootLayout({
@@ -40,6 +41,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased pb-safe`}
       >
         <PWAProvider>
+          <TopNavbar />
           <main className="min-h-[100dvh]">
             {children}
           </main>

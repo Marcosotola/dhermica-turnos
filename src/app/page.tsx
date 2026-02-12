@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Calendar, Users, Search } from 'lucide-react';
+import { Calendar, Users, Search, Truck } from 'lucide-react';
 
 export default function Home() {
   return (
@@ -14,14 +14,14 @@ export default function Home() {
           </p>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           <Link
             href="/turnos"
             className="group bg-white rounded-2xl shadow-lg p-8 hover:shadow-xl transition-all hover:-translate-y-1"
           >
             <div className="flex flex-col items-center text-center">
-              <div className="w-16 h-16 bg-violet-100 rounded-full flex items-center justify-center mb-4 group-hover:bg-violet-200 transition-colors">
-                <Calendar className="w-8 h-8 text-violet-600" />
+              <div className="w-16 h-16 bg-[#34baab]/10 rounded-full flex items-center justify-center mb-4 group-hover:bg-[#34baab]/20 transition-colors">
+                <Calendar className="w-8 h-8 text-[#34baab]" />
               </div>
               <h2 className="text-2xl font-semibold text-gray-900 mb-2">
                 Turnos
@@ -41,7 +41,7 @@ export default function Home() {
                 <Users className="w-8 h-8 text-pink-600" />
               </div>
               <h2 className="text-2xl font-semibold text-gray-900 mb-2">
-                Profesionales
+                Staff
               </h2>
               <p className="text-gray-600">
                 Gestiona el equipo de trabajo
@@ -50,12 +50,29 @@ export default function Home() {
           </Link>
 
           <Link
-            href="/turnos"
+            href="/alquileres"
             className="group bg-white rounded-2xl shadow-lg p-8 hover:shadow-xl transition-all hover:-translate-y-1"
           >
             <div className="flex flex-col items-center text-center">
-              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4 group-hover:bg-blue-200 transition-colors">
-                <Search className="w-8 h-8 text-blue-600" />
+              <div className="w-16 h-16 bg-violet-100 rounded-full flex items-center justify-center mb-4 group-hover:bg-violet-200 transition-colors">
+                <Truck className="w-8 h-8 text-violet-600" />
+              </div>
+              <h2 className="text-2xl font-semibold text-gray-900 mb-2">
+                Alquileres
+              </h2>
+              <p className="text-gray-600">
+                Gestión de máquinas y equipos
+              </p>
+            </div>
+          </Link>
+
+          <Link
+            href="/turnos?action=search"
+            className="group bg-white rounded-2xl shadow-lg p-8 hover:shadow-xl transition-all hover:-translate-y-1"
+          >
+            <div className="flex flex-col items-center text-center">
+              <div className="w-16 h-16 bg-[#45a049]/10 rounded-full flex items-center justify-center mb-4 group-hover:bg-[#45a049]/20 transition-colors">
+                <Search className="w-8 h-8 text-[#45a049]" />
               </div>
               <h2 className="text-2xl font-semibold text-gray-900 mb-2">
                 Buscar

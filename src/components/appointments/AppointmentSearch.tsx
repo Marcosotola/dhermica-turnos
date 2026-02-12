@@ -10,9 +10,10 @@ import { formatDate } from '@/lib/utils/time';
 
 interface AppointmentSearchProps {
     onSelectAppointment?: (appointment: Appointment) => void;
+    variant?: 'dropdown' | 'inline';
 }
 
-export function AppointmentSearch({ onSelectAppointment }: AppointmentSearchProps) {
+export function AppointmentSearch({ onSelectAppointment, variant = 'dropdown' }: AppointmentSearchProps) {
     const [query, setQuery] = useState('');
     const [results, setResults] = useState<Appointment[]>([]);
     const [loading, setLoading] = useState(false);
@@ -68,7 +69,11 @@ export function AppointmentSearch({ onSelectAppointment }: AppointmentSearchProp
             </div>
 
             {isOpen && (results.length > 0 || loading) && (
-                <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-gray-100 z-50 overflow-hidden flex flex-col md:max-h-96 max-h-[calc(100vh-180px)]">
+                <div className={`${variant === 'dropdown'
+                    ? 'absolute top-full left-0 right-0 mt-2 shadow-xl border border-gray-100'
+                    : 'relative mt-4 border-t border-gray-100'
+                    } bg-white rounded-xl z-30 overflow-hidden flex flex-col md:max-h-[500px] max-h-[45vh]`}
+                >
                     <div className="overflow-y-auto flex-1 p-2">
                         {loading ? (
                             <div className="p-8 text-center">

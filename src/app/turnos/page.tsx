@@ -52,8 +52,14 @@ function TurnosContent() {
 
     // Listen for BottomNav events
     useEffect(() => {
-        const toggleDatePicker = () => setIsDatePickerOpen(prev => !prev);
-        const toggleSearch = () => setIsSearchOpen(prev => !prev);
+        const toggleDatePicker = () => {
+            setIsDatePickerOpen(prev => !prev);
+            setIsSearchOpen(false);
+        };
+        const toggleSearch = () => {
+            setIsSearchOpen(prev => !prev);
+            setIsDatePickerOpen(false);
+        };
         const handleSetDate = (e: any) => {
             if (e.detail) {
                 setSelectedDate(e.detail);
@@ -174,7 +180,25 @@ function TurnosContent() {
                     {/* Main Content: Table */}
                     <div className="flex-1">
                         <div className="bg-white rounded-2xl shadow-xl md:shadow-lg overflow-hidden border border-gray-100 min-h-[400px]">
-                            {loading ? (
+                            {isSearchOpen && (
+                                <div className="p-6 animate-in fade-in slide-in-from-top-4 duration-300">
+                                    <div className="flex items-center justify-between mb-6">
+                                        <h2 className="text-xl font-bold text-gray-900">Buscar Turno</h2>
+                                        <button
+                                            onClick={() => setIsSearchOpen(false)}
+                                            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                                        >
+                                            <Plus className="w-5 h-5 text-gray-400 rotate-45" />
+                                        </button>
+                                    </div>
+                                    <AppointmentSearch variant="inline" onSelectAppointment={handleSearchSelect} />
+                                    <p className="text-sm text-gray-400 mt-6 text-center italic">
+                                        Escribe el nombre del cliente o tratamiento...
+                                    </p>
+                                </div>
+                            )}
+
+                            {!isSearchOpen && (loading ? (
                                 <div className="flex flex-col items-center justify-center py-24">
                                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#45a049] mb-4"></div>
                                     <p className="text-gray-500 animate-pulse font-medium">Cargando turnos...</p>
@@ -217,7 +241,7 @@ function TurnosContent() {
                                         onDeleteClick={handleDeleteClick}
                                     />
                                 </>
-                            )}
+                            ))}
                         </div>
                     </div>
                 </div>
@@ -247,23 +271,6 @@ function TurnosContent() {
                 </>
             )}
 
-            {/* Mobile Search Overlay */}
-            {isSearchOpen && (
-                <div className="fixed inset-0 bg-white z-50 p-6 flex flex-col">
-                    <div className="flex items-center justify-between mb-8">
-                        <h2 className="text-2xl font-black text-gray-900">Buscar Turno</h2>
-                        <button onClick={() => setIsSearchOpen(false)} className="p-2 bg-gray-100 rounded-full">
-                            <Plus className="w-6 h-6 text-gray-500 rotate-45" />
-                        </button>
-                    </div>
-                    <div className="flex-1">
-                        <AppointmentSearch onSelectAppointment={handleSearchSelect} />
-                        <p className="text-sm text-gray-400 mt-6 text-center italic">
-                            Escribe el nombre del cliente o tratamiento...
-                        </p>
-                    </div>
-                </div>
-            )}
 
             {/* Modals */}
             <AppointmentModal
@@ -281,7 +288,10 @@ function TurnosContent() {
                 isOpen={deleteDialogOpen}
                 onClose={() => setDeleteDialogOpen(false)}
                 onConfirm={handleConfirmDelete}
-                appointment={selectedAppointment}
+                title="Confirmar Eliminación"
+                description="¿Está seguro que desea eliminar este turno? Esta acción no se puede deshacer."
+                itemName={selectedAppointment?.clientName}
+                itemDetail={`${selectedAppointment?.treatment} - ${selectedAppointment?.date} ${selectedAppointment?.time}`}
                 loading={deleting}
             />
         </div>
