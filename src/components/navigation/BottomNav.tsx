@@ -1,0 +1,127 @@
+'use client';
+
+import React from 'react';
+import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
+import { Calendar, Users, Search, Home } from 'lucide-react';
+import { getTodayDate } from '@/lib/utils/time';
+
+interface NavTab {
+    label: string;
+    icon: any;
+    href?: string;
+    action?: () => void;
+    active: boolean;
+    primary?: boolean;
+}
+
+export function BottomNav() {
+    const pathname = usePathname();
+    const router = useRouter();
+
+    const tabs: NavTab[] = [
+        {
+            label: 'Fecha',
+            icon: Calendar,
+            action: () => {
+                if (pathname === '/turnos') {
+                    // Trigger local event
+                    window.dispatchEvent(new CustomEvent('toggle-datepicker'));
+                } else {
+                    router.push('/turnos?action=datepicker');
+                }
+            },
+            active: false
+        },
+        {
+            label: 'Buscar',
+            icon: Search,
+            action: () => {
+                if (pathname === '/turnos') {
+                    window.dispatchEvent(new CustomEvent('toggle-search'));
+                } else {
+                    router.push('/turnos?action=search');
+                }
+            },
+            active: false
+        },
+        {
+            label: 'Hoy',
+            icon: Home,
+            action: () => {
+                const today = getTodayDate();
+                if (pathname === '/turnos') {
+                    window.dispatchEvent(new CustomEvent('set-date', { detail: today }));
+                } else {
+                    router.push(`/turnos?date=${today}`);
+                }
+            },
+            primary: true,
+            active: pathname === '/turnos'
+        },
+        {
+            label: 'Staff',
+            icon: Users,
+            href: '/profesionales',
+            active: pathname === '/profesionales'
+        }
+    ];
+
+    return (
+        <div className="fixed bottom-0 left-0 right-0 bg-[#484450] border-t border-white/10 px-6 py-3 flex items-center justify-between z-40 md:hidden shadow-[0_-8px_20px_rgba(0,0,0,0.3)] pb-safe">
+            {tabs.map((tab, index) => {
+                const Icon = tab.icon;
+
+                if (tab.primary) {
+                    const content = (
+                        <div className={`p-4 rounded-2xl shadow-lg ring-4 ring-[#484450] active:scale-90 transition-all flex items-center justify-center ${tab.active ? 'bg-[#34baab] text-white' : 'bg-white/10 text-white/50'}`}>
+                            <Icon className="w-6 h-6" />
+                        </div>
+                    );
+
+                    return (
+                        <div key={index} className="relative -top-6">
+                            {tab.action ? (
+                                <button onClick={tab.action} className="focus:outline-none">
+                                    {content}
+                                </button>
+                            ) : (
+                                <Link href={tab.href!} className="focus:outline-none">
+                                    {content}
+                                </Link>
+                            )}
+                            <span className={`absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] font-bold uppercase tracking-tight ${tab.active ? 'text-[#34baab]' : 'text-white/40'}`}>
+                                {tab.label}
+                            </span>
+                        </div>
+                    );
+                }
+
+                const Content = (
+                    <div className="flex flex-col items-center gap-1 group py-1">
+                        <div className="p-1 group-active:scale-95 transition-transform">
+                            <Icon className={`w-6 h-6 ${tab.active ? 'text-[#34baab]' : 'text-white/40 group-hover:text-white/70'}`} />
+                        </div>
+                        <span className={`text-[10px] font-bold uppercase tracking-tight ${tab.active ? 'text-[#34baab]' : 'text-white/40'}`}>
+                            {tab.label}
+                        </span>
+                    </div>
+                );
+
+                if (tab.action) {
+                    return (
+                        <button key={index} onClick={tab.action} className="focus:outline-none">
+                            {Content}
+                        </button>
+                    );
+                }
+
+                return (
+                    <Link key={index} href={tab.href!} className="focus:outline-none">
+                        {Content}
+                    </Link>
+                );
+            })}
+        </div>
+    );
+}

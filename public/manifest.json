@@ -1,0 +1,17 @@
+{
+    "name": "Dhermica - Gestión de Turnos",
+    "short_name": "Dhermica",
+    "description": "Sistema de gestión de turnos para Dhermica",
+    "start_url": "/turnos",
+    "display": "standalone",
+    "background_color": "#ffffff",
+    "theme_color": "#45a049",
+    "icons": [
+        {
+            "src": "/icon.svg",
+            "sizes": "any",
+            "type": "image/svg+xml",
+            "purpose": "any maskable"
+        }
+    ]
+}
