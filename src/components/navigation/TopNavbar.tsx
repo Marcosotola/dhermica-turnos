@@ -1,10 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, ElementType } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Menu, X, Home, Calendar, Truck, Users, LayoutDashboard } from 'lucide-react';
+import { Menu, X, Home, Calendar, Truck, Users, LayoutDashboard, LogOut, BookOpen, Settings, Sparkles, Tag } from 'lucide-react';
 import { Button } from '../ui/Button';
+import { useAuth } from '@/lib/contexts/AuthContext';
+import { useRouter } from 'next/navigation';
+
 
 export function TopNavbar() {
     const [isOpen, setIsOpen] = useState(false);
@@ -25,11 +28,41 @@ export function TopNavbar() {
         return () => window.removeEventListener('scroll', handleScroll);
     }, []);
 
-    const navLinks = [
-        { href: '/', label: 'Inicio', icon: Home },
-        { href: '/alquileres', label: 'Alquileres', icon: Truck },
-        { href: '/usuarios', label: 'Usuarios', icon: Users, disabled: true },
+    const { user, profile, logout } = useAuth();
+    const router = useRouter();
+
+    const role = profile?.role || 'client';
+
+    const handleLogout = async () => {
+        await logout();
+        router.push('/');
+    };
+
+    interface NavLink {
+        href: string;
+        label: string;
+        icon: ElementType;
+        disabled?: boolean;
+    }
+
+    const navLinks: NavLink[] = [
+        { href: '/dashboard', label: 'Panel', icon: LayoutDashboard },
+        // Admin & Professional
+        ...((role === 'admin' || role === 'professional') ? [
+            { href: '/turnos', label: 'Turnos', icon: Calendar },
+            { href: '/agenda', label: 'Agenda', icon: BookOpen },
+        ] : []),
+        // Admin only
+        ...(role === 'admin' ? [
+            { href: '/profesionales', label: 'Staff', icon: Users },
+            { href: '/alquileres', label: 'Alquileres', icon: Truck },
+            { href: '/usuarios', label: 'Usuarios', icon: Settings },
+        ] : []),
+        // Common
+        { href: '/tratamientos', label: 'Tratamientos', icon: Sparkles },
+        { href: '/promociones', label: 'Promociones', icon: Tag },
     ];
+
 
     return (
         <>
@@ -94,11 +127,23 @@ export function TopNavbar() {
                         })}
                     </div>
 
-                    <div className="mt-auto pt-6 border-t border-white/5">
+                    <div className="mt-auto pt-6 border-t border-white/5 space-y-4">
+                        {user && (
+                            <button
+                                onClick={handleLogout}
+                                className="w-full flex items-center gap-4 px-4 py-3 rounded-2xl text-red-400 font-bold hover:bg-red-400/10 transition-all"
+                            >
+                                <div className="w-10 h-10 rounded-xl bg-red-400/10 flex items-center justify-center">
+                                    <LogOut className="w-5 h-5" />
+                                </div>
+                                <span>Cerrar Sesión</span>
+                            </button>
+                        )}
                         <p className="text-[10px] text-gray-500 uppercase font-black tracking-widest text-center">
                             Dhermica v0.1.0
                         </p>
                     </div>
+
                 </div>
             </div>
         </>

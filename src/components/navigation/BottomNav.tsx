@@ -3,8 +3,10 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Calendar, Users, Search, Home } from 'lucide-react';
+import { Calendar, Users, Search, Home, LayoutDashboard, BookOpen } from 'lucide-react';
 import { getTodayDate } from '@/lib/utils/time';
+import { useAuth } from '@/lib/contexts/AuthContext';
+
 
 interface NavTab {
     label: string;
@@ -16,56 +18,73 @@ interface NavTab {
 }
 
 export function BottomNav() {
-    const pathname = usePathname();
+    const pathname = useAuth(); // Incorrect usage of useAuth, fixing below
+    const { user, profile } = useAuth();
+    const pathname_real = usePathname();
     const router = useRouter();
+
+    if (!user) return null;
+
+    const role = profile?.role || 'client';
+
 
     const tabs: NavTab[] = [
         {
-            label: 'Fecha',
-            icon: Calendar,
-            action: () => {
-                if (pathname === '/turnos') {
-                    // Trigger local event
-                    window.dispatchEvent(new CustomEvent('toggle-datepicker'));
-                } else {
-                    router.push('/turnos?action=datepicker');
-                }
-            },
-            active: false
+            label: 'Panel',
+            icon: LayoutDashboard,
+            href: '/dashboard',
+            active: pathname_real === '/dashboard'
         },
+        // Admin & Professional specific
+        ...((role === 'admin' || role === 'professional') ? [
+            {
+                label: 'Fecha',
+                icon: Calendar,
+                action: () => {
+                    if (pathname_real === '/turnos') {
+                        window.dispatchEvent(new CustomEvent('toggle-datepicker'));
+                    } else {
+                        router.push('/turnos?action=datepicker');
+                    }
+                },
+                active: false
+            },
+            {
+                label: 'Agenda',
+                icon: BookOpen,
+                href: '/agenda',
+                active: pathname_real === '/agenda'
+            },
+            {
+                label: 'Hoy',
+                icon: Home,
+                action: () => {
+                    const today = getTodayDate();
+                    if (pathname_real === '/turnos') {
+                        window.dispatchEvent(new CustomEvent('set-date', { detail: today }));
+                    } else {
+                        router.push(`/turnos?date=${today}`);
+                    }
+                },
+                primary: true,
+                active: pathname_real === '/turnos'
+            }
+        ] : []),
+        // Client specific or Search for all
         {
             label: 'Buscar',
             icon: Search,
             action: () => {
-                if (pathname === '/turnos') {
+                if (pathname_real === '/turnos') {
                     window.dispatchEvent(new CustomEvent('toggle-search'));
                 } else {
                     router.push('/turnos?action=search');
                 }
             },
             active: false
-        },
-        {
-            label: 'Hoy',
-            icon: Home,
-            action: () => {
-                const today = getTodayDate();
-                if (pathname === '/turnos') {
-                    window.dispatchEvent(new CustomEvent('set-date', { detail: today }));
-                } else {
-                    router.push(`/turnos?date=${today}`);
-                }
-            },
-            primary: true,
-            active: pathname === '/turnos'
-        },
-        {
-            label: 'Staff',
-            icon: Users,
-            href: '/profesionales',
-            active: pathname === '/profesionales'
         }
     ];
+
 
     return (
         <div className="fixed bottom-0 left-0 right-0 bg-[#484450] border-t border-white/10 px-6 py-3 flex items-center justify-between z-40 md:hidden shadow-[0_-8px_20px_rgba(0,0,0,0.3)] pb-safe">

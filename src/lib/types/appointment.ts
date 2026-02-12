@@ -1,6 +1,7 @@
 export interface Appointment {
     id: string;
     clientName: string;
+    clientId?: string;
     treatment: string;
     date: string; // YYYY-MM-DD
     time: string; // HH:mm

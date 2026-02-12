@@ -1,87 +1,55 @@
-import Link from 'next/link';
-import { Calendar, Users, Search, Truck } from 'lucide-react';
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/lib/contexts/AuthContext';
+import { LoginForm } from '@/components/auth/LoginForm';
+import { RegisterForm } from '@/components/auth/RegisterForm';
+import { Toaster } from 'sonner';
+import { LayoutDashboard } from 'lucide-react';
 
 export default function Home() {
+  const { user, loading } = useAuth();
+  const router = useRouter();
+  const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
+
+  useEffect(() => {
+    if (!loading && user) {
+      router.push('/dashboard');
+    }
+  }, [user, loading, router]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-violet-50 via-pink-50 to-blue-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#34baab]"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-violet-50 via-pink-50 to-blue-50 flex items-center justify-center p-4">
-      <div className="max-w-4xl w-full">
-        <div className="text-center mb-12">
-          <h1 className="text-5xl md:text-6xl font-bold text-gray-900 mb-4">
-            Dhermica Estética
-          </h1>
-          <p className="text-xl text-gray-600">
-            Sistema de Gestión de Turnos
-          </p>
-        </div>
+      <Toaster position="top-center" richColors />
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          <Link
-            href="/turnos"
-            className="group bg-white rounded-2xl shadow-lg p-8 hover:shadow-xl transition-all hover:-translate-y-1"
-          >
-            <div className="flex flex-col items-center text-center">
-              <div className="w-16 h-16 bg-[#34baab]/10 rounded-full flex items-center justify-center mb-4 group-hover:bg-[#34baab]/20 transition-colors">
-                <Calendar className="w-8 h-8 text-[#34baab]" />
-              </div>
-              <h2 className="text-2xl font-semibold text-gray-900 mb-2">
-                Turnos
-              </h2>
-              <p className="text-gray-600">
-                Gestiona los turnos diarios
-              </p>
+      <div className="max-w-md w-full bg-white rounded-3xl shadow-2xl overflow-hidden border border-white/20 backdrop-blur-sm bg-white/90">
+        <div className="p-8">
+          <div className="flex flex-col items-center mb-8">
+            <div className="w-16 h-16 bg-[#34baab] rounded-2xl flex items-center justify-center shadow-lg mb-4">
+              <LayoutDashboard className="w-10 h-10 text-white" />
             </div>
-          </Link>
+            <h1 className="text-4xl font-black text-gray-900 tracking-tighter">
+              Dhermica
+            </h1>
+            <p className="text-sm font-bold text-gray-500 uppercase tracking-widest mt-1">
+              Estética Unisex
+            </p>
+          </div>
 
-          <Link
-            href="/profesionales"
-            className="group bg-white rounded-2xl shadow-lg p-8 hover:shadow-xl transition-all hover:-translate-y-1"
-          >
-            <div className="flex flex-col items-center text-center">
-              <div className="w-16 h-16 bg-pink-100 rounded-full flex items-center justify-center mb-4 group-hover:bg-pink-200 transition-colors">
-                <Users className="w-8 h-8 text-pink-600" />
-              </div>
-              <h2 className="text-2xl font-semibold text-gray-900 mb-2">
-                Staff
-              </h2>
-              <p className="text-gray-600">
-                Gestiona el equipo de trabajo
-              </p>
-            </div>
-          </Link>
-
-          <Link
-            href="/alquileres"
-            className="group bg-white rounded-2xl shadow-lg p-8 hover:shadow-xl transition-all hover:-translate-y-1"
-          >
-            <div className="flex flex-col items-center text-center">
-              <div className="w-16 h-16 bg-violet-100 rounded-full flex items-center justify-center mb-4 group-hover:bg-violet-200 transition-colors">
-                <Truck className="w-8 h-8 text-violet-600" />
-              </div>
-              <h2 className="text-2xl font-semibold text-gray-900 mb-2">
-                Alquileres
-              </h2>
-              <p className="text-gray-600">
-                Gestión de máquinas y equipos
-              </p>
-            </div>
-          </Link>
-
-          <Link
-            href="/turnos?action=search"
-            className="group bg-white rounded-2xl shadow-lg p-8 hover:shadow-xl transition-all hover:-translate-y-1"
-          >
-            <div className="flex flex-col items-center text-center">
-              <div className="w-16 h-16 bg-[#45a049]/10 rounded-full flex items-center justify-center mb-4 group-hover:bg-[#45a049]/20 transition-colors">
-                <Search className="w-8 h-8 text-[#45a049]" />
-              </div>
-              <h2 className="text-2xl font-semibold text-gray-900 mb-2">
-                Buscar
-              </h2>
-              <p className="text-gray-600">
-                Localiza turnos rápidamente
-              </p>
-            </div>
-          </Link>
+          {authMode === 'login' ? (
+            <LoginForm onToggleMode={() => setAuthMode('register')} />
+          ) : (
+            <RegisterForm onToggleMode={() => setAuthMode('login')} />
+          )}
         </div>
       </div>
     </div>

@@ -246,6 +246,96 @@ export async function getAppointmentsByDateRange(
 }
 
 /**
+ * Obtiene el historial de turnos de un cliente por ID (nuevos) y Nombre (legacy)
+ */
+export async function getAppointmentsByClientId(
+    clientId: string,
+    clientName: string
+): Promise<Appointment[]> {
+    const allAppointmentsMap = new Map<string, Appointment>();
+
+    try {
+        // 1. Buscar por clientId en colección principal (Exacto y rápido)
+        const qId = query(collection(db, APPOINTMENTS_COLLECTION), where('clientId', '==', clientId));
+        const snapId = await getDocs(qId);
+        snapId.docs.forEach(d => {
+            const apt = mapLegacyAppointment(d.id, d.data());
+            allAppointmentsMap.set(apt.id, apt);
+        });
+
+        // 2. Buscar por nombre (para legacy y legacy de profesionales)
+        // Reutilizamos la búsqueda por nombre que ya busca en todas las colecciones
+        const legacyAppointments = await searchAppointmentsByClient(clientName);
+        legacyAppointments.forEach(apt => {
+            if (!allAppointmentsMap.has(apt.id)) {
+                allAppointmentsMap.set(apt.id, apt);
+            }
+        });
+
+        // 3. Convertir a array y ordenar (más reciente primero)
+        return Array.from(allAppointmentsMap.values()).sort((a, b) => {
+            // Primero por fecha descendente
+            const dateCompare = b.date.localeCompare(a.date);
+            if (dateCompare !== 0) return dateCompare;
+            // Luego por hora descendente
+            return b.time.localeCompare(a.time);
+        });
+
+    } catch (error) {
+        console.error('Error obteniendo historial del cliente:', error);
+        return [];
+    }
+}
+
+/**
+ * Obtiene el historial de turnos de un profesional
+ */
+export async function getAppointmentsByProfessionalId(
+    professionalId: string
+): Promise<Appointment[]> {
+    const allAppointmentsMap = new Map<string, Appointment>();
+
+    try {
+        // 1. Colección principal
+        const qMain = query(collection(db, APPOINTMENTS_COLLECTION), where('professionalId', '==', professionalId));
+        const snapMain = await getDocs(qMain);
+        snapMain.docs.forEach(d => {
+            const apt = mapLegacyAppointment(d.id, d.data());
+            allAppointmentsMap.set(apt.id, apt);
+        });
+
+        // 2. Colección legacy
+        // Primero obtenemos el nombre de la colección legacy del profesional
+        const profDoc = await getDoc(doc(db, 'professionals', professionalId));
+        if (profDoc.exists()) {
+            const legacyCollection = profDoc.data().legacyCollectionName;
+            if (legacyCollection) {
+                const qLegacy = query(collection(db, legacyCollection));
+                const snapLegacy = await getDocs(qLegacy);
+                snapLegacy.docs.forEach(d => {
+                    const apt = mapLegacyAppointment(d.id, d.data(), professionalId);
+                    if (!allAppointmentsMap.has(apt.id)) {
+                        allAppointmentsMap.set(apt.id, apt);
+                    }
+                });
+            }
+        }
+
+        // 3. Ordenar por fecha y hora descendente
+        return Array.from(allAppointmentsMap.values()).sort((a, b) => {
+            const dateCompare = b.date.localeCompare(a.date);
+            if (dateCompare !== 0) return dateCompare;
+            return b.time.localeCompare(a.time);
+        });
+
+    } catch (error) {
+        console.error('Error obteniendo historial del profesional:', error);
+        return [];
+    }
+}
+
+
+/**
  * Busca turnos por nombre de cliente o tratamiento en todas las colecciones (unificada y legacy)
  */
 export async function searchAppointmentsByClient(

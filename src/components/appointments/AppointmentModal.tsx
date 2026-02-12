@@ -7,7 +7,10 @@ import { Select } from '../ui/Select';
 import { Button } from '../ui/Button';
 import { Appointment, DURATION_OPTIONS } from '@/lib/types/appointment';
 import { Professional } from '@/lib/types/professional';
+import { UserProfile } from '@/lib/types/user';
+import { getUsersByRole } from '@/lib/firebase/users';
 import { capitalizeName } from '@/lib/utils/time';
+import { Search, UserPlus, User } from 'lucide-react';
 import { validateAppointment, checkOverlap } from '@/lib/utils/validation';
 import { createAppointment, updateAppointment } from '@/lib/firebase/appointments';
 import { toast } from 'sonner';
@@ -35,6 +38,7 @@ export function AppointmentModal({
 }: AppointmentModalProps) {
     const [formData, setFormData] = useState({
         clientName: '',
+        clientId: '',
         treatment: '',
         time: defaultTime || '',
         duration: 1,
@@ -42,27 +46,57 @@ export function AppointmentModal({
         notes: '',
     });
     const [loading, setLoading] = useState(false);
+    const [clients, setClients] = useState<UserProfile[]>([]);
+    const [clientsLoading, setClientsLoading] = useState(false);
+    const [clientMode, setClientMode] = useState<'registered' | 'manual'>('registered');
     const [errors, setErrors] = useState<string[]>([]);
+
+    useEffect(() => {
+        const fetchClients = async () => {
+            setClientsLoading(true);
+            try {
+                const data = await getUsersByRole('client');
+                setClients(data);
+            } catch (error) {
+                console.error('Error fetching clients:', error);
+            } finally {
+                setClientsLoading(false);
+            }
+        };
+
+        if (isOpen) {
+            fetchClients();
+        }
+    }, [isOpen]);
+
 
     useEffect(() => {
         if (appointment) {
             setFormData({
                 clientName: appointment.clientName,
+                clientId: appointment.clientId || '',
                 treatment: appointment.treatment,
                 time: appointment.time,
                 duration: appointment.duration,
                 professionalId: appointment.professionalId || '',
                 notes: appointment.notes || '',
             });
+            if (appointment.clientId) {
+                setClientMode('registered');
+            } else {
+                setClientMode('manual');
+            }
         } else {
             setFormData({
                 clientName: '',
+                clientId: '',
                 treatment: '',
                 time: defaultTime || '',
                 duration: 1,
                 professionalId: defaultProfessionalId || '',
                 notes: '',
             });
+            setClientMode('registered');
         }
         setErrors([]);
     }, [appointment, defaultTime, defaultProfessionalId, isOpen]);
@@ -73,6 +107,7 @@ export function AppointmentModal({
 
         const appointmentData = {
             ...formData,
+            clientId: clientMode === 'registered' ? formData.clientId : undefined,
             clientName: capitalizeName(formData.clientName),
             date,
             professionalId: formData.professionalId || undefined,
@@ -159,15 +194,72 @@ export function AppointmentModal({
                     </div>
                 )}
 
-                <Input
-                    label="Nombre del Cliente"
-                    value={formData.clientName}
-                    onChange={(e) =>
-                        setFormData({ ...formData, clientName: capitalizeName(e.target.value) })
-                    }
-                    placeholder="Ej: María González"
-                    required
-                />
+                <div className="bg-gray-50 p-1 rounded-xl flex mb-4">
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setClientMode('registered');
+                            setFormData(prev => ({ ...prev, clientName: '', clientId: '' }));
+                        }}
+                        className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2 ${clientMode === 'registered'
+                                ? 'bg-white text-[#34baab] shadow-sm'
+                                : 'text-gray-400 hover:text-gray-600'
+                            }`}
+                    >
+                        <User className="w-4 h-4" /> Cliente Registrado
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setClientMode('manual');
+                            setFormData(prev => ({ ...prev, clientId: '' }));
+                        }}
+                        className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2 ${clientMode === 'manual'
+                                ? 'bg-white text-[#34baab] shadow-sm'
+                                : 'text-gray-400 hover:text-gray-600'
+                            }`}
+                    >
+                        <UserPlus className="w-4 h-4" /> Nuevo / Manual
+                    </button>
+                </div>
+
+                {clientMode === 'registered' ? (
+                    <div className="space-y-1">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Buscar Cliente
+                        </label>
+                        <Select
+                            value={formData.clientId}
+                            onChange={(e) => {
+                                const selectedId = e.target.value;
+                                const selectedClient = clients.find(c => c.uid === selectedId);
+                                if (selectedClient) {
+                                    setFormData(prev => ({
+                                        ...prev,
+                                        clientId: selectedId,
+                                        clientName: selectedClient.fullName
+                                    }));
+                                }
+                            }}
+                            options={[
+                                { value: '', label: clientsLoading ? 'Cargando clientes...' : 'Selecciona un cliente...' },
+                                ...clients.map(c => ({ value: c.uid, label: `${c.fullName} (${c.email})` }))
+                            ]}
+                            required={clientMode === 'registered'}
+                        />
+                    </div>
+                ) : (
+                    <Input
+                        label="Nombre del Cliente"
+                        value={formData.clientName}
+                        onChange={(e) =>
+                            setFormData({ ...formData, clientName: capitalizeName(e.target.value) })
+                        }
+                        placeholder="Ej: María González"
+                        required
+                    />
+                )}
+
 
                 <Input
                     label="Tratamiento"
