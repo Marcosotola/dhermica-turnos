@@ -158,11 +158,34 @@ export async function deleteAppointment(id: string): Promise<void> {
         professionalId = snap.data().professionalId;
     }
 
+    // Eliminar de la colección principal
     await deleteDoc(docRef);
 
     // Sincronizar con legacy
     if (professionalId) {
         await syncWithLegacy(professionalId, id, 'delete');
+    } else {
+        // Si no tiene professionalId, es un turno legacy viejo
+        // Buscar en todas las colecciones legacy de profesionales
+        console.log(`[Delete] Turno sin professionalId, buscando en colecciones legacy...`);
+        const professionals = await getActiveProfessionals();
+        
+        for (const prof of professionals) {
+            if (prof.legacyCollectionName) {
+                try {
+                    const legacyDocRef = doc(db, prof.legacyCollectionName, id);
+                    const legacySnap = await getDoc(legacyDocRef);
+                    
+                    if (legacySnap.exists()) {
+                        await deleteDoc(legacyDocRef);
+                        console.log(`[Delete] Turno eliminado de ${prof.legacyCollectionName}`);
+                        break; // Ya lo encontramos y eliminamos, salimos del loop
+                    }
+                } catch (error) {
+                    console.error(`[Delete] Error buscando en ${prof.legacyCollectionName}:`, error);
+                }
+            }
+        }
     }
 }
 
