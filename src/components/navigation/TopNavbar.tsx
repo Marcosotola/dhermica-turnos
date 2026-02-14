@@ -47,20 +47,28 @@ export function TopNavbar() {
 
     const navLinks: NavLink[] = [
         { href: '/dashboard', label: 'Panel', icon: LayoutDashboard },
-        // Admin & Professional
-        ...((role === 'admin' || role === 'professional') ? [
+        // Admin only - in dashboard order
+        ...(role === 'admin' ? [
             { href: '/turnos', label: 'Turnos', icon: Calendar },
             { href: '/agenda', label: 'Agenda', icon: BookOpen },
-        ] : []),
-        // Admin only
-        ...(role === 'admin' ? [
+            { href: '/promociones', label: 'Promociones', icon: Tag },
+            { href: '/tratamientos', label: 'Tratamientos', icon: Sparkles },
+            { href: '/usuarios', label: 'Usuarios', icon: Settings },
             { href: '/profesionales', label: 'Staff', icon: Users },
             { href: '/alquileres', label: 'Alquileres', icon: Truck },
-            { href: '/usuarios', label: 'Usuarios', icon: Settings },
         ] : []),
-        // Common
-        { href: '/tratamientos', label: 'Tratamientos', icon: Sparkles },
-        { href: '/promociones', label: 'Promociones', icon: Tag },
+        // Professional only
+        ...(role === 'professional' ? [
+            { href: '/turnos', label: 'Turnos', icon: Calendar },
+            { href: '/agenda', label: 'Agenda', icon: BookOpen },
+            { href: '/tratamientos', label: 'Tratamientos', icon: Sparkles },
+            { href: '/promociones', label: 'Promociones', icon: Tag },
+        ] : []),
+        // Client only
+        ...(role === 'client' ? [
+            { href: '/tratamientos', label: 'Tratamientos', icon: Sparkles },
+            { href: '/promociones', label: 'Promociones', icon: Tag },
+        ] : []),
     ];
 
 

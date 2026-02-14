@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Calendar, Users, Search, Home, LayoutDashboard, BookOpen } from 'lucide-react';
+import { Calendar, Users, Search, Home, LayoutDashboard, BookOpen, Sparkles, Tag, ClipboardList } from 'lucide-react';
 import { getTodayDate } from '@/lib/utils/time';
 import { useAuth } from '@/lib/contexts/AuthContext';
 
@@ -68,21 +68,42 @@ export function BottomNav() {
                 },
                 primary: true,
                 active: pathname_real === '/turnos'
+            },
+            {
+                label: 'Buscar',
+                icon: Search,
+                action: () => {
+                    if (pathname_real === '/turnos') {
+                        window.dispatchEvent(new CustomEvent('toggle-search'));
+                    } else {
+                        router.push('/turnos?action=search');
+                    }
+                },
+                active: false
             }
         ] : []),
-        // Client specific or Search for all
-        {
-            label: 'Buscar',
-            icon: Search,
-            action: () => {
-                if (pathname_real === '/turnos') {
-                    window.dispatchEvent(new CustomEvent('toggle-search'));
-                } else {
-                    router.push('/turnos?action=search');
-                }
+        // Client specific
+        ...(role === 'client' ? [
+            {
+                label: 'Tratamientos',
+                icon: Sparkles,
+                href: '/tratamientos',
+                active: pathname_real === '/tratamientos'
             },
-            active: false
-        }
+            {
+                label: 'Promociones',
+                icon: Tag,
+                href: '/promociones',
+                active: pathname_real === '/promociones'
+            },
+            {
+                label: 'Turnos',
+                icon: ClipboardList,
+                href: '/dashboard',
+                primary: true,
+                active: pathname_real === '/dashboard'
+            }
+        ] : []),
     ];
 
 

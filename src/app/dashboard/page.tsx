@@ -208,27 +208,6 @@ export default function DashboardPage() {
                         </div>
                     </div>
 
-                    {/* Global Cards (All Roles) */}
-                    <Link href="/tratamientos" className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow group">
-                        <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                            <Sparkles className="w-5 h-5 text-purple-500" /> Tratamientos
-                        </h2>
-                        <p className="text-gray-500 text-sm">Descubre todos nuestros servicios y tratamientos.</p>
-                        <div className="mt-4 flex justify-end">
-                            <span className="text-[#34baab] font-bold group-hover:translate-x-1 transition-transform">Ver más →</span>
-                        </div>
-                    </Link>
-
-                    <Link href="/promociones" className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow group">
-                        <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                            <Tag className="w-5 h-5 text-pink-500" /> Promociones
-                        </h2>
-                        <p className="text-gray-500 text-sm">Ofertas especiales y paquetes exclusivos para ti.</p>
-                        <div className="mt-4 flex justify-end">
-                            <span className="text-[#34baab] font-bold group-hover:translate-x-1 transition-transform">Ver más →</span>
-                        </div>
-                    </Link>
-
                     {/* Role Based Cards */}
                     {role === 'admin' && (
                         <>
@@ -241,21 +220,42 @@ export default function DashboardPage() {
                                     <span className="text-[#34baab] font-bold group-hover:translate-x-1 transition-transform">Ir →</span>
                                 </div>
                             </Link>
-                            <Link href="/usuarios" className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow group">
-                                <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                                    <Settings className="w-5 h-5 text-gray-400" /> Gestión de Usuarios
-                                </h3>
-                                <p className="text-gray-500 text-sm">Asignar roles y ver base de datos de clientes.</p>
-                                <div className="mt-4 flex justify-end">
-                                    <span className="text-[#34baab] font-bold group-hover:translate-x-1 transition-transform">Ir →</span>
-                                </div>
-                            </Link>
 
                             <Link href="/agenda" className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow group">
                                 <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
                                     <BookOpen className="w-5 h-5 text-[#34baab]" /> Agenda de Clientes
                                 </h3>
                                 <p className="text-gray-500 text-sm">Consultar fichas, historial y datos de salud.</p>
+                                <div className="mt-4 flex justify-end">
+                                    <span className="text-[#34baab] font-bold group-hover:translate-x-1 transition-transform">Ir →</span>
+                                </div>
+                            </Link>
+
+                            <Link href="/promociones" className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow group">
+                                <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                                    <Tag className="w-5 h-5 text-pink-500" /> Promociones
+                                </h2>
+                                <p className="text-gray-500 text-sm">Ofertas especiales y paquetes exclusivos para ti.</p>
+                                <div className="mt-4 flex justify-end">
+                                    <span className="text-[#34baab] font-bold group-hover:translate-x-1 transition-transform">Ver más →</span>
+                                </div>
+                            </Link>
+
+                            <Link href="/tratamientos" className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow group">
+                                <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                                    <Sparkles className="w-5 h-5 text-purple-500" /> Tratamientos
+                                </h2>
+                                <p className="text-gray-500 text-sm">Descubre todos nuestros servicios y tratamientos.</p>
+                                <div className="mt-4 flex justify-end">
+                                    <span className="text-[#34baab] font-bold group-hover:translate-x-1 transition-transform">Ver más →</span>
+                                </div>
+                            </Link>
+
+                            <Link href="/usuarios" className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow group">
+                                <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                                    <Settings className="w-5 h-5 text-gray-400" /> Gestión de Usuarios
+                                </h3>
+                                <p className="text-gray-500 text-sm">Asignar roles y ver base de datos de clientes.</p>
                                 <div className="mt-4 flex justify-end">
                                     <span className="text-[#34baab] font-bold group-hover:translate-x-1 transition-transform">Ir →</span>
                                 </div>
@@ -278,6 +278,31 @@ export default function DashboardPage() {
                                 <p className="text-gray-500 text-sm">Gestionar alquiler de equipos y logística.</p>
                                 <div className="mt-4 flex justify-end">
                                     <span className="text-[#34baab] font-bold group-hover:translate-x-1 transition-transform">Ir →</span>
+                                </div>
+                            </Link>
+                        </>
+                    )}
+
+                    {/* Global Cards (All Roles) - shown after admin cards */}
+                    {role !== 'admin' && (
+                        <>
+                            <Link href="/tratamientos" className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow group">
+                                <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                                    <Sparkles className="w-5 h-5 text-purple-500" /> Tratamientos
+                                </h2>
+                                <p className="text-gray-500 text-sm">Descubre todos nuestros servicios y tratamientos.</p>
+                                <div className="mt-4 flex justify-end">
+                                    <span className="text-[#34baab] font-bold group-hover:translate-x-1 transition-transform">Ver más →</span>
+                                </div>
+                            </Link>
+
+                            <Link href="/promociones" className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow group">
+                                <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                                    <Tag className="w-5 h-5 text-pink-500" /> Promociones
+                                </h2>
+                                <p className="text-gray-500 text-sm">Ofertas especiales y paquetes exclusivos para ti.</p>
+                                <div className="mt-4 flex justify-end">
+                                    <span className="text-[#34baab] font-bold group-hover:translate-x-1 transition-transform">Ver más →</span>
                                 </div>
                             </Link>
                         </>
