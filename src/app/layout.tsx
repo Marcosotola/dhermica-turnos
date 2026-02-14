@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Dhermica - Gestión de Turnos",
+  title: "Dhermica Estética Unisex",
   description: "Sistema de gestión de turnos para Dhermica",
   manifest: "/manifest.json",
   appleWebApp: {

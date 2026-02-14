@@ -6,7 +6,6 @@ import { useAuth } from '@/lib/contexts/AuthContext';
 import { LoginForm } from '@/components/auth/LoginForm';
 import { RegisterForm } from '@/components/auth/RegisterForm';
 import { Toaster } from 'sonner';
-import { LayoutDashboard } from 'lucide-react';
 
 export default function Home() {
   const { user, loading } = useAuth();
@@ -34,8 +33,8 @@ export default function Home() {
       <div className="max-w-md w-full bg-white rounded-3xl shadow-2xl overflow-hidden border border-white/20 backdrop-blur-sm bg-white/90">
         <div className="p-8">
           <div className="flex flex-col items-center mb-8">
-            <div className="w-16 h-16 bg-[#34baab] rounded-2xl flex items-center justify-center shadow-lg mb-4">
-              <LayoutDashboard className="w-10 h-10 text-white" />
+            <div className="w-20 h-20 mb-4 flex items-center justify-center">
+              <img src="/logo.png" alt="Dhermica Logo" className="w-full h-full object-contain" />
             </div>
             <h1 className="text-4xl font-black text-gray-900 tracking-tighter">
               Dhermica
