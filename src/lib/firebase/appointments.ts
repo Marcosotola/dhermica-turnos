@@ -33,6 +33,7 @@ function mapLegacyAppointment(docId: string, data: any, professionalId?: string)
         duration: data.duration || data.duracion || 1,
         professionalId: professionalId || data.professionalId,
         notes: data.notes || data.observaciones || '',
+        price: data.price !== undefined ? data.price : data.precio,
         createdAt: data.createdAt?.toDate() || new Date(),
         updatedAt: data.updatedAt?.toDate() || new Date(),
     } as Appointment;
@@ -49,6 +50,7 @@ function mapToLegacy(data: any) {
     if (data.time !== undefined) legacy.hora = data.time;
     if (data.duration !== undefined) legacy.duracion = data.duration;
     if (data.notes !== undefined) legacy.observaciones = data.notes;
+    if (data.price !== undefined) legacy.precio = data.price;
     return legacy;
 }
 
@@ -158,7 +160,7 @@ export async function updateAppointment(
 
                     if (legacySnap.exists()) {
                         await updateDoc(legacyDocRef, {
-                            ...data,
+                            ...mapToLegacy(data),
                             updatedAt: Timestamp.now(),
                         });
                         console.log(`[Update] Turno actualizado en ${prof.legacyCollectionName}`);
@@ -289,15 +291,7 @@ export async function getAppointmentsByDateRange(
     );
 
     const snapshot = await getDocs(q);
-    return snapshot.docs.map((doc) => {
-        const data = doc.data();
-        return {
-            id: doc.id,
-            ...data,
-            createdAt: data.createdAt?.toDate() || new Date(),
-            updatedAt: data.updatedAt?.toDate() || new Date(),
-        } as Appointment;
-    });
+    return snapshot.docs.map((doc) => mapLegacyAppointment(doc.id, doc.data()));
 }
 
 /**
@@ -495,15 +489,7 @@ export async function getAppointmentsByProfessional(
         );
 
         const snapshot = await getDocs(q);
-        const appointments = snapshot.docs.map((doc) => {
-            const data = doc.data();
-            return {
-                id: doc.id,
-                ...data,
-                createdAt: data.createdAt?.toDate() || new Date(),
-                updatedAt: data.updatedAt?.toDate() || new Date(),
-            } as Appointment;
-        });
+        const appointments = snapshot.docs.map((doc) => mapLegacyAppointment(doc.id, doc.data(), professionalId));
 
         // Ordenar en memoria para evitar requerir índices compuestos en Firestore
         return appointments.sort((a, b) => {

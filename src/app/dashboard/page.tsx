@@ -234,7 +234,7 @@ export default function DashboardPage() {
                     {role === 'professional' && (
                         <Link href="/profesional" className="flex flex-col items-center justify-center bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-all group">
                             <Calendar className="w-10 h-10 text-violet-600 mb-4 group-hover:scale-110 transition-transform" />
-                            <span className="text-xl font-bold text-gray-900 text-center">Mis Turnos</span>
+                            <span className="text-xl font-bold text-gray-900 text-center">Turnos</span>
                             <p className="hidden md:block text-gray-500 text-sm mt-2 text-center">Ver y gestionar tus citas.</p>
                         </Link>
                     )}
@@ -303,7 +303,7 @@ export default function DashboardPage() {
                         </div>
                     </div>
                 )}
-                {(role === 'professional' || role === 'client') && (
+                {role === 'client' && (
                     <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 lg:col-span-3">
                         <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
                             <ClipboardList className="w-5 h-5 text-[#34baab]" /> {role === 'client' ? 'Mis Turnos' : 'Mis Turnos Asignados'}
@@ -324,13 +324,11 @@ export default function DashboardPage() {
                                             <div>
                                                 <h3 className="font-bold text-gray-900">{apt.treatment}</h3>
                                                 <p className="text-sm text-gray-500">
-                                                    {new Date(apt.date + 'T00:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })} - {apt.time}
+                                                    {(() => {
+                                                        const [year, month, day] = apt.date.split('-');
+                                                        return `${day}/${month}/${year}`;
+                                                    })()} - {apt.time}
                                                 </p>
-                                                {role === 'professional' && (
-                                                    <p className="text-xs text-gray-400 font-medium mt-1">
-                                                        Cliente: {apt.clientName}
-                                                    </p>
-                                                )}
                                             </div>
                                         </div>
                                         <div className="text-right">

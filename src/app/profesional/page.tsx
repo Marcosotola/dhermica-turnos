@@ -17,7 +17,7 @@ export default function ProfesionalPage() {
     const [filteredAppointments, setFilteredAppointments] = useState<Appointment[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
-    const [selectedDate, setSelectedDate] = useState(''); // Mostrar todos por defecto para evitar confusiones
+    const [selectedDate, setSelectedDate] = useState('');
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editData, setEditData] = useState({ notes: '', price: 0 });
 
@@ -33,22 +33,15 @@ export default function ProfesionalPage() {
 
             setLoading(true);
             try {
-                // Primero obtener el documento de profesional asociado a este usuario
                 const { getProfessionalByUserId } = await import('@/lib/firebase/professionals');
                 const { getAppointmentsByProfessionalId } = await import('@/lib/firebase/appointments');
                 const professionalDoc = await getProfessionalByUserId(user.uid);
 
-                console.log('[DEBUG] User UID:', user.uid);
-                console.log('[DEBUG] Professional Doc:', professionalDoc);
-
                 if (professionalDoc) {
-                    // Usar getAppointmentsByProfessionalId que también busca en legacy
                     const data = await getAppointmentsByProfessionalId(professionalDoc.id);
-                    console.log('[DEBUG] Appointments data length:', data.length);
                     setAppointments(data);
                     setFilteredAppointments(data);
                 } else {
-                    console.warn('No professional document found for user:', user.uid);
                     setAppointments([]);
                     setFilteredAppointments([]);
                 }
@@ -68,12 +61,10 @@ export default function ProfesionalPage() {
     useEffect(() => {
         let filtered = appointments;
 
-        // Filtrar por fecha
         if (selectedDate) {
             filtered = filtered.filter(apt => apt.date === selectedDate);
         }
 
-        // Filtrar por búsqueda
         if (searchQuery) {
             const query = searchQuery.toLowerCase();
             filtered = filtered.filter(apt =>
@@ -95,9 +86,13 @@ export default function ProfesionalPage() {
 
     const handleSave = async (id: string) => {
         try {
-            await updateAppointment(id, editData);
+            const finalData = {
+                ...editData,
+                price: Math.round(Number(editData.price) * 100) / 100
+            };
+            await updateAppointment(id, finalData);
             setAppointments(appointments.map(apt =>
-                apt.id === id ? { ...apt, ...editData } : apt
+                apt.id === id ? { ...apt, ...finalData } : apt
             ));
             setEditingId(null);
             toast.success('Turno actualizado');
@@ -141,31 +136,18 @@ export default function ProfesionalPage() {
 
             {/* Dashboard Grid */}
             <div className="max-w-7xl mx-auto px-4 py-8">
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-                    {/* Mis Turnos */}
-                    <button
-                        onClick={() => {
-                            const element = document.getElementById('list-section');
-                            element?.scrollIntoView({ behavior: 'smooth' });
-                        }}
-                        className="flex flex-col items-center justify-center bg-white rounded-3xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-all text-center group"
-                    >
-                        <Calendar className="w-10 h-10 text-violet-600 group-hover:scale-110 transition-transform mb-4" />
-                        <h2 className="text-xl font-bold text-gray-900">Mis Turnos</h2>
-                        <p className="hidden md:block text-sm text-gray-500 mt-2">Ver tus citas asignadas</p>
-                    </button>
-
-                    {/* Agenda */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+                    {/* Turnos (Agenda) */}
                     <button
                         onClick={() => router.push('/turnos')}
                         className="flex flex-col items-center justify-center bg-white rounded-3xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-all text-center group"
                     >
                         <BookOpen className="w-10 h-10 text-teal-600 group-hover:scale-110 transition-transform mb-4" />
-                        <h2 className="text-xl font-bold text-gray-900">Agenda</h2>
+                        <h2 className="text-xl font-bold text-gray-900">Turnos</h2>
                         <p className="hidden md:block text-sm text-gray-500 mt-2">Consultar calendario general</p>
                     </button>
 
-                    {/* Tratamientos */}
+                    {/* Servicios (Tratamientos) */}
                     <button
                         onClick={() => router.push('/tratamientos')}
                         className="flex flex-col items-center justify-center bg-white rounded-3xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-all text-center group"
@@ -175,7 +157,7 @@ export default function ProfesionalPage() {
                         <p className="hidden md:block text-sm text-gray-500 mt-2">Lista de precios y servicios</p>
                     </button>
 
-                    {/* Promociones */}
+                    {/* Promos (Promociones) */}
                     <button
                         onClick={() => router.push('/promociones')}
                         className="flex flex-col items-center justify-center bg-white rounded-3xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-all text-center group"
@@ -239,10 +221,14 @@ export default function ProfesionalPage() {
                                         <Input
                                             label="Precio"
                                             type="number"
-                                            value={editData.price}
-                                            onChange={(e) => setEditData({ ...editData, price: parseFloat(e.target.value) || 0 })}
+                                            value={editData.price === 0 ? '' : editData.price}
+                                            onChange={(e) => {
+                                                const val = e.target.value;
+                                                setEditData({ ...editData, price: val === '' ? 0 : parseFloat(val) });
+                                            }}
                                             min="0"
                                             step="0.01"
+                                            placeholder="0.00"
                                         />
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700 mb-1">

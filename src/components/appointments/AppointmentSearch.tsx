@@ -99,7 +99,10 @@ export function AppointmentSearch({ onSelectAppointment, variant = 'dropdown' }:
                                         <div className="text-right">
                                             <div className="flex items-center gap-1 text-xs text-[#45a049] font-semibold bg-green-50 px-2 py-1 rounded">
                                                 <Calendar className="w-3 h-3" />
-                                                {apt.date}
+                                                {(() => {
+                                                    const [year, month, day] = apt.date.split('-');
+                                                    return `${day}/${month}/${year}`;
+                                                })()}
                                             </div>
                                             <p className="text-xs text-gray-500 mt-1">{apt.time} hs</p>
                                         </div>

@@ -188,6 +188,7 @@ export default function UsuariosPage() {
                                                     options={[
                                                         { value: 'client', label: 'Cliente' },
                                                         { value: 'professional', label: 'Profesional' },
+                                                        { value: 'secretary', label: 'Secretaria' },
                                                         { value: 'admin', label: 'Administrador' }
                                                     ]}
                                                     className="w-32"

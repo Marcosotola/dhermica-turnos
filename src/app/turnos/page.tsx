@@ -91,7 +91,8 @@ function TurnosContent() {
     const handleSearchSelect = (appointment: Appointment) => {
         setSelectedDate(appointment.date);
         setIsSearchOpen(false);
-        toast.info(`Cargando turnos para el día ${appointment.date}`);
+        handleEditClick(appointment); // Open the modal directly
+        toast.info(`Cargando turno de ${appointment.clientName}`);
     };
 
     const handleCreateClick = (time: string, professionalId?: string) => {
@@ -159,7 +160,10 @@ function TurnosContent() {
                                 Dhermica
                             </h1>
                             <p className="text-sm md:text-base font-bold text-gray-300 uppercase tracking-widest leading-none mt-1">
-                                {mounted && selectedDate ? new Date(selectedDate + 'T12:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' }) : ''}
+                                {mounted && selectedDate ? (() => {
+                                    const [year, month, day] = selectedDate.split('-');
+                                    return `${day}/${month}/${year}`;
+                                })() : ''}
                             </p>
                         </div>
                     </div>

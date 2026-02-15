@@ -112,7 +112,7 @@ export function AppointmentModal({
                 treatment: '',
                 time: defaultTime || '',
                 duration: 1,
-                professionalId: defaultProfessionalId || '',
+                professionalId: defaultProfessionalId || (professionals.length > 0 ? professionals[0].id : ''),
                 notes: '',
                 price: 0,
             });
@@ -200,10 +200,18 @@ export function AppointmentModal({
             );
 
             if (appointment) {
+                // Round price to 2 decimal places to avoid floating point issues
+                if (cleanData.price !== undefined) {
+                    cleanData.price = Math.round(Number(cleanData.price) * 100) / 100;
+                }
                 await updateAppointment(appointment.id, cleanData);
                 toast.success('Turno actualizado exitosamente');
             } else {
-                await createAppointment(cleanData as Omit<Appointment, 'id' | 'createdAt' | 'updatedAt'>);
+                const finalData = { ...cleanData };
+                if (finalData.price !== undefined) {
+                    finalData.price = Math.round(Number(finalData.price) * 100) / 100;
+                }
+                await createAppointment(finalData as Omit<Appointment, 'id' | 'createdAt' | 'updatedAt'>);
                 toast.success('Turno creado exitosamente');
             }
             onClose();
@@ -216,10 +224,7 @@ export function AppointmentModal({
         }
     };
 
-    const professionalOptions = [
-        { value: '', label: 'General (sin profesional)' },
-        ...professionals.map((p) => ({ value: p.id, label: p.name })),
-    ];
+    const professionalOptions = professionals.map((p) => ({ value: p.id, label: p.name }));
 
     return (
         <Modal
@@ -390,9 +395,12 @@ export function AppointmentModal({
                 <Input
                     label="Precio (opcional)"
                     type="number"
-                    value={formData.price}
-                    onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
-                    placeholder="0"
+                    value={formData.price === 0 ? '' : formData.price}
+                    onChange={(e) => {
+                        const val = e.target.value;
+                        setFormData({ ...formData, price: val === '' ? 0 : parseFloat(val) });
+                    }}
+                    placeholder="0.00"
                     min="0"
                     step="0.01"
                 />

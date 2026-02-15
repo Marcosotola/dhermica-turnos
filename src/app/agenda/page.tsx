@@ -11,6 +11,9 @@ import { Appointment } from '@/lib/types/appointment';
 import { getAppointmentsByClientId } from '@/lib/firebase/appointments';
 import { QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
 import { Button } from '@/components/ui/Button';
+import { getActiveProfessionals } from '@/lib/firebase/professionals';
+import { Professional } from '@/lib/types/professional';
+import { ChevronUp, DollarSign } from 'lucide-react';
 
 export default function AgendaPage() {
     const { profile, loading: authLoading } = useAuth();
@@ -21,6 +24,8 @@ export default function AgendaPage() {
     const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
     const [appointments, setAppointments] = useState<Appointment[]>([]);
     const [historyLoading, setHistoryLoading] = useState(false);
+    const [isInfoOpen, setIsInfoOpen] = useState(false);
+    const [professionals, setProfessionals] = useState<Professional[]>([]);
 
     // Pagination state
     const [lastDoc, setLastDoc] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
@@ -28,10 +33,22 @@ export default function AgendaPage() {
     const [loadingMore, setLoadingMore] = useState(false);
 
     useEffect(() => {
-        if (!authLoading && profile?.role !== 'admin' && profile?.role !== 'professional') {
+        if (!authLoading && profile?.role !== 'admin' && profile?.role !== 'professional' && profile?.role !== 'secretary') {
             router.push('/dashboard');
         }
     }, [profile, authLoading, router]);
+
+    useEffect(() => {
+        const fetchProfessionals = async () => {
+            try {
+                const data = await getActiveProfessionals();
+                setProfessionals(data);
+            } catch (error) {
+                console.error('Error fetching professionals:', error);
+            }
+        };
+        fetchProfessionals();
+    }, []);
 
     const loadInitialUsers = useCallback(async () => {
         setLoading(true);
@@ -193,7 +210,7 @@ export default function AgendaPage() {
                     {/* Content Column */}
                     <div className="lg:col-span-2">
                         {selectedUser ? (
-                            <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 space-y-8 animate-in fade-in duration-300">
+                            <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 space-y-6 animate-in fade-in duration-300">
                                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                                     <div className="flex items-center gap-4">
                                         <div className="w-20 h-20 bg-[#484450] rounded-2xl flex items-center justify-center shadow-lg">
@@ -219,55 +236,94 @@ export default function AgendaPage() {
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div className="space-y-4">
-                                        <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest border-b border-gray-100 pb-2 flex items-center gap-2">
-                                            <Info className="w-4 h-4 text-[#34baab]" /> Información Básica
-                                        </h3>
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div className="bg-gray-50 p-4 rounded-2xl">
-                                                <p className="text-[10px] text-gray-400 font-black uppercase mb-1">F. Nacimiento</p>
-                                                <p className="font-bold text-gray-900">{selectedUser.birthDate}</p>
-                                            </div>
-                                            <div className="bg-gray-50 p-4 rounded-2xl">
-                                                <p className="text-[10px] text-gray-400 font-black uppercase mb-1">Desde</p>
-                                                <p className="font-bold text-gray-900">{selectedUser.createdAt.toLocaleDateString()}</p>
-                                            </div>
+                                {/* Personal Info Collapsible */}
+                                <div className="border border-gray-100 rounded-3xl overflow-hidden">
+                                    <button
+                                        onClick={() => setIsInfoOpen(!isInfoOpen)}
+                                        className="w-full flex items-center justify-between p-4 bg-gray-50 hover:bg-gray-100 transition-colors"
+                                    >
+                                        <div className="flex items-center gap-2">
+                                            <Info className="w-5 h-5 text-[#34baab]" />
+                                            <span className="font-bold text-gray-900">Información Personal</span>
                                         </div>
-                                    </div>
+                                        {isInfoOpen ? (
+                                            <ChevronUp className="w-5 h-5 text-gray-400" />
+                                        ) : (
+                                            <ChevronDown className="w-5 h-5 text-gray-400" />
+                                        )}
+                                    </button>
 
-                                    <div className="space-y-4">
-                                        <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest border-b border-gray-100 pb-2 flex items-center gap-2">
-                                            <Heart className="w-4 h-4 text-pink-500" /> Salud & Advertencias
-                                        </h3>
-                                        <div className="flex gap-4">
-                                            <div className="flex-1 p-4 rounded-2xl bg-gray-50">
-                                                <p className="text-[10px] text-gray-400 font-black uppercase mb-1">Sexo</p>
-                                                <p className="font-bold text-gray-900">{selectedUser.sex === 'male' ? 'Masculino' : 'Femenino'}</p>
-                                            </div>
-                                            <div className={`flex-1 p-4 rounded-2xl ${selectedUser.hasTattoos ? 'bg-orange-50' : 'bg-gray-50'}`}>
-                                                <p className="text-[10px] text-gray-400 font-black uppercase mb-1">Tatuajes</p>
-                                                <p className={`font-black ${selectedUser.hasTattoos ? 'text-orange-600' : 'text-gray-900'}`}>{selectedUser.hasTattoos ? 'SÍ' : 'NO'}</p>
-                                            </div>
-                                            {selectedUser.sex === 'female' && (
-                                                <div className={`flex-1 p-4 rounded-2xl ${selectedUser.isPregnant ? 'bg-pink-50' : 'bg-gray-50'}`}>
-                                                    <p className="text-[10px] text-gray-400 font-black uppercase mb-1">Embarazo</p>
-                                                    <p className={`font-black ${selectedUser.isPregnant ? 'text-pink-600' : 'text-gray-900'}`}>{selectedUser.isPregnant ? 'SÍ' : 'NO'}</p>
+                                    {isInfoOpen && (
+                                        <div className="p-6 space-y-8 animate-in slide-in-from-top-2 duration-200">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                <div className="space-y-4">
+                                                    <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest border-b border-gray-100 pb-2 flex items-center gap-2">
+                                                        <CalendarCheck className="w-4 h-4 text-[#34baab]" /> Información Básica
+                                                    </h3>
+                                                    <div className="grid grid-cols-2 gap-4">
+                                                        <div className="bg-gray-50 p-4 rounded-2xl">
+                                                            <p className="text-[10px] text-gray-400 font-black uppercase mb-1">F. Nacimiento</p>
+                                                            <p className="font-bold text-gray-900">
+                                                                {(() => {
+                                                                    const parts = selectedUser.birthDate.split('-');
+                                                                    if (parts.length === 3) {
+                                                                        const [year, month, day] = parts;
+                                                                        return `${day}/${month}/${year}`;
+                                                                    }
+                                                                    return selectedUser.birthDate;
+                                                                })()}
+                                                            </p>
+                                                        </div>
+                                                        <div className="bg-gray-50 p-4 rounded-2xl">
+                                                            <p className="text-[10px] text-gray-400 font-black uppercase mb-1">Desde</p>
+                                                            <p className="font-bold text-gray-900">
+                                                                {(() => {
+                                                                    const d = new Date(selectedUser.createdAt);
+                                                                    const day = d.getDate().toString().padStart(2, '0');
+                                                                    const month = (d.getMonth() + 1).toString().padStart(2, '0');
+                                                                    const year = d.getFullYear();
+                                                                    return `${day}/${month}/${year}`;
+                                                                })()}
+                                                            </p>
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
 
-                                <div className="space-y-4">
-                                    <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest border-b border-gray-100 pb-2 flex items-center gap-2">
-                                        <AlertCircle className="w-4 h-4 text-red-500" /> Información Relevante
-                                    </h3>
-                                    <div className="bg-red-50/50 p-6 rounded-2xl border border-red-100">
-                                        <p className="text-gray-700 italic">
-                                            {selectedUser.relevantMedicalInfo || 'No hay información médica relevante registrada.'}
-                                        </p>
-                                    </div>
+                                                <div className="space-y-4">
+                                                    <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest border-b border-gray-100 pb-2 flex items-center gap-2">
+                                                        <Heart className="w-4 h-4 text-pink-500" /> Salud & Advertencias
+                                                    </h3>
+                                                    <div className="flex gap-4">
+                                                        <div className="flex-1 p-4 rounded-2xl bg-gray-50">
+                                                            <p className="text-[10px] text-gray-400 font-black uppercase mb-1">Sexo</p>
+                                                            <p className="font-bold text-gray-900">{selectedUser.sex === 'male' ? 'Masculino' : 'Femenino'}</p>
+                                                        </div>
+                                                        <div className={`flex-1 p-4 rounded-2xl ${selectedUser.hasTattoos ? 'bg-orange-50' : 'bg-gray-50'}`}>
+                                                            <p className="text-[10px] text-gray-400 font-black uppercase mb-1">Tatuajes</p>
+                                                            <p className={`font-black ${selectedUser.hasTattoos ? 'text-orange-600' : 'text-gray-900'}`}>{selectedUser.hasTattoos ? 'SÍ' : 'NO'}</p>
+                                                        </div>
+                                                        {selectedUser.sex === 'female' && (
+                                                            <div className={`flex-1 p-4 rounded-2xl ${selectedUser.isPregnant ? 'bg-pink-50' : 'bg-gray-50'}`}>
+                                                                <p className="text-[10px] text-gray-400 font-black uppercase mb-1">Embarazo</p>
+                                                                <p className={`font-black ${selectedUser.isPregnant ? 'text-pink-600' : 'text-gray-900'}`}>{selectedUser.isPregnant ? 'SÍ' : 'NO'}</p>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-4">
+                                                <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest border-b border-gray-100 pb-2 flex items-center gap-2">
+                                                    <AlertCircle className="w-4 h-4 text-red-500" /> Información Relevante
+                                                </h3>
+                                                <div className="bg-red-50/50 p-6 rounded-2xl border border-red-100">
+                                                    <p className="text-gray-700 italic">
+                                                        {selectedUser.relevantMedicalInfo || 'No hay información médica relevante registrada.'}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div className="pt-6 border-t border-gray-100">
@@ -290,16 +346,30 @@ export default function AgendaPage() {
                                                         <div>
                                                             <h4 className="font-bold text-gray-900 text-sm">{apt.treatment}</h4>
                                                             <p className="text-xs text-gray-500">
-                                                                {new Date(apt.date + 'T00:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })} - {apt.time}
+                                                                {(() => {
+                                                                    const [year, month, day] = apt.date.split('-');
+                                                                    return `${day}/${month}/${year}`;
+                                                                })()} - {apt.time}
                                                             </p>
+                                                            {apt.professionalId && (
+                                                                <p className="text-[10px] text-violet-600 font-bold uppercase mt-1">
+                                                                    Prof: {professionals.find(p => p.id === apt.professionalId)?.name || 'General'}
+                                                                </p>
+                                                            )}
                                                         </div>
                                                     </div>
                                                     <div className="text-right">
-                                                        {apt.notes && (
-                                                            <span className="text-xs text-gray-400 italic block max-w-[150px] truncate">
-                                                                {apt.notes}
-                                                            </span>
-                                                        )}
+                                                        <div className="flex flex-col items-end gap-1">
+                                                            <div className="flex items-center gap-1 text-[#34baab] font-black shrink-0">
+                                                                <DollarSign className="w-3 h-3" />
+                                                                <span>{apt.price?.toLocaleString('es-AR') || '0'}</span>
+                                                            </div>
+                                                            {apt.notes && (
+                                                                <span className="text-[10px] text-gray-400 italic block max-w-[150px] truncate">
+                                                                    {apt.notes}
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                 </div>
                                             ))}

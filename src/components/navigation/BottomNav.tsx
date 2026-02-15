@@ -38,7 +38,7 @@ export function BottomNav() {
         // Role-specific primary action
         ...(role === 'professional' ? [
             {
-                label: 'Mis Turnos',
+                label: 'Turnos',
                 icon: ClipboardList,
                 href: '/profesional',
                 primary: true,

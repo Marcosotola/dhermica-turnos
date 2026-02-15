@@ -37,11 +37,10 @@ export function RentalTable({ rentals, onEdit, onDelete }: RentalTableProps) {
                             {rentals.map((rental) => (
                                 <tr key={rental.id} className="hover:bg-gray-50/50 transition-colors">
                                     <td className="px-6 py-4 font-semibold text-gray-700">
-                                        {new Date(rental.date + 'T12:00:00').toLocaleDateString('es-ES', {
-                                            weekday: 'short',
-                                            day: 'numeric',
-                                            month: 'short'
-                                        })}
+                                        {(() => {
+                                            const [year, month, day] = rental.date.split('-');
+                                            return `${day}/${month}/${year}`;
+                                        })()}
                                     </td>
                                     <td className="px-6 py-4 font-bold text-gray-900">{rental.clientName}</td>
                                     <td className="px-6 py-4">
@@ -81,11 +80,10 @@ export function RentalTable({ rentals, onEdit, onDelete }: RentalTableProps) {
                         <div className="flex justify-between items-start mb-3">
                             <div className="space-y-1">
                                 <p className="text-sm font-bold text-[#34baab] uppercase tracking-wider">
-                                    {new Date(rental.date + 'T12:00:00').toLocaleDateString('es-ES', {
-                                        weekday: 'long',
-                                        day: 'numeric',
-                                        month: 'short'
-                                    })}
+                                    {(() => {
+                                        const [year, month, day] = rental.date.split('-');
+                                        return `${day}/${month}/${year}`;
+                                    })()}
                                 </p>
                                 <h3 className="text-lg font-black text-gray-900 leading-tight">
                                     {rental.clientName}
