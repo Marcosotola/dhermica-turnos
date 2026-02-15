@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { getAllUsers, updateUserProfile, deleteUserProfile } from '@/lib/firebase/users';
+import { ensureProfessionalEntry } from '@/lib/firebase/professionals';
 import { UserProfile, UserRole } from '@/lib/types/user';
 import { toast, Toaster } from 'sonner';
 import { Users, Shield, User as UserIcon, Search, Mail, Phone, Pencil, Trash } from 'lucide-react';
@@ -44,9 +45,30 @@ export default function UsuariosPage() {
 
     const handleRoleChange = async (uid: string, newRole: UserRole) => {
         try {
+            // Actualizar rol en users
             await updateUserProfile(uid, { role: newRole });
+
+            // Si el nuevo rol es professional, asegurar entrada en professionals
+            if (newRole === 'professional') {
+                const user = users.find(u => u.uid === uid);
+
+                if (user) {
+                    try {
+                        await ensureProfessionalEntry(uid, user.fullName);
+                        toast.success('Rol actualizado y profesional creado automáticamente');
+                    } catch (profError) {
+                        console.error('[handleRoleChange] Error en ensureProfessionalEntry:', profError);
+                        toast.error('Rol actualizado pero hubo un error al crear el profesional');
+                    }
+                } else {
+                    toast.success('Rol actualizado correctamente');
+                }
+            } else {
+                toast.success('Rol actualizado correctamente');
+            }
+
+            // Actualizar UI
             setUsers(users.map(u => u.uid === uid ? { ...u, role: newRole } : u));
-            toast.success('Rol actualizado correctamente');
         } catch (error) {
             console.error('Error updating role:', error);
             toast.error('Error al actualizar el rol');

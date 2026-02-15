@@ -18,14 +18,14 @@ interface NavTab {
 }
 
 export function BottomNav() {
-    const pathname = useAuth(); // Incorrect usage of useAuth, fixing below
-    const { user, profile } = useAuth();
     const pathname_real = usePathname();
+    const { user, profile } = useAuth();
     const router = useRouter();
 
     if (!user) return null;
 
     const role = profile?.role || 'client';
+    const isManagement = role === 'admin' || role === 'professional' || role === 'secretary';
 
 
     const tabs: NavTab[] = [
@@ -35,8 +35,18 @@ export function BottomNav() {
             href: '/dashboard',
             active: pathname_real === '/dashboard'
         },
-        // Admin & Professional specific
-        ...((role === 'admin' || role === 'professional') ? [
+        // Role-specific primary action
+        ...(role === 'professional' ? [
+            {
+                label: 'Mis Turnos',
+                icon: ClipboardList,
+                href: '/profesional',
+                primary: true,
+                active: pathname_real === '/profesional'
+            }
+        ] : []),
+        // Admin & Secretary specific
+        ...(role === 'admin' || role === 'secretary' ? [
             {
                 label: 'Fecha',
                 icon: Calendar,

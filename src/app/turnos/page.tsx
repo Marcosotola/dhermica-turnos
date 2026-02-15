@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { useAuth } from '@/lib/contexts/AuthContext';
 import { AppointmentTable } from '@/components/appointments/AppointmentTable';
 import { AppointmentModal } from '@/components/appointments/AppointmentModal';
 import { DeleteConfirmDialog } from '@/components/appointments/DeleteConfirmDialog';
@@ -18,11 +19,19 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 
 function TurnosContent() {
+    const { user, profile, loading: authLoading } = useAuth();
+    const router = useRouter();
     const searchParams = useSearchParams();
     const dateParam = searchParams.get('date');
     const actionParam = searchParams.get('action');
 
     const [selectedDate, setSelectedDate] = useState(dateParam || '');
+
+    useEffect(() => {
+        if (!authLoading && profile?.role === 'professional') {
+            router.push('/profesional');
+        }
+    }, [profile, authLoading, router]);
     const [mounted, setMounted] = useState(false);
     const [modalOpen, setModalOpen] = useState(false);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);

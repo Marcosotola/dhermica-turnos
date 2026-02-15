@@ -1,5 +1,6 @@
 export interface Professional {
     id: string;
+    userId?: string; // UID del usuario en la colección users (opcional para legacy)
     name: string;
     color: string; // Color hex para identificación visual
     active: boolean;

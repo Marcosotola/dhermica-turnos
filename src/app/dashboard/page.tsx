@@ -4,6 +4,7 @@ import { useAuth } from '@/lib/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import {
+    LayoutDashboard,
     Calendar,
     Users,
     User as UserIcon,
@@ -18,7 +19,8 @@ import {
     Sparkles,
     Tag,
     ChevronDown,
-    ChevronUp
+    ChevronUp,
+    Plus
 } from 'lucide-react';
 import Link from 'next/link';
 import { Appointment } from '@/lib/types/appointment';
@@ -146,9 +148,9 @@ export default function DashboardPage() {
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
                     {/* Common Card: My Profile */}
-                    <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 transition-all duration-300">
+                    <div className="col-span-2 md:col-span-1 bg-white p-6 rounded-3xl shadow-sm border border-gray-100 transition-all duration-300">
                         <div
                             className="flex justify-between items-center cursor-pointer"
                             onClick={() => setIsProfileCollapsed(!isProfileCollapsed)}
@@ -156,9 +158,7 @@ export default function DashboardPage() {
                             <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
                                 <UserIcon className="w-5 h-5 text-[#34baab]" /> Mis Datos
                             </h2>
-                            <button
-                                className="text-[#34baab] p-1 rounded-lg hover:bg-[#34baab]/10 transition-colors"
-                            >
+                            <button className="text-[#34baab] p-1 rounded-lg hover:bg-[#34baab]/10 transition-colors">
                                 {isProfileCollapsed ? <ChevronDown className="w-5 h-5" /> : <ChevronUp className="w-5 h-5" />}
                             </button>
                         </div>
@@ -168,30 +168,6 @@ export default function DashboardPage() {
                                 <div className="pt-4 space-y-3 text-sm">
                                     <p><span className="font-bold text-gray-500">Nombre:</span> {profile?.fullName}</p>
                                     <p><span className="font-bold text-gray-500">Email:</span> {profile?.email}</p>
-                                    <p><span className="font-bold text-gray-500">Teléfono:</span> {profile?.phone}</p>
-                                    <p><span className="font-bold text-gray-500">Sexo:</span> {profile?.sex === 'male' ? 'Masculino' : 'Femenino'}</p>
-                                    <p><span className="font-bold text-gray-500">F. Nacimiento:</span> {profile?.birthDate ? profile.birthDate.split('-').reverse().join('-') : 'N/A'}</p>
-                                    <p><span className="font-bold text-gray-500">Edad:</span> {profile?.birthDate ? `${calculateAge(profile.birthDate)} años` : 'N/A'}</p>
-
-                                    <div className="border-t border-gray-100 my-3 pt-3">
-                                        <div className="flex gap-4 mb-2">
-                                            <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${profile?.hasTattoos ? 'bg-orange-100 text-orange-600' : 'bg-gray-100 text-gray-400'}`}>
-                                                {profile?.hasTattoos ? 'Con Tatuajes' : 'Sin Tatuajes'}
-                                            </span>
-                                            {profile?.sex === 'female' && (
-                                                <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${profile?.isPregnant ? 'bg-pink-100 text-pink-600' : 'bg-gray-100 text-gray-400'}`}>
-                                                    {profile?.isPregnant ? 'Embarazada' : 'No Embarazada'}
-                                                </span>
-                                            )}
-                                        </div>
-                                        {profile?.relevantMedicalInfo && (
-                                            <div className="bg-red-50 p-3 rounded-xl border border-red-100 mt-2">
-                                                <p className="text-[10px] font-black text-red-500 uppercase mb-1">Información Médica</p>
-                                                <p className="text-gray-700 italic text-xs">{profile.relevantMedicalInfo}</p>
-                                            </div>
-                                        )}
-                                    </div>
-
                                     <div className="pt-2 flex justify-end">
                                         <button
                                             onClick={(e) => {
@@ -200,7 +176,7 @@ export default function DashboardPage() {
                                             }}
                                             className="text-xs font-bold text-[#34baab] hover:underline flex items-center gap-1"
                                         >
-                                            <Settings className="w-3 h-3" /> Editar Perfil
+                                            <Settings className="w-3 h-3" /> Editar
                                         </button>
                                     </div>
                                 </div>
@@ -208,166 +184,184 @@ export default function DashboardPage() {
                         </div>
                     </div>
 
-                    {/* Role Based Cards */}
+                    {/* Role Based Buttons */}
                     {role === 'admin' && (
                         <>
-                            <Link href="/turnos" className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow group">
-                                <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                                    <Calendar className="w-5 h-5 text-[#34baab]" /> Gestión de Turnos
-                                </h2>
-                                <p className="text-gray-500 text-sm">Ver, crear y cancelar turnos del día.</p>
-                                <div className="mt-4 flex justify-end">
-                                    <span className="text-[#34baab] font-bold group-hover:translate-x-1 transition-transform">Ir →</span>
-                                </div>
+                            <Link href="/turnos" className="flex flex-col items-center justify-center bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-all group">
+                                <Calendar className="w-10 h-10 text-[#34baab] mb-4 group-hover:scale-110 transition-transform" />
+                                <span className="text-xl font-bold text-gray-900 text-center">Turnos</span>
+                                <p className="hidden md:block text-gray-500 text-sm mt-2 text-center">Ver, crear y cancelar turnos.</p>
                             </Link>
 
-                            <Link href="/agenda" className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow group">
-                                <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                                    <BookOpen className="w-5 h-5 text-[#34baab]" /> Agenda de Clientes
-                                </h3>
-                                <p className="text-gray-500 text-sm">Consultar fichas, historial y datos de salud.</p>
-                                <div className="mt-4 flex justify-end">
-                                    <span className="text-[#34baab] font-bold group-hover:translate-x-1 transition-transform">Ir →</span>
-                                </div>
+                            <Link href="/agenda" className="flex flex-col items-center justify-center bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-all group">
+                                <BookOpen className="w-10 h-10 text-[#34baab] mb-4 group-hover:scale-110 transition-transform" />
+                                <span className="text-xl font-bold text-gray-900 text-center">Agenda</span>
+                                <p className="hidden md:block text-gray-500 text-sm mt-2 text-center">Consultar fichas e historial.</p>
                             </Link>
 
-                            <Link href="/promociones" className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow group">
-                                <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                                    <Tag className="w-5 h-5 text-pink-500" /> Promociones
-                                </h2>
-                                <p className="text-gray-500 text-sm">Ofertas especiales y paquetes exclusivos para ti.</p>
-                                <div className="mt-4 flex justify-end">
-                                    <span className="text-[#34baab] font-bold group-hover:translate-x-1 transition-transform">Ver más →</span>
-                                </div>
+                            <Link href="/promociones" className="flex flex-col items-center justify-center bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-all group">
+                                <Tag className="w-10 h-10 text-pink-500 mb-4 group-hover:scale-110 transition-transform" />
+                                <span className="text-xl font-bold text-gray-900 text-center">Promos</span>
+                                <p className="hidden md:block text-gray-500 text-sm mt-2 text-center">Gestionar ofertas especiales.</p>
                             </Link>
 
-                            <Link href="/tratamientos" className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow group">
-                                <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                                    <Sparkles className="w-5 h-5 text-purple-500" /> Tratamientos
-                                </h2>
-                                <p className="text-gray-500 text-sm">Descubre todos nuestros servicios y tratamientos.</p>
-                                <div className="mt-4 flex justify-end">
-                                    <span className="text-[#34baab] font-bold group-hover:translate-x-1 transition-transform">Ver más →</span>
-                                </div>
+                            <Link href="/tratamientos" className="flex flex-col items-center justify-center bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-all group">
+                                <Sparkles className="w-10 h-10 text-purple-500 mb-4 group-hover:scale-110 transition-transform" />
+                                <span className="text-xl font-bold text-gray-900 text-center">Servicios</span>
+                                <p className="hidden md:block text-gray-500 text-sm mt-2 text-center">Gestionar tratamientos.</p>
                             </Link>
 
-                            <Link href="/usuarios" className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow group">
-                                <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                                    <Settings className="w-5 h-5 text-gray-400" /> Gestión de Usuarios
-                                </h3>
-                                <p className="text-gray-500 text-sm">Asignar roles y ver base de datos de clientes.</p>
-                                <div className="mt-4 flex justify-end">
-                                    <span className="text-[#34baab] font-bold group-hover:translate-x-1 transition-transform">Ir →</span>
-                                </div>
+                            <Link href="/usuarios" className="flex flex-col items-center justify-center bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-all group">
+                                <Settings className="w-10 h-10 text-gray-400 mb-4 group-hover:scale-110 transition-transform" />
+                                <span className="text-xl font-bold text-gray-900 text-center">Usuarios</span>
+                                <p className="hidden md:block text-gray-500 text-sm mt-2 text-center">Asignar roles y ver clientes.</p>
                             </Link>
 
-                            <Link href="/profesionales" className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow group">
-                                <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                                    <Briefcase className="w-5 h-5 text-purple-500" /> Profesionales
-                                </h3>
-                                <p className="text-gray-500 text-sm">Gestionar staff, colores y orden de visualización.</p>
-                                <div className="mt-4 flex justify-end">
-                                    <span className="text-[#34baab] font-bold group-hover:translate-x-1 transition-transform">Ir →</span>
-                                </div>
+                            <Link href="/profesionales" className="flex flex-col items-center justify-center bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-all group">
+                                <Briefcase className="w-10 h-10 text-purple-500 mb-4 group-hover:scale-110 transition-transform" />
+                                <span className="text-xl font-bold text-gray-900 text-center">Staff</span>
+                                <p className="hidden md:block text-gray-500 text-sm mt-2 text-center">Gestionar profesionales.</p>
                             </Link>
 
-                            <Link href="/alquileres" className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow group">
-                                <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                                    <Truck className="w-5 h-5 text-orange-500" /> Alquileres
-                                </h3>
-                                <p className="text-gray-500 text-sm">Gestionar alquiler de equipos y logística.</p>
-                                <div className="mt-4 flex justify-end">
-                                    <span className="text-[#34baab] font-bold group-hover:translate-x-1 transition-transform">Ir →</span>
-                                </div>
+                            <Link href="/alquileres" className="flex flex-col items-center justify-center bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-all group">
+                                <Truck className="w-10 h-10 text-orange-500 mb-4 group-hover:scale-110 transition-transform" />
+                                <span className="text-xl font-bold text-gray-900 text-center">Equipos</span>
+                                <p className="hidden md:block text-gray-500 text-sm mt-2 text-center">Gestionar alquileres.</p>
                             </Link>
                         </>
                     )}
 
-                    {/* Global Cards (All Roles) - shown after admin cards */}
+                    {role === 'professional' && (
+                        <Link href="/profesional" className="flex flex-col items-center justify-center bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-all group">
+                            <Calendar className="w-10 h-10 text-violet-600 mb-4 group-hover:scale-110 transition-transform" />
+                            <span className="text-xl font-bold text-gray-900 text-center">Mis Turnos</span>
+                            <p className="hidden md:block text-gray-500 text-sm mt-2 text-center">Ver y gestionar tus citas.</p>
+                        </Link>
+                    )}
+
+                    {role === 'secretary' && (
+                        <Link href="/secretaria" className="flex flex-col items-center justify-center bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-all group">
+                            <LayoutDashboard className="w-10 h-10 text-violet-600 mb-4 group-hover:scale-110 transition-transform" />
+                            <span className="text-xl font-bold text-gray-900 text-center">Panel</span>
+                            <p className="hidden md:block text-gray-500 text-sm mt-2 text-center">Panel de gestión de secretaría.</p>
+                        </Link>
+                    )}
+
+                    {/* Global Buttons */}
                     {role !== 'admin' && (
                         <>
-                            <Link href="/tratamientos" className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow group">
-                                <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                                    <Sparkles className="w-5 h-5 text-purple-500" /> Tratamientos
-                                </h2>
-                                <p className="text-gray-500 text-sm">Descubre todos nuestros servicios y tratamientos.</p>
-                                <div className="mt-4 flex justify-end">
-                                    <span className="text-[#34baab] font-bold group-hover:translate-x-1 transition-transform">Ver más →</span>
-                                </div>
+                            <Link href="/tratamientos" className="flex flex-col items-center justify-center bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-all group">
+                                <Sparkles className="w-10 h-10 text-purple-500 mb-4 group-hover:scale-110 transition-transform" />
+                                <span className="text-xl font-bold text-gray-900 text-center">Servicios</span>
+                                <p className="hidden md:block text-gray-500 text-sm mt-2 text-center">Ver tratamientos disponibles.</p>
                             </Link>
 
-                            <Link href="/promociones" className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow group">
-                                <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                                    <Tag className="w-5 h-5 text-pink-500" /> Promociones
-                                </h2>
-                                <p className="text-gray-500 text-sm">Ofertas especiales y paquetes exclusivos para ti.</p>
-                                <div className="mt-4 flex justify-end">
-                                    <span className="text-[#34baab] font-bold group-hover:translate-x-1 transition-transform">Ver más →</span>
-                                </div>
+                            <Link href="/promociones" className="flex flex-col items-center justify-center bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-all group">
+                                <Tag className="w-10 h-10 text-pink-500 mb-4 group-hover:scale-110 transition-transform" />
+                                <span className="text-xl font-bold text-gray-900 text-center">Promos</span>
+                                <p className="hidden md:block text-gray-500 text-sm mt-2 text-center">Ofertas y paquetes especiales.</p>
                             </Link>
                         </>
                     )}
 
-                    {(role === 'professional' || role === 'client') && (
-                        <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 lg:col-span-3">
-                            <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                                <ClipboardList className="w-5 h-5 text-[#34baab]" /> {role === 'client' ? 'Mis Turnos' : 'Mis Turnos Asignados'}
-                            </h2>
+                    {role === 'client' && (
+                        <>
+                            <Link href="/mis-turnos" className="flex flex-col items-center justify-center bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-all group">
+                                <Calendar className="w-10 h-10 text-[#34baab] mb-4 group-hover:scale-110 transition-transform" />
+                                <span className="text-xl font-bold text-gray-900 text-center">Turnos</span>
+                                <p className="hidden md:block text-gray-500 text-sm mt-2 text-center">Mis turnos programados.</p>
+                            </Link>
 
-                            {historyLoading ? (
-                                <div className="flex justify-center p-8">
-                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#34baab]"></div>
-                                </div>
-                            ) : appointments.length > 0 ? (
-                                <div className="space-y-4">
-                                    {appointments.map((apt) => (
-                                        <div key={apt.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-100 hover:border-[#34baab]/30 transition-colors">
-                                            <div className="flex items-center gap-4">
-                                                <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-sm">
-                                                    <CalendarCheck className="w-6 h-6 text-[#34baab]" />
-                                                </div>
-                                                <div>
-                                                    <h3 className="font-bold text-gray-900">{apt.treatment}</h3>
-                                                    <p className="text-sm text-gray-500">
-                                                        {new Date(apt.date + 'T00:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })} - {apt.time}
-                                                    </p>
-                                                    {role === 'professional' && (
-                                                        <p className="text-xs text-gray-400 font-medium mt-1">
-                                                            Cliente: {apt.clientName}
-                                                        </p>
-                                                    )}
-                                                </div>
-                                            </div>
-                                            <div className="text-right">
-                                                <span className="px-3 py-1 bg-green-100 text-green-600 rounded-lg text-[10px] uppercase font-black tracking-widest">
-                                                    Confirmado
-                                                </span>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : (
-                                <div className="bg-gray-50 rounded-2xl p-8 text-center border-2 border-dashed border-gray-200">
-                                    <Clock className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                                    <p className="text-gray-500 font-medium">No hay turnos registrados en el historial.</p>
-                                </div>
-                            )}
-                        </div>
+                            <Link href="/nuevo-turno" className="flex flex-col items-center justify-center bg-[#34baab] p-6 rounded-3xl shadow-lg border border-[#2da698] hover:shadow-xl transition-all group">
+                                <Plus className="w-10 h-10 text-white mb-4 group-hover:scale-110 transition-transform" />
+                                <span className="text-xl font-bold text-white text-center">Reservar</span>
+                                <p className="hidden md:block text-white/80 text-sm mt-2 text-center">Agendar una nueva cita.</p>
+                            </Link>
+                        </>
                     )}
                 </div>
 
-                {profile && (
-                    <>
-                        <BirthdayModal user={profile} />
-                        <EditProfileModal
-                            isOpen={isEditModalOpen}
-                            onClose={() => setIsEditModalOpen(false)}
-                            user={profile}
-                            onUpdate={() => window.location.reload()}
-                        />
-                    </>
+                {/* Collapsible Profile Info (Shown below icons if expanded) */}
+                {!isProfileCollapsed && (
+                    <div className="mt-4 bg-white p-6 rounded-3xl shadow-sm border border-gray-100 animate-in slide-in-from-top-4 duration-300">
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-xl font-bold text-gray-900">Mis Datos</h2>
+                            <button onClick={() => setIsProfileCollapsed(true)} className="text-gray-400 p-2 hover:bg-gray-100 rounded-full">
+                                <ChevronUp className="w-5 h-5" />
+                            </button>
+                        </div>
+                        <div className="grid md:grid-cols-2 gap-4 text-sm">
+                            <p><span className="font-bold text-gray-500">Nombre:</span> {profile?.fullName}</p>
+                            <p><span className="font-bold text-gray-500">Email:</span> {profile?.email}</p>
+                            <p><span className="font-bold text-gray-500">Teléfono:</span> {profile?.phone}</p>
+                            <p><span className="font-bold text-gray-500">Sexo:</span> {profile?.sex === 'male' ? 'Masculino' : 'Femenino'}</p>
+                        </div>
+                        <div className="mt-4 flex justify-end">
+                            <button onClick={() => setIsEditModalOpen(true)} className="flex items-center gap-2 text-[#34baab] font-bold hover:underline">
+                                <Settings className="w-4 h-4" /> Editar Perfil
+                            </button>
+                        </div>
+                    </div>
+                )}
+                {(role === 'professional' || role === 'client') && (
+                    <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 lg:col-span-3">
+                        <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                            <ClipboardList className="w-5 h-5 text-[#34baab]" /> {role === 'client' ? 'Mis Turnos' : 'Mis Turnos Asignados'}
+                        </h2>
+
+                        {historyLoading ? (
+                            <div className="flex justify-center p-8">
+                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#34baab]"></div>
+                            </div>
+                        ) : appointments.length > 0 ? (
+                            <div className="space-y-4">
+                                {appointments.map((apt) => (
+                                    <div key={apt.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-100 hover:border-[#34baab]/30 transition-colors">
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-sm">
+                                                <CalendarCheck className="w-6 h-6 text-[#34baab]" />
+                                            </div>
+                                            <div>
+                                                <h3 className="font-bold text-gray-900">{apt.treatment}</h3>
+                                                <p className="text-sm text-gray-500">
+                                                    {new Date(apt.date + 'T00:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })} - {apt.time}
+                                                </p>
+                                                {role === 'professional' && (
+                                                    <p className="text-xs text-gray-400 font-medium mt-1">
+                                                        Cliente: {apt.clientName}
+                                                    </p>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="text-right">
+                                            <span className="px-3 py-1 bg-green-100 text-green-600 rounded-lg text-[10px] uppercase font-black tracking-widest">
+                                                Confirmado
+                                            </span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="bg-gray-50 rounded-2xl p-8 text-center border-2 border-dashed border-gray-200">
+                                <Clock className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                                <p className="text-gray-500 font-medium">No hay turnos registrados en el historial.</p>
+                            </div>
+                        )}
+                    </div>
                 )}
             </div>
+
+            {profile && (
+                <>
+                    <BirthdayModal user={profile} />
+                    <EditProfileModal
+                        isOpen={isEditModalOpen}
+                        onClose={() => setIsEditModalOpen(false)}
+                        user={profile}
+                        onUpdate={() => window.location.reload()}
+                    />
+                </>
+            )}
         </div>
     );
 }

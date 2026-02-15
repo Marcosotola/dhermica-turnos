@@ -170,6 +170,11 @@ function AppointmentCell({
                     <p className="text-xs text-[#466067] font-semibold mt-0.5 uppercase tracking-wide opacity-90 break-words leading-tight">
                         {appointment.treatment}
                     </p>
+                    {appointment.price !== undefined && (
+                        <p className="text-[10px] font-bold text-violet-600 mt-1">
+                            ${appointment.price.toFixed(2)}
+                        </p>
+                    )}
                 </div>
 
                 <div className="relative flex-shrink-0">

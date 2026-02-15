@@ -44,6 +44,7 @@ export function AppointmentModal({
         duration: 1,
         professionalId: defaultProfessionalId || '',
         notes: '',
+        price: 0,
     });
     const [loading, setLoading] = useState(false);
     const [clients, setClients] = useState<UserProfile[]>([]);
@@ -97,6 +98,7 @@ export function AppointmentModal({
                 duration: appointment.duration,
                 professionalId: appointment.professionalId || '',
                 notes: appointment.notes || '',
+                price: appointment.price || 0,
             });
             if (appointment.clientId) {
                 setClientMode('registered');
@@ -112,6 +114,7 @@ export function AppointmentModal({
                 duration: 1,
                 professionalId: defaultProfessionalId || '',
                 notes: '',
+                price: 0,
             });
             setClientMode('registered');
         }
@@ -155,17 +158,20 @@ export function AppointmentModal({
         }
 
         // Verificar superposición con otros turnos
+        // Solo verificar si ambos turnos tienen el mismo professionalId válido (no vacío/undefined)
         const otherAppointments = existingAppointments.filter(
             (apt) =>
                 apt.id !== appointment?.id &&
-                apt.professionalId === appointmentData.professionalId
+                appointmentData.professionalId && // Tiene professionalId
+                appointmentData.professionalId !== '' && // No es string vacío
+                apt.professionalId === appointmentData.professionalId // Y coincide con otro turno
         );
 
-        const hasOverlap = otherAppointments.some((apt) =>
+        const overlappingAppointments = otherAppointments.filter((apt) =>
             checkOverlap(appointmentData, apt)
         );
 
-        if (hasOverlap) {
+        if (overlappingAppointments.length > 0) {
             setErrors(['Este horario se superpone con otro turno del mismo profesional']);
             return;
         }
@@ -188,11 +194,16 @@ export function AppointmentModal({
         setLoading(true);
 
         try {
+            // Filtrar campos undefined para Firebase
+            const cleanData = Object.fromEntries(
+                Object.entries(appointmentData).filter(([_, v]) => v !== undefined)
+            );
+
             if (appointment) {
-                await updateAppointment(appointment.id, appointmentData);
+                await updateAppointment(appointment.id, cleanData);
                 toast.success('Turno actualizado exitosamente');
             } else {
-                await createAppointment(appointmentData as Omit<Appointment, 'id' | 'createdAt' | 'updatedAt'>);
+                await createAppointment(cleanData as Omit<Appointment, 'id' | 'createdAt' | 'updatedAt'>);
                 toast.success('Turno creado exitosamente');
             }
             onClose();
@@ -374,6 +385,16 @@ export function AppointmentModal({
                     value={formData.professionalId}
                     onChange={(e) => setFormData({ ...formData, professionalId: e.target.value })}
                     options={professionalOptions}
+                />
+
+                <Input
+                    label="Precio (opcional)"
+                    type="number"
+                    value={formData.price}
+                    onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
+                    placeholder="0"
+                    min="0"
+                    step="0.01"
                 />
 
                 <div>

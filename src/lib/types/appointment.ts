@@ -8,6 +8,7 @@ export interface Appointment {
     duration: number; // En horas (0.5, 1, 1.5, etc.)
     professionalId?: string; // Opcional para turnos legacy
     notes?: string;
+    price?: number; // Precio del turno
     createdAt: Date;
     updatedAt: Date;
 

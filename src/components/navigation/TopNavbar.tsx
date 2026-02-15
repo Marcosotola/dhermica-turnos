@@ -59,10 +59,14 @@ export function TopNavbar() {
         ] : []),
         // Professional only
         ...(role === 'professional' ? [
+            { href: '/profesional', label: 'Mis Turnos', icon: Calendar },
+        ] : []),
+        // Secretary only
+        ...(role === 'secretary' ? [
             { href: '/turnos', label: 'Turnos', icon: Calendar },
             { href: '/agenda', label: 'Agenda', icon: BookOpen },
-            { href: '/tratamientos', label: 'Tratamientos', icon: Sparkles },
             { href: '/promociones', label: 'Promociones', icon: Tag },
+            { href: '/tratamientos', label: 'Tratamientos', icon: Sparkles },
         ] : []),
         // Client only
         ...(role === 'client' ? [
@@ -109,7 +113,7 @@ export function TopNavbar() {
                         </div>
                     </div>
 
-                    <div className="space-y-2 flex-1">
+                    <div className="space-y-2 flex-1 overflow-y-auto min-h-0 pr-2 -mr-2 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
                         {navLinks.map((link) => {
                             const Icon = link.icon;
                             const isActive = pathname === link.href;

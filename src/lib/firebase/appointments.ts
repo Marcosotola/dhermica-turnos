@@ -11,6 +11,7 @@ import {
     getDocs,
     getDoc,
     setDoc,
+    orderBy,
 } from 'firebase/firestore';
 import { db } from './config';
 import { Professional } from '../types/professional';
@@ -124,24 +125,55 @@ export async function updateAppointment(
 ): Promise<void> {
     const docRef = doc(db, APPOINTMENTS_COLLECTION, id);
 
-    // Necesitamos el professionalId para la sincronización
-    // Si no viene en data, lo buscamos en el documento actual
-    let professionalId = data.professionalId;
-    if (!professionalId) {
-        const snap = await getDoc(docRef);
-        if (snap.exists()) {
+    // Verificar si el documento existe en la colección principal
+    const snap = await getDoc(docRef);
+
+    if (snap.exists()) {
+        // Documento existe en appointments - actualización normal
+        let professionalId = data.professionalId;
+        if (!professionalId) {
             professionalId = snap.data().professionalId;
         }
-    }
 
-    await updateDoc(docRef, {
-        ...data,
-        updatedAt: Timestamp.now(),
-    });
+        await updateDoc(docRef, {
+            ...data,
+            updatedAt: Timestamp.now(),
+        });
 
-    // Sincronizar con legacy
-    if (professionalId) {
-        await syncWithLegacy(professionalId as string, id, 'update', data);
+        // Sincronizar con legacy
+        if (professionalId) {
+            await syncWithLegacy(professionalId as string, id, 'update', data);
+        }
+    } else {
+        // Documento NO existe en appointments - es un turno legacy
+        console.log(`[Update] Turno no encontrado en appointments, buscando en colecciones legacy...`);
+        const professionals = await getActiveProfessionals();
+
+        let found = false;
+        for (const prof of professionals) {
+            if (prof.legacyCollectionName) {
+                try {
+                    const legacyDocRef = doc(db, prof.legacyCollectionName, id);
+                    const legacySnap = await getDoc(legacyDocRef);
+
+                    if (legacySnap.exists()) {
+                        await updateDoc(legacyDocRef, {
+                            ...data,
+                            updatedAt: Timestamp.now(),
+                        });
+                        console.log(`[Update] Turno actualizado en ${prof.legacyCollectionName}`);
+                        found = true;
+                        break;
+                    }
+                } catch (error) {
+                    console.error(`[Update] Error buscando en ${prof.legacyCollectionName}:`, error);
+                }
+            }
+        }
+
+        if (!found) {
+            throw new Error(`No se encontró el turno ${id} en ninguna colección`);
+        }
     }
 }
 
@@ -169,13 +201,13 @@ export async function deleteAppointment(id: string): Promise<void> {
         // Buscar en todas las colecciones legacy de profesionales
         console.log(`[Delete] Turno sin professionalId, buscando en colecciones legacy...`);
         const professionals = await getActiveProfessionals();
-        
+
         for (const prof of professionals) {
             if (prof.legacyCollectionName) {
                 try {
                     const legacyDocRef = doc(db, prof.legacyCollectionName, id);
                     const legacySnap = await getDoc(legacyDocRef);
-                    
+
                     if (legacySnap.exists()) {
                         await deleteDoc(legacyDocRef);
                         console.log(`[Delete] Turno eliminado de ${prof.legacyCollectionName}`);
@@ -319,36 +351,59 @@ export async function getAppointmentsByProfessionalId(
     const allAppointmentsMap = new Map<string, Appointment>();
 
     try {
-        // 1. Colección principal
-        const qMain = query(collection(db, APPOINTMENTS_COLLECTION), where('professionalId', '==', professionalId));
-        const snapMain = await getDocs(qMain);
-        snapMain.docs.forEach(d => {
-            const apt = mapLegacyAppointment(d.id, d.data());
-            allAppointmentsMap.set(apt.id, apt);
-        });
-
-        // 2. Colección legacy
-        // Primero obtenemos el nombre de la colección legacy del profesional
+        // 1. Obtener datos del profesional para tener el userId y la colección legacy
         const profDoc = await getDoc(doc(db, 'professionals', professionalId));
+        let userId = '';
+        let legacyCollection = '';
+
         if (profDoc.exists()) {
-            const legacyCollection = profDoc.data().legacyCollectionName;
-            if (legacyCollection) {
-                const qLegacy = query(collection(db, legacyCollection));
-                const snapLegacy = await getDocs(qLegacy);
-                snapLegacy.docs.forEach(d => {
+            const profData = profDoc.data();
+            userId = profData.userId || '';
+            legacyCollection = profData.legacyCollectionName || '';
+        }
+
+        const promises: Promise<void>[] = [];
+
+        // 2. Búsqueda por ID de documento de profesional (estándar nuevo)
+        const qId = query(collection(db, APPOINTMENTS_COLLECTION), where('professionalId', '==', professionalId));
+        promises.push(getDocs(qId).then(snap => {
+            snap.docs.forEach(d => {
+                const apt = mapLegacyAppointment(d.id, d.data());
+                allAppointmentsMap.set(apt.id, apt);
+            });
+        }));
+
+        // 3. Búsqueda por UID de usuario (fallback por si se guardó así)
+        if (userId) {
+            const qUid = query(collection(db, APPOINTMENTS_COLLECTION), where('professionalId', '==', userId));
+            promises.push(getDocs(qUid).then(snap => {
+                snap.docs.forEach(d => {
+                    const apt = mapLegacyAppointment(d.id, d.data());
+                    allAppointmentsMap.set(apt.id, apt);
+                });
+            }));
+        }
+
+        // 4. Búsqueda en colección legacy
+        if (legacyCollection) {
+            const qLegacy = query(collection(db, legacyCollection));
+            promises.push(getDocs(qLegacy).then(snap => {
+                snap.docs.forEach(d => {
                     const apt = mapLegacyAppointment(d.id, d.data(), professionalId);
                     if (!allAppointmentsMap.has(apt.id)) {
                         allAppointmentsMap.set(apt.id, apt);
                     }
                 });
-            }
+            }));
         }
 
-        // 3. Ordenar por fecha y hora descendente
+        await Promise.all(promises);
+
+        // 5. Ordenar por fecha y hora descendente
         return Array.from(allAppointmentsMap.values()).sort((a, b) => {
             const dateCompare = b.date.localeCompare(a.date);
             if (dateCompare !== 0) return dateCompare;
-            return b.time.localeCompare(a.time);
+            return a.time.localeCompare(b.time);
         });
 
     } catch (error) {
@@ -423,6 +478,41 @@ export async function searchAppointmentsByClient(
 
     } catch (error) {
         console.error('Error en búsqueda global:', error);
+        return [];
+    }
+}
+
+/**
+ * Obtiene todos los turnos de un profesional específico
+ */
+export async function getAppointmentsByProfessional(
+    professionalId: string
+): Promise<Appointment[]> {
+    try {
+        const q = query(
+            collection(db, APPOINTMENTS_COLLECTION),
+            where('professionalId', '==', professionalId)
+        );
+
+        const snapshot = await getDocs(q);
+        const appointments = snapshot.docs.map((doc) => {
+            const data = doc.data();
+            return {
+                id: doc.id,
+                ...data,
+                createdAt: data.createdAt?.toDate() || new Date(),
+                updatedAt: data.updatedAt?.toDate() || new Date(),
+            } as Appointment;
+        });
+
+        // Ordenar en memoria para evitar requerir índices compuestos en Firestore
+        return appointments.sort((a, b) => {
+            const dateCompare = b.date.localeCompare(a.date);
+            if (dateCompare !== 0) return dateCompare;
+            return a.time.localeCompare(b.time);
+        });
+    } catch (error) {
+        console.error('Error fetching appointments by professional:', error);
         return [];
     }
 }
