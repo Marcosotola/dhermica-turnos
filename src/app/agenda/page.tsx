@@ -17,7 +17,7 @@ import { CreateClientModal } from '@/components/dashboard/CreateClientModal';
 import { ChevronUp, DollarSign, UserPlus } from 'lucide-react';
 
 export default function AgendaPage() {
-    const { profile, loading: authLoading } = useAuth();
+    const { user, profile, loading: authLoading } = useAuth();
     const router = useRouter();
     const [users, setUsers] = useState<UserProfile[]>([]);
     const [loading, setLoading] = useState(true);
