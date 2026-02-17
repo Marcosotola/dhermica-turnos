@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/Input';
 import { toast, Toaster } from 'sonner';
 import { updateAppointment } from '@/lib/firebase/appointments';
 
-export function ProfesionalPage() {
+export default function ProfesionalPage() {
     const { user, profile, loading: authLoading } = useAuth();
     const router = useRouter();
 
