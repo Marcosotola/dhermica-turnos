@@ -36,13 +36,44 @@ export function BottomNav() {
             active: pathname_real === '/dashboard'
         },
         // Role-specific primary action
+        // Professional specific
         ...(role === 'professional' ? [
+            {
+                label: 'Fecha',
+                icon: Calendar,
+                action: () => {
+                    if (pathname_real === '/profesional/turnos') {
+                        window.dispatchEvent(new CustomEvent('toggle-datepicker'));
+                    } else {
+                        router.push('/profesional/turnos?action=datepicker');
+                    }
+                },
+                active: false
+            },
+            {
+                label: 'Fichas',
+                icon: BookOpen,
+                href: '/agenda',
+                active: pathname_real === '/agenda'
+            },
             {
                 label: 'Turnos',
                 icon: ClipboardList,
-                href: '/profesional',
+                href: '/profesional/turnos',
                 primary: true,
-                active: pathname_real === '/profesional'
+                active: pathname_real === '/profesional/turnos'
+            },
+            {
+                label: 'Buscar',
+                icon: Search,
+                action: () => {
+                    if (pathname_real === '/profesional/turnos') {
+                        window.dispatchEvent(new CustomEvent('toggle-search'));
+                    } else {
+                        router.push('/profesional/turnos?action=search');
+                    }
+                },
+                active: false
             }
         ] : []),
         // Admin & Secretary specific
@@ -60,7 +91,7 @@ export function BottomNav() {
                 active: false
             },
             {
-                label: 'Agenda',
+                label: 'Fichas',
                 icon: BookOpen,
                 href: '/agenda',
                 active: pathname_real === '/agenda'
@@ -95,7 +126,7 @@ export function BottomNav() {
         // Client specific
         ...(role === 'client' ? [
             {
-                label: 'Tratamientos',
+                label: 'Servicios',
                 icon: Sparkles,
                 href: '/tratamientos',
                 active: pathname_real === '/tratamientos'
@@ -109,9 +140,9 @@ export function BottomNav() {
             {
                 label: 'Turnos',
                 icon: ClipboardList,
-                href: '/dashboard',
+                href: '/mis-turnos',
                 primary: true,
-                active: pathname_real === '/dashboard'
+                active: pathname_real === '/mis-turnos'
             }
         ] : []),
     ];

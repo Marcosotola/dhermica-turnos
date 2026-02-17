@@ -39,8 +39,17 @@ export function usePWA() {
 
         window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 
+        const handleAppInstalled = () => {
+            setIsStandalone(true);
+            setIsInstallable(false);
+            setInstallPrompt(null);
+        };
+
+        window.addEventListener('appinstalled', handleAppInstalled);
+
         return () => {
             window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+            window.removeEventListener('appinstalled', handleAppInstalled);
         };
     }, []);
 

@@ -13,7 +13,8 @@ import { QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
 import { Button } from '@/components/ui/Button';
 import { getActiveProfessionals } from '@/lib/firebase/professionals';
 import { Professional } from '@/lib/types/professional';
-import { ChevronUp, DollarSign } from 'lucide-react';
+import { CreateClientModal } from '@/components/dashboard/CreateClientModal';
+import { ChevronUp, DollarSign, UserPlus } from 'lucide-react';
 
 export default function AgendaPage() {
     const { profile, loading: authLoading } = useAuth();
@@ -26,6 +27,7 @@ export default function AgendaPage() {
     const [historyLoading, setHistoryLoading] = useState(false);
     const [isInfoOpen, setIsInfoOpen] = useState(false);
     const [professionals, setProfessionals] = useState<Professional[]>([]);
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
     // Pagination state
     const [lastDoc, setLastDoc] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
@@ -33,10 +35,13 @@ export default function AgendaPage() {
     const [loadingMore, setLoadingMore] = useState(false);
 
     useEffect(() => {
+        if (!authLoading && !user) {
+            router.push('/');
+        }
         if (!authLoading && profile?.role !== 'admin' && profile?.role !== 'professional' && profile?.role !== 'secretary') {
             router.push('/dashboard');
         }
-    }, [profile, authLoading, router]);
+    }, [user, profile, authLoading, router]);
 
     useEffect(() => {
         const fetchProfessionals = async () => {
@@ -100,7 +105,7 @@ export default function AgendaPage() {
     };
 
     useEffect(() => {
-        if (profile?.role === 'admin' || profile?.role === 'professional') {
+        if (profile?.role === 'admin' || profile?.role === 'professional' || profile?.role === 'secretary') {
             loadInitialUsers();
         }
     }, [profile, loadInitialUsers]);
@@ -141,8 +146,18 @@ export default function AgendaPage() {
                             <BookOpen className="w-8 h-8 text-white" />
                         </div>
                         <div>
-                            <h1 className="text-3xl font-black tracking-tight">Agenda de Clientes</h1>
+                            <h1 className="text-3xl font-black tracking-tight">Fichas de Clientes</h1>
                             <p className="text-gray-300 font-medium">Consulta fichas y datos relevantes.</p>
+                        </div>
+
+                        <div className="ml-auto">
+                            <button
+                                onClick={() => setIsCreateModalOpen(true)}
+                                className="bg-[#34baab] hover:bg-[#2da698] text-white px-6 py-3 rounded-2xl font-bold flex items-center gap-2 shadow-lg shadow-[#34baab]/20 transition-all active:scale-95 group"
+                            >
+                                <UserPlus className="w-5 h-5 group-hover:rotate-12 transition-transform" />
+                                <span className="hidden md:inline">Nuevo Cliente</span>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -358,18 +373,16 @@ export default function AgendaPage() {
                                                             )}
                                                         </div>
                                                     </div>
-                                                    <div className="text-right">
-                                                        <div className="flex flex-col items-end gap-1">
-                                                            <div className="flex items-center gap-1 text-[#34baab] font-black shrink-0">
-                                                                <DollarSign className="w-3 h-3" />
-                                                                <span>{apt.price?.toLocaleString('es-AR') || '0'}</span>
-                                                            </div>
-                                                            {apt.notes && (
-                                                                <span className="text-[10px] text-gray-400 italic block max-w-[150px] truncate">
-                                                                    {apt.notes}
-                                                                </span>
-                                                            )}
+                                                    <div className="flex-1 text-right flex flex-col items-end gap-1">
+                                                        <div className="flex items-center gap-1 text-[#34baab] font-black shrink-0">
+                                                            <DollarSign className="w-3 h-3" />
+                                                            <span>{apt.price?.toLocaleString('es-AR') || '0'}</span>
                                                         </div>
+                                                        {apt.notes && (
+                                                            <span className="text-[11px] text-gray-400 italic block max-w-[200px] leading-tight">
+                                                                {apt.notes}
+                                                            </span>
+                                                        )}
                                                     </div>
                                                 </div>
                                             ))}
@@ -395,6 +408,15 @@ export default function AgendaPage() {
                     </div>
                 </div>
             </div>
+            {/* Client Creation Modal */}
+            <CreateClientModal
+                isOpen={isCreateModalOpen}
+                onClose={() => setIsCreateModalOpen(false)}
+                onCreated={() => {
+                    setSearchTerm(''); // Clear search
+                    loadInitialUsers(); // Refresh list
+                }}
+            />
         </div>
     );
 }

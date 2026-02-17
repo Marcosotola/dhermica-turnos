@@ -44,13 +44,24 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
     const handleClose = () => {
         setShowModal(false);
         setDismissed(true);
-        // Keep dismissed state in session but don't annoy the user
-        sessionStorage.setItem('pwa-prompt-dismissed', 'true');
+        // Persist dismissed state for 30 days
+        const expiry = new Date().getTime() + 30 * 24 * 60 * 60 * 1000;
+        localStorage.setItem('pwa-prompt-dismissed', JSON.stringify({ dismissed: true, expiry }));
     };
 
     useEffect(() => {
-        if (sessionStorage.getItem('pwa-prompt-dismissed')) {
-            setDismissed(true);
+        const saved = localStorage.getItem('pwa-prompt-dismissed');
+        if (saved) {
+            try {
+                const { dismissed, expiry } = JSON.parse(saved);
+                if (dismissed && new Date().getTime() < expiry) {
+                    setDismissed(true);
+                } else {
+                    localStorage.removeItem('pwa-prompt-dismissed');
+                }
+            } catch (e) {
+                localStorage.removeItem('pwa-prompt-dismissed');
+            }
         }
     }, []);
 

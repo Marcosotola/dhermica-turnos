@@ -164,10 +164,10 @@ function AppointmentCell({
         >
             <div className="flex items-center justify-start gap-1">
                 <div className="min-w-0 flex-1">
-                    <p className="font-extrabold text-[#484450] break-words text-sm leading-tight">
+                    <p className="font-extrabold text-gray-900 break-words text-sm leading-tight">
                         {appointment.clientName}
                     </p>
-                    <p className="text-xs text-[#466067] font-semibold mt-0.5 uppercase tracking-wide opacity-90 break-words leading-tight">
+                    <p className="text-xs text-gray-700 font-semibold mt-0.5 uppercase tracking-wide break-words leading-tight">
                         {appointment.treatment}
                     </p>
                     {appointment.price !== undefined && (

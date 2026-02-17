@@ -28,10 +28,13 @@ function TurnosContent() {
     const [selectedDate, setSelectedDate] = useState(dateParam || '');
 
     useEffect(() => {
+        if (!authLoading && !user) {
+            router.push('/');
+        }
         if (!authLoading && profile?.role === 'professional') {
             router.push('/profesional');
         }
-    }, [profile, authLoading, router]);
+    }, [user, profile, authLoading, router]);
     const [mounted, setMounted] = useState(false);
     const [modalOpen, setModalOpen] = useState(false);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);

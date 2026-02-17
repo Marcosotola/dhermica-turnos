@@ -10,9 +10,12 @@ import { useRouter } from 'next/navigation';
 
 
 export function TopNavbar() {
+    const { user, profile, logout, loading: authLoading } = useAuth();
     const [isOpen, setIsOpen] = useState(false);
     const [scrolled, setScrolled] = useState(false);
     const pathname = usePathname();
+
+    const router = useRouter();
 
     // Close menu when route changes
     useEffect(() => {
@@ -28,8 +31,7 @@ export function TopNavbar() {
         return () => window.removeEventListener('scroll', handleScroll);
     }, []);
 
-    const { user, profile, logout } = useAuth();
-    const router = useRouter();
+    if (!user || authLoading) return null;
 
     const role = profile?.role || 'client';
 
@@ -50,27 +52,31 @@ export function TopNavbar() {
         // Admin only - in dashboard order
         ...(role === 'admin' ? [
             { href: '/turnos', label: 'Turnos', icon: Calendar },
-            { href: '/agenda', label: 'Agenda', icon: BookOpen },
+            { href: '/agenda', label: 'Fichas', icon: BookOpen },
             { href: '/promociones', label: 'Promociones', icon: Tag },
-            { href: '/tratamientos', label: 'Tratamientos', icon: Sparkles },
+            { href: '/tratamientos', label: 'Servicios', icon: Sparkles },
             { href: '/usuarios', label: 'Usuarios', icon: Settings },
-            { href: '/profesionales', label: 'Staff', icon: Users },
-            { href: '/alquileres', label: 'Alquileres', icon: Truck },
+            { href: '/profesionales', label: 'Profesionales', icon: Users },
+            { href: '/alquileres', label: 'Alquiler', icon: Truck },
         ] : []),
         // Professional only
         ...(role === 'professional' ? [
-            { href: '/profesional', label: 'Mis Turnos', icon: Calendar },
+            { href: '/profesional/turnos', label: 'Mis Turnos', icon: Calendar },
+            { href: '/agenda', label: 'Fichas', icon: BookOpen },
+            { href: '/tratamientos', label: 'Servicios', icon: Sparkles },
+            { href: '/promociones', label: 'Promociones', icon: Tag },
         ] : []),
         // Secretary only
         ...(role === 'secretary' ? [
             { href: '/turnos', label: 'Turnos', icon: Calendar },
-            { href: '/agenda', label: 'Agenda', icon: BookOpen },
+            { href: '/agenda', label: 'Fichas', icon: BookOpen },
             { href: '/promociones', label: 'Promociones', icon: Tag },
-            { href: '/tratamientos', label: 'Tratamientos', icon: Sparkles },
+            { href: '/tratamientos', label: 'Servicios', icon: Sparkles },
         ] : []),
         // Client only
         ...(role === 'client' ? [
-            { href: '/tratamientos', label: 'Tratamientos', icon: Sparkles },
+            { href: '/mis-turnos', label: 'Turnos', icon: Calendar },
+            { href: '/tratamientos', label: 'Servicios', icon: Sparkles },
             { href: '/promociones', label: 'Promociones', icon: Tag },
         ] : []),
     ];
@@ -78,14 +84,12 @@ export function TopNavbar() {
 
     return (
         <>
-            {/* Floating Menu Button */}
+            {/* Absolute Menu Button (Scrolls with page) */}
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className={`fixed top-4 right-4 z-[100] p-3 rounded-2xl shadow-2xl transition-all duration-300 active:scale-90 ${isOpen
-                    ? 'bg-white text-[#484450] rotate-90'
-                    : scrolled
-                        ? 'bg-[#34baab] text-white'
-                        : 'bg-[#484450] text-white'
+                className={`absolute top-4 right-4 z-[100] p-3 rounded-2xl shadow-xl transition-all duration-300 active:scale-90 ${isOpen
+                    ? 'fixed bg-white text-[#484450] rotate-90 shadow-2xl'
+                    : 'bg-[#34baab] text-white'
                     }`}
                 aria-label="Menu"
             >

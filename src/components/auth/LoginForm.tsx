@@ -33,12 +33,19 @@ export function LoginForm({ onToggleMode }: LoginFormProps) {
     };
 
     const handleGoogleLogin = async () => {
+        setLoading(true);
         try {
             await loginWithGoogle();
             toast.success('¡Bienvenido con Google!');
         } catch (error: any) {
+            if (error.code === 'auth/cancelled-popup-request') {
+                console.log('Google login popup was cancelled by a new request or closed.');
+                return;
+            }
             console.error('Google login error:', error);
             toast.error('Error al iniciar sesión con Google.');
+        } finally {
+            setLoading(false);
         }
     };
 

@@ -36,7 +36,12 @@ export default function SecretariaPage() {
             <div className="bg-gradient-to-r from-violet-600 to-purple-600 text-white">
                 <div className="max-w-7xl mx-auto px-4 py-8">
                     <h1 className="text-3xl font-bold mb-2">Panel de Secretaría</h1>
-                    <p className="text-violet-100">Bienvenida, {profile?.fullName}</p>
+                    <div className="flex items-center gap-2">
+                        <p className="text-violet-100 font-medium">Bienvenida, {profile?.fullName}</p>
+                        <span className="px-2 py-0.5 bg-violet-500/30 border border-violet-400/30 rounded-lg text-[10px] uppercase font-black tracking-widest text-white">
+                            Secretaría
+                        </span>
+                    </div>
                 </div>
             </div>
 
@@ -49,7 +54,7 @@ export default function SecretariaPage() {
                         className="flex flex-col items-center justify-center bg-white rounded-3xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-all text-center group"
                     >
                         <Calendar className="w-10 h-10 text-violet-600 group-hover:scale-110 transition-transform mb-4" />
-                        <h2 className="text-xl font-bold text-gray-900">Agenda</h2>
+                        <h2 className="text-xl font-bold text-gray-900">Turnos</h2>
                         <p className="hidden md:block text-sm text-gray-500 mt-2">Gestionar todos los turnos</p>
                     </button>
 
@@ -73,14 +78,14 @@ export default function SecretariaPage() {
                         <p className="hidden md:block text-sm text-gray-500 mt-2">Gestionar lista de servicios</p>
                     </button>
 
-                    {/* Agenda */}
+                    {/* Fichas */}
                     <button
-                        onClick={() => router.push('/turnos')}
+                        onClick={() => router.push('/agenda')}
                         className="flex flex-col items-center justify-center bg-white rounded-3xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-all text-center group"
                     >
                         <Scissors className="w-10 h-10 text-teal-600 group-hover:scale-110 transition-transform mb-4" />
-                        <h2 className="text-xl font-bold text-gray-900">Calendario</h2>
-                        <p className="hidden md:block text-sm text-gray-500 mt-2">Vista rápida de la agenda</p>
+                        <h2 className="text-xl font-bold text-gray-900">Fichas</h2>
+                        <p className="hidden md:block text-sm text-gray-500 mt-2">Historial y datos de clientes</p>
                     </button>
                 </div>
             </div>

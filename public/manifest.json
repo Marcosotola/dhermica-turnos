@@ -2,7 +2,7 @@
     "name": "Dhermica Estética Unisex",
     "short_name": "Dhermica",
     "description": "Sistema de gestión de turnos para Dhermica",
-    "start_url": "/turnos",
+    "start_url": "/",
     "display": "standalone",
     "background_color": "#ffffff",
     "theme_color": "#45a049",

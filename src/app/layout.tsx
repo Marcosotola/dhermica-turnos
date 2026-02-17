@@ -30,6 +30,7 @@ import { BottomNav } from "@/components/navigation/BottomNav";
 import { TopNavbar } from "@/components/navigation/TopNavbar";
 import { PWAProvider } from "@/components/pwa/PWAProvider";
 import { AuthProvider } from "@/lib/contexts/AuthContext";
+import { BirthdayLauncher } from "@/components/dashboard/BirthdayLauncher";
 
 
 export default function RootLayout({
@@ -45,6 +46,7 @@ export default function RootLayout({
         <AuthProvider>
           <PWAProvider>
             <TopNavbar />
+            <BirthdayLauncher />
             <main className="min-h-[100dvh]">
               {children}
             </main>

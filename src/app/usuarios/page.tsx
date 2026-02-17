@@ -13,7 +13,7 @@ import { Select } from '@/components/ui/Select';
 import { EditProfileModal } from '@/components/dashboard/EditProfileModal';
 
 export default function UsuariosPage() {
-    const { profile, loading: authLoading } = useAuth();
+    const { user, profile, loading: authLoading } = useAuth();
     const router = useRouter();
     const [users, setUsers] = useState<UserProfile[]>([]);
     const [loading, setLoading] = useState(true);
@@ -22,10 +22,13 @@ export default function UsuariosPage() {
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
     useEffect(() => {
+        if (!authLoading && !user) {
+            router.push('/');
+        }
         if (!authLoading && profile?.role !== 'admin') {
             router.push('/dashboard');
         }
-    }, [profile, authLoading, router]);
+    }, [user, profile, authLoading, router]);
 
     useEffect(() => {
         fetchUsers();

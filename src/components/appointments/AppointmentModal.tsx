@@ -333,12 +333,32 @@ export function AppointmentModal({
                             </div>
                         )}
 
-                        {/* Click outside to close */}
-                        {showSuggestions && (
-                            <div
-                                className="fixed inset-0 z-40"
-                                onClick={() => setShowSuggestions(false)}
-                            />
+                        {/* Client Health Info Alert */}
+                        {clientMode === 'registered' && formData.clientId && (
+                            <div className="mt-2 p-3 bg-red-50 border border-red-100 rounded-xl space-y-1 animate-in fade-in duration-300">
+                                <div className="flex items-center gap-2 text-red-600">
+                                    <User className="w-4 h-4" />
+                                    <span className="text-xs font-black uppercase tracking-wider">Perfil de Salud</span>
+                                </div>
+                                {(() => {
+                                    const selectedClient = clients.find(c => c.uid === formData.clientId);
+                                    if (!selectedClient) return null;
+                                    return (
+                                        <div className="text-[11px] text-gray-600">
+                                            <div className="flex flex-wrap gap-x-3 gap-y-1">
+                                                {selectedClient.hasTattoos && <span className="text-orange-600 font-bold">• TIENE TATUAJES</span>}
+                                                {selectedClient.isPregnant && <span className="text-pink-600 font-bold">• EMBARAZADA</span>}
+                                                {selectedClient.relevantMedicalInfo && (
+                                                    <p className="w-full italic mt-1 line-clamp-2">" {selectedClient.relevantMedicalInfo} "</p>
+                                                )}
+                                                {!selectedClient.hasTattoos && !selectedClient.isPregnant && !selectedClient.relevantMedicalInfo && (
+                                                    <span className="text-gray-400">Sin observaciones especiales registradas.</span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
+                            </div>
                         )}
                     </div>
                 ) : (
