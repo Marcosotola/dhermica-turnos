@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Calendar, Users, Search, Home, LayoutDashboard, BookOpen, Sparkles, Tag, ClipboardList } from 'lucide-react';
+import { Calendar, Users, Search, Home, LayoutDashboard, BookOpen, Sparkles, Tag, ClipboardList, ShoppingBag } from 'lucide-react';
 import { getTodayDate } from '@/lib/utils/time';
 import { useAuth } from '@/lib/contexts/AuthContext';
 
@@ -130,6 +130,12 @@ export function BottomNav() {
                 icon: Sparkles,
                 href: '/tratamientos',
                 active: pathname_real === '/tratamientos'
+            },
+            {
+                label: 'Productos',
+                icon: ShoppingBag,
+                href: '/productos',
+                active: pathname_real === '/productos'
             },
             {
                 label: 'Promociones',

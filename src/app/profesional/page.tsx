@@ -5,7 +5,7 @@ import { useAuth } from '@/lib/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { getAppointmentsByProfessional } from '@/lib/firebase/appointments';
 import { Appointment } from '@/lib/types/appointment';
-import { Calendar, TrendingUp, Sparkles, BookOpen } from 'lucide-react';
+import { Calendar, TrendingUp, Sparkles, BookOpen, ShoppingBag } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { toast, Toaster } from 'sonner';
 import { updateAppointment } from '@/lib/firebase/appointments';
@@ -92,6 +92,18 @@ export default function ProfesionalPage() {
                         </div>
                         <h2 className="text-xl font-black text-gray-900 mb-1">Servicios</h2>
                         <p className="hidden md:block text-xs text-gray-400 font-bold uppercase tracking-wider">Precios y más</p>
+                    </button>
+
+                    {/* Productos */}
+                    <button
+                        onClick={() => router.push('/productos')}
+                        className="flex flex-col items-center justify-center bg-white rounded-[2rem] shadow-sm border border-gray-100 p-8 hover:shadow-xl hover:-translate-y-1 transition-all text-center group"
+                    >
+                        <div className="w-16 h-16 bg-teal-50 rounded-2xl flex items-center justify-center mb-6 group-hover:bg-[#34baab] transition-colors">
+                            <ShoppingBag className="w-8 h-8 text-[#34baab] group-hover:text-white transition-colors" />
+                        </div>
+                        <h2 className="text-xl font-black text-gray-900 mb-1">Productos</h2>
+                        <p className="hidden md:block text-xs text-gray-400 font-bold uppercase tracking-wider">Catálogo oficial</p>
                     </button>
 
                     {/* Promos */}

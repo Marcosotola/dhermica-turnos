@@ -20,7 +20,8 @@ import {
     Tag,
     ChevronDown,
     ChevronUp,
-    Plus
+    Plus,
+    ShoppingBag
 } from 'lucide-react';
 import Link from 'next/link';
 import { Appointment } from '@/lib/types/appointment';
@@ -255,6 +256,12 @@ export default function DashboardPage() {
                                 <p className="hidden md:block text-gray-500 text-sm mt-2 text-center">Gestionar servicios y precios.</p>
                             </Link>
 
+                            <Link href="/productos" className="flex flex-col items-center justify-center bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-all group">
+                                <ShoppingBag className="w-10 h-10 text-[#34baab] mb-4 group-hover:scale-110 transition-transform" />
+                                <span className="text-xl font-bold text-gray-900 text-center">Productos</span>
+                                <p className="hidden md:block text-gray-500 text-sm mt-2 text-center">Gestionar stock y catálogo.</p>
+                            </Link>
+
                             <Link href="/usuarios" className="flex flex-col items-center justify-center bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-all group">
                                 <Settings className="w-10 h-10 text-gray-400 mb-4 group-hover:scale-110 transition-transform" />
                                 <span className="text-xl font-bold text-gray-900 text-center">Usuarios</span>
@@ -262,7 +269,7 @@ export default function DashboardPage() {
                             </Link>
 
                             <Link href="/profesionales" className="flex flex-col items-center justify-center bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-all group">
-                                <Briefcase className="w-10 h-10 text-purple-500 mb-4 group-hover:scale-110 transition-transform" />
+                                <Briefcase className="w-10 h-10 text-[#34baab] mb-4 group-hover:scale-110 transition-transform" />
                                 <span className="text-xl font-bold text-gray-900 text-center">Profesionales</span>
                                 <p className="hidden md:block text-gray-500 text-sm mt-2 text-center">Gestionar profesionales.</p>
                             </Link>
@@ -306,6 +313,12 @@ export default function DashboardPage() {
                                 <Sparkles className="w-10 h-10 text-purple-500 mb-4 group-hover:scale-110 transition-transform" />
                                 <span className="text-xl font-bold text-gray-900 text-center">Servicios</span>
                                 <p className="hidden md:block text-gray-500 text-sm mt-2 text-center">Ver tratamientos disponibles.</p>
+                            </Link>
+
+                            <Link href="/productos" className="flex flex-col items-center justify-center bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-all group">
+                                <ShoppingBag className="w-10 h-10 text-[#34baab] mb-4 group-hover:scale-110 transition-transform" />
+                                <span className="text-xl font-bold text-gray-900 text-center">Productos</span>
+                                <p className="hidden md:block text-gray-500 text-sm mt-2 text-center">Catálogo para el hogar.</p>
                             </Link>
 
                             <Link href="/promociones" className="flex flex-col items-center justify-center bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-all group">

@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
-import { Calendar, TrendingUp, Sparkles, Scissors } from 'lucide-react';
+import { Calendar, TrendingUp, Sparkles, ShoppingBag, BookOpen } from 'lucide-react';
 
 export default function SecretariaPage() {
     const { user, profile, loading } = useAuth();
@@ -68,7 +68,7 @@ export default function SecretariaPage() {
                         <p className="hidden md:block text-sm text-gray-500 mt-2">Gestionar ofertas y cupones</p>
                     </button>
 
-                    {/* Tratamientos */}
+                    {/* Servicios */}
                     <button
                         onClick={() => router.push('/tratamientos')}
                         className="flex flex-col items-center justify-center bg-white rounded-3xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-all text-center group"
@@ -78,12 +78,22 @@ export default function SecretariaPage() {
                         <p className="hidden md:block text-sm text-gray-500 mt-2">Gestionar lista de servicios</p>
                     </button>
 
+                    {/* Productos */}
+                    <button
+                        onClick={() => router.push('/productos')}
+                        className="flex flex-col items-center justify-center bg-white rounded-3xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-all text-center group"
+                    >
+                        <ShoppingBag className="w-10 h-10 text-[#34baab] group-hover:scale-110 transition-transform mb-4" />
+                        <h2 className="text-xl font-bold text-gray-900">Productos</h2>
+                        <p className="hidden md:block text-sm text-gray-500 mt-2">Stock y catálogo oficial</p>
+                    </button>
+
                     {/* Fichas */}
                     <button
                         onClick={() => router.push('/agenda')}
                         className="flex flex-col items-center justify-center bg-white rounded-3xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-all text-center group"
                     >
-                        <Scissors className="w-10 h-10 text-teal-600 group-hover:scale-110 transition-transform mb-4" />
+                        <BookOpen className="w-10 h-10 text-teal-600 group-hover:scale-110 transition-transform mb-4" />
                         <h2 className="text-xl font-bold text-gray-900">Fichas</h2>
                         <p className="hidden md:block text-sm text-gray-500 mt-2">Historial y datos de clientes</p>
                     </button>
