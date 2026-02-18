@@ -3,7 +3,8 @@
 import { useEffect } from 'react';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
-import { Calendar, TrendingUp, Sparkles, ShoppingBag, BookOpen } from 'lucide-react';
+import { Calendar, TrendingUp, Sparkles, ShoppingBag, BookOpen, Bell } from 'lucide-react';
+import { NotificationToggle } from '@/components/pwa/NotificationToggle';
 
 export default function SecretariaPage() {
     const { user, profile, loading } = useAuth();
@@ -35,12 +36,19 @@ export default function SecretariaPage() {
             {/* Header */}
             <div className="bg-gradient-to-r from-violet-600 to-purple-600 text-white">
                 <div className="max-w-7xl mx-auto px-4 py-8">
-                    <h1 className="text-3xl font-bold mb-2">Panel de Secretaría</h1>
-                    <div className="flex items-center gap-2">
-                        <p className="text-violet-100 font-medium">Bienvenida, {profile?.fullName}</p>
-                        <span className="px-2 py-0.5 bg-violet-500/30 border border-violet-400/30 rounded-lg text-[10px] uppercase font-black tracking-widest text-white">
-                            Secretaría
-                        </span>
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div>
+                            <h1 className="text-3xl font-bold mb-2">Panel de Secretaría</h1>
+                            <div className="flex items-center gap-2">
+                                <p className="text-violet-100 font-medium">Bienvenida, {profile?.fullName}</p>
+                                <span className="px-2 py-0.5 bg-violet-500/30 border border-violet-400/30 rounded-lg text-[10px] uppercase font-black tracking-widest text-white">
+                                    Secretaría
+                                </span>
+                            </div>
+                        </div>
+                        <div className="max-w-xs w-full bg-white/10 backdrop-blur-sm rounded-2xl p-1">
+                            <NotificationToggle />
+                        </div>
                     </div>
                 </div>
             </div>
@@ -96,6 +104,16 @@ export default function SecretariaPage() {
                         <BookOpen className="w-10 h-10 text-teal-600 group-hover:scale-110 transition-transform mb-4" />
                         <h2 className="text-xl font-bold text-gray-900">Fichas</h2>
                         <p className="hidden md:block text-sm text-gray-500 mt-2">Historial y datos de clientes</p>
+                    </button>
+
+                    {/* Notificaciones */}
+                    <button
+                        onClick={() => router.push('/secretaria/notificaciones')}
+                        className="flex flex-col items-center justify-center bg-white rounded-3xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-all text-center group"
+                    >
+                        <Bell className="w-10 h-10 text-amber-500 group-hover:scale-110 transition-transform mb-4" />
+                        <h2 className="text-xl font-bold text-gray-900">Avisos</h2>
+                        <p className="hidden md:block text-sm text-gray-500 mt-2">Enviar notificaciones push</p>
                     </button>
                 </div>
             </div>

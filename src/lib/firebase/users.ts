@@ -85,7 +85,7 @@ export async function getAllUsers(): Promise<UserProfile[]> {
 }
 
 export async function getUsersByRole(role: UserRole): Promise<UserProfile[]> {
-    const q = query(collection(db, USERS_COLLECTION), where('role', '==', 'client'));
+    const q = query(collection(db, USERS_COLLECTION), where('role', '==', role));
     const snap = await getDocs(q);
     return snap.docs.map(d => ({
         ...d.data(),

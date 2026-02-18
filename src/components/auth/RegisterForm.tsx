@@ -8,6 +8,8 @@ import { registerWithEmail } from '@/lib/firebase/auth';
 import { createUserProfile, formatPhone } from '@/lib/firebase/users';
 import { toast } from 'sonner';
 import { UserProfile } from '@/lib/types/user';
+import { useNotifications } from '@/lib/hooks/useNotifications';
+import { Checkbox } from '@/components/ui/Checkbox';
 
 interface RegisterFormProps {
     onToggleMode: () => void;
@@ -16,6 +18,7 @@ interface RegisterFormProps {
 export function RegisterForm({ onToggleMode }: RegisterFormProps) {
     const [step, setStep] = useState(1);
     const [loading, setLoading] = useState(false);
+    const { requestPermission } = useNotifications();
     const [formData, setFormData] = useState({
         email: '',
         password: '',
@@ -27,6 +30,7 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
         sex: 'female',
         isPregnant: false,
         relevantMedicalInfo: '',
+        wantNotifications: true,
     });
 
     const handleNext = () => {
@@ -67,7 +71,13 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
                 isPregnant: formData.sex === 'male' ? false : formData.isPregnant,
                 relevantMedicalInfo: formData.relevantMedicalInfo,
                 role: 'client', // Default role
+                notificationsEnabled: formData.wantNotifications,
             });
+
+            // 3. Request push notification permission if requested
+            if (formData.wantNotifications) {
+                await requestPermission();
+            }
 
             toast.success('¡Cuenta creada exitosamente!');
         } catch (error: any) {
@@ -194,6 +204,20 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
                                 rows={3}
                                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#34baab] focus:border-transparent resize-none"
                             />
+                        </div>
+
+                        <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-100">
+                            <Checkbox
+                                id="notifications"
+                                checked={formData.wantNotifications}
+                                onCheckedChange={(checked) => setFormData({ ...formData, wantNotifications: !!checked })}
+                            />
+                            <div className="flex flex-col">
+                                <label htmlFor="notifications" className="text-sm font-bold text-gray-700">
+                                    Habilitar notificaciones push
+                                </label>
+                                <p className="text-xs text-gray-500">Recibe recordatorios de tus turnos y promociones especiales.</p>
+                            </div>
                         </div>
 
                         <div className="flex gap-4">

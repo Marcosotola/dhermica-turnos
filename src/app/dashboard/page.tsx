@@ -21,13 +21,18 @@ import {
     ChevronDown,
     ChevronUp,
     Plus,
-    ShoppingBag
+    ShoppingBag,
+    Bell,
+    BellOff,
+    CheckCircle2
 } from 'lucide-react';
 import Link from 'next/link';
 import { Appointment } from '@/lib/types/appointment';
 import { EditProfileModal } from '@/components/dashboard/EditProfileModal';
 import { Toaster } from 'sonner';
 import { getAppointmentsByClientId, getAppointmentsByProfessionalId } from '@/lib/firebase/appointments';
+import { useNotifications } from '@/lib/hooks/useNotifications';
+import { NotificationToggle } from '@/components/pwa/NotificationToggle';
 
 export default function DashboardPage() {
     const { user, profile, loading } = useAuth();
@@ -36,6 +41,7 @@ export default function DashboardPage() {
     const [historyLoading, setHistoryLoading] = useState(true);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isProfileCollapsed, setIsProfileCollapsed] = useState(true);
+    const { token, permission, requestPermission } = useNotifications();
 
     useEffect(() => {
         const fetchHistory = async () => {
@@ -146,6 +152,10 @@ export default function DashboardPage() {
                             </p>
                         </div>
                     </div>
+
+                    <div className="max-w-sm">
+                        <NotificationToggle />
+                    </div>
                 </div>
 
                 <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
@@ -229,6 +239,7 @@ export default function DashboardPage() {
                         )}
                     </div>
 
+
                     {/* Role Based Buttons */}
                     {role === 'admin' && (
                         <>
@@ -278,6 +289,12 @@ export default function DashboardPage() {
                                 <Truck className="w-10 h-10 text-orange-500 mb-4 group-hover:scale-110 transition-transform" />
                                 <span className="text-xl font-bold text-gray-900 text-center">Alquiler</span>
                                 <p className="hidden md:block text-gray-500 text-sm mt-2 text-center">Gestionar alquileres.</p>
+                            </Link>
+
+                            <Link href="/secretaria/notificaciones" className="flex flex-col items-center justify-center bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-all group">
+                                <Bell className="w-10 h-10 text-amber-500 mb-4 group-hover:scale-110 transition-transform" />
+                                <span className="text-xl font-bold text-gray-900 text-center">Avisos</span>
+                                <p className="hidden md:block text-gray-500 text-sm mt-2 text-center">Enviar notificaciones push.</p>
                             </Link>
                         </>
                     )}

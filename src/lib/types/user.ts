@@ -11,6 +11,8 @@ export interface UserProfile {
     sex: 'male' | 'female';
     relevantMedicalInfo: string; // Allergies/Diseases
     role: UserRole;
+    fcmTokens?: string[]; // Multiple tokens for different devices
+    notificationsEnabled?: boolean;
     createdAt: Date;
     updatedAt: Date;
 }

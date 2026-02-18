@@ -3,7 +3,7 @@
 import { useState, useEffect, ElementType } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Menu, X, Home, Calendar, Truck, Users, LayoutDashboard, LogOut, BookOpen, Settings, Sparkles, Tag, ShoppingBag } from 'lucide-react';
+import { Menu, X, Home, Calendar, Truck, Users, LayoutDashboard, LogOut, BookOpen, Settings, Sparkles, Tag, ShoppingBag, Bell } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
@@ -59,6 +59,7 @@ export function TopNavbar() {
             { href: '/usuarios', label: 'Usuarios', icon: Settings },
             { href: '/profesionales', label: 'Profesionales', icon: Users },
             { href: '/alquileres', label: 'Alquiler', icon: Truck },
+            { href: '/secretaria/notificaciones', label: 'Avisos', icon: Bell },
         ] : []),
         // Professional only
         ...(role === 'professional' ? [
@@ -75,6 +76,7 @@ export function TopNavbar() {
             { href: '/promociones', label: 'Promociones', icon: Tag },
             { href: '/tratamientos', label: 'Servicios', icon: Sparkles },
             { href: '/productos', label: 'Productos', icon: ShoppingBag },
+            { href: '/secretaria/notificaciones', label: 'Avisos', icon: Bell },
         ] : []),
         // Client only
         ...(role === 'client' ? [
