@@ -22,6 +22,21 @@ if (!admin.apps.length) {
     }
 }
 
-export const adminDb = admin.firestore();
-export const adminAuth = admin.auth();
-export const adminMessaging = admin.messaging();
+const getDb = () => {
+    if (!admin.apps.length) return null;
+    return admin.firestore();
+};
+
+const getAuth = () => {
+    if (!admin.apps.length) return null;
+    return admin.auth();
+};
+
+const getMessaging = () => {
+    if (!admin.apps.length) return null;
+    return admin.messaging();
+};
+
+export const adminDb = getDb()!;
+export const adminAuth = getAuth()!;
+export const adminMessaging = getMessaging()!;
