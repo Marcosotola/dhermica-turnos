@@ -24,7 +24,8 @@ import {
     ShoppingBag,
     Bell,
     BellOff,
-    CheckCircle2
+    CheckCircle2,
+    MapPin
 } from 'lucide-react';
 import Link from 'next/link';
 import { Appointment } from '@/lib/types/appointment';
@@ -278,6 +279,12 @@ export default function DashboardPage() {
                             <p className="hidden md:block text-gray-500 text-sm mt-2 text-center">Mis turnos programados.</p>
                         </Link>
                     )}
+
+                    <Link href="/ubicacion" className="flex flex-col items-center justify-center bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-all group">
+                        <MapPin className="w-10 h-10 text-[#34baab] mb-4 group-hover:scale-110 transition-transform" />
+                        <span className="text-xl font-bold text-gray-900 text-center">Ubicación</span>
+                        <p className="hidden md:block text-gray-500 text-sm mt-2 text-center">Dirección y mapa del salón.</p>
+                    </Link>
                 </div>
 
 

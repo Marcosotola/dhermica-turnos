@@ -32,6 +32,7 @@ import { PWAProvider } from "@/components/pwa/PWAProvider";
 import { AuthProvider } from "@/lib/contexts/AuthContext";
 import { BirthdayLauncher } from "@/components/dashboard/BirthdayLauncher";
 import { NotificationProvider } from "@/components/pwa/NotificationProvider";
+import { WhatsAppBadge } from "@/components/ui/WhatsAppBadge";
 
 
 export default function RootLayout({
@@ -53,6 +54,7 @@ export default function RootLayout({
                 {children}
               </main>
               <BottomNav />
+              <WhatsAppBadge />
             </NotificationProvider>
           </PWAProvider>
         </AuthProvider>

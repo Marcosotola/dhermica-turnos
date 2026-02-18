@@ -3,7 +3,7 @@
 import { useState, useEffect, ElementType } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Menu, X, Home, Calendar, Truck, Users, LayoutDashboard, LogOut, BookOpen, Settings, Sparkles, Tag, ShoppingBag, Bell } from 'lucide-react';
+import { Menu, X, Home, Calendar, Truck, Users, LayoutDashboard, LogOut, BookOpen, Settings, Sparkles, Tag, ShoppingBag, Bell, Share2, MapPin } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
@@ -60,6 +60,7 @@ export function TopNavbar() {
             { href: '/profesionales', label: 'Profesionales', icon: Users },
             { href: '/alquileres', label: 'Alquiler', icon: Truck },
             { href: '/secretaria/notificaciones', label: 'Avisos', icon: Bell },
+            { href: '/ubicacion', label: 'Ubicación', icon: MapPin },
         ] : []),
         // Professional only
         ...(role === 'professional' ? [
@@ -68,6 +69,7 @@ export function TopNavbar() {
             { href: '/tratamientos', label: 'Servicios', icon: Sparkles },
             { href: '/productos', label: 'Productos', icon: ShoppingBag },
             { href: '/promociones', label: 'Promociones', icon: Tag },
+            { href: '/ubicacion', label: 'Ubicación', icon: MapPin },
         ] : []),
         // Secretary only
         ...(role === 'secretary' ? [
@@ -77,6 +79,7 @@ export function TopNavbar() {
             { href: '/tratamientos', label: 'Servicios', icon: Sparkles },
             { href: '/productos', label: 'Productos', icon: ShoppingBag },
             { href: '/secretaria/notificaciones', label: 'Avisos', icon: Bell },
+            { href: '/ubicacion', label: 'Ubicación', icon: MapPin },
         ] : []),
         // Client only
         ...(role === 'client' ? [
@@ -84,6 +87,7 @@ export function TopNavbar() {
             { href: '/tratamientos', label: 'Servicios', icon: Sparkles },
             { href: '/productos', label: 'Productos', icon: ShoppingBag },
             { href: '/promociones', label: 'Promociones', icon: Tag },
+            { href: '/ubicacion', label: 'Ubicación', icon: MapPin },
         ] : []),
     ];
 
@@ -161,7 +165,39 @@ export function TopNavbar() {
                                 <span>Cerrar Sesión</span>
                             </button>
                         )}
-                        <p className="text-[10px] text-gray-500 uppercase font-black tracking-widest text-center">
+
+                        <div className="px-2">
+                            <button
+                                onClick={async () => {
+                                    if (navigator.share) {
+                                        try {
+                                            await navigator.share({
+                                                title: 'Dhermica Estética Unisex',
+                                                text: '¡Mirá esta aplicación para gestionar tus turnos en Dhermica!',
+                                                url: window.location.origin,
+                                            });
+                                        } catch (err) {
+                                            console.error('Error sharing:', err);
+                                        }
+                                    } else {
+                                        try {
+                                            await navigator.clipboard.writeText(window.location.origin);
+                                            alert('Enlace copiado al portapapeles');
+                                        } catch (err) {
+                                            console.error('Could not copy text: ', err);
+                                        }
+                                    }
+                                }}
+                                className="w-full flex items-center gap-4 px-4 py-3 rounded-2xl text-white font-bold bg-[#34baab] shadow-lg hover:brightness-110 active:scale-95 transition-all"
+                            >
+                                <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
+                                    <Share2 className="w-5 h-5" />
+                                </div>
+                                <span>Compartir App</span>
+                            </button>
+                        </div>
+
+                        <p className="text-[10px] text-gray-500 uppercase font-black tracking-widest text-center mt-4">
                             Dhermica v0.1.0
                         </p>
                     </div>
