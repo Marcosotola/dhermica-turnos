@@ -6,13 +6,15 @@ import { useRouter } from 'next/navigation';
 import { getAppointmentsByProfessional } from '@/lib/firebase/appointments';
 import { Appointment } from '@/lib/types/appointment';
 import { Calendar, TrendingUp, Sparkles, BookOpen, ShoppingBag } from 'lucide-react';
-import { Input } from '@/components/ui/Input';
+import { ProfileSection } from '@/components/dashboard/ProfileSection';
+import { EditProfileModal } from '@/components/dashboard/EditProfileModal';
 import { toast, Toaster } from 'sonner';
 import { updateAppointment } from '@/lib/firebase/appointments';
 
 export default function ProfesionalPage() {
     const { user, profile, loading: authLoading } = useAuth();
     const router = useRouter();
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
     useEffect(() => {
         if (!authLoading && !user) {
@@ -57,6 +59,13 @@ export default function ProfesionalPage() {
 
             {/* Dashboard Grid */}
             <div className="max-w-7xl mx-auto px-4 py-8">
+                <div className="mb-8">
+                    <ProfileSection
+                        profile={profile}
+                        onEditClick={() => setIsEditModalOpen(true)}
+                    />
+                </div>
+
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
                     {/* Turnos */}
                     <button
@@ -119,6 +128,14 @@ export default function ProfesionalPage() {
                     </button>
                 </div>
             </div>
+            {profile && (
+                <EditProfileModal
+                    isOpen={isEditModalOpen}
+                    onClose={() => setIsEditModalOpen(false)}
+                    user={profile}
+                    onUpdate={() => window.location.reload()}
+                />
+            )}
         </div>
     );
 }

@@ -434,8 +434,9 @@ export function AppointmentModal({
                         onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                         placeholder="Notas adicionales..."
                         rows={3}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent resize-none"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent resize-none text-gray-900"
                     />
+
                 </div>
 
                 <div className="flex gap-3 pt-4">

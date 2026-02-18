@@ -1,14 +1,17 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { Calendar, TrendingUp, Sparkles, ShoppingBag, BookOpen, Bell } from 'lucide-react';
-import { NotificationToggle } from '@/components/pwa/NotificationToggle';
+import { ProfileSection } from '@/components/dashboard/ProfileSection';
+import { EditProfileModal } from '@/components/dashboard/EditProfileModal';
+import { Toaster } from 'sonner';
 
 export default function SecretariaPage() {
     const { user, profile, loading } = useAuth();
     const router = useRouter();
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
     useEffect(() => {
         if (!loading && (!user || profile?.role !== 'secretary')) {
@@ -46,15 +49,20 @@ export default function SecretariaPage() {
                                 </span>
                             </div>
                         </div>
-                        <div className="max-w-xs w-full bg-white/10 backdrop-blur-sm rounded-2xl p-1">
-                            <NotificationToggle />
-                        </div>
+
                     </div>
                 </div>
             </div>
 
             {/* Dashboard Grid */}
             <div className="max-w-7xl mx-auto px-4 py-8">
+                <div className="mb-8">
+                    <ProfileSection
+                        profile={profile}
+                        onEditClick={() => setIsEditModalOpen(true)}
+                    />
+                </div>
+
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
                     {/* Turnos */}
                     <button
@@ -117,6 +125,14 @@ export default function SecretariaPage() {
                     </button>
                 </div>
             </div>
+            {profile && (
+                <EditProfileModal
+                    isOpen={isEditModalOpen}
+                    onClose={() => setIsEditModalOpen(false)}
+                    user={profile}
+                    onUpdate={() => window.location.reload()}
+                />
+            )}
         </div>
     );
 }

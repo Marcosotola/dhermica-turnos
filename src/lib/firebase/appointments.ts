@@ -108,9 +108,13 @@ export async function createAppointment(
     const now = Timestamp.now();
     const docRef = await addDoc(collection(db, APPOINTMENTS_COLLECTION), {
         ...data,
+        notified1h: false,
+        notified24h: false,
+        notified48h: false,
         createdAt: now,
         updatedAt: now,
     });
+
 
     // Sincronizar con legacy
     await syncWithLegacy(data.professionalId, docRef.id, 'create', data);
