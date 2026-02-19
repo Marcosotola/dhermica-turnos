@@ -24,28 +24,28 @@ export function useNotifications() {
 
         try {
             setLoading(true);
-            console.log('FCM: Requesting permission...');
+            // console.log('FCM: Requesting permission...');
             const status = await Notification.requestPermission();
             setPermission(status);
 
             if (status === 'granted') {
-                console.log('FCM: Permission granted. Initializing messaging...');
+                // console.log('FCM: Permission granted. Initializing messaging...');
                 const msg = await messaging();
                 if (msg) {
-                    console.log('FCM: Registering service worker explicitly...');
+                    // console.log('FCM: Registering service worker explicitly...');
                     const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
 
-                    console.log('FCM: Fetching token with VAPID key...');
+                    // console.log('FCM: Fetching token with VAPID key...');
                     const currentToken = await getToken(msg, {
                         vapidKey: process.env.NEXT_PUBLIC_VAPID_KEY,
                         serviceWorkerRegistration: registration
                     });
 
                     if (currentToken) {
-                        console.log('FCM: Token obtained:', currentToken);
+                        // console.log('FCM: Token obtained:', currentToken);
                         setToken(currentToken);
                         if (user) {
-                            console.log('FCM: Updating user profile with new token...');
+                            // console.log('FCM: Updating user profile with new token...');
                             // Update user profile with the new token
                             const currentTokens = profile?.fcmTokens || [];
                             if (!currentTokens.includes(currentToken)) {
@@ -53,9 +53,9 @@ export function useNotifications() {
                                     fcmTokens: [...currentTokens, currentToken],
                                     notificationsEnabled: true
                                 });
-                                console.log('FCM: Profile updated successfully.');
+                                // console.log('FCM: Profile updated successfully.');
                             } else {
-                                console.log('FCM: Token already exists in profile.');
+                                // console.log('FCM: Token already exists in profile.');
                             }
                         }
                         toast.success('¡Notificaciones activadas!', {
@@ -63,11 +63,11 @@ export function useNotifications() {
                         });
                         return true;
                     } else {
-                        console.warn('FCM: No token returned from getToken.');
+                        // console.warn('FCM: No token returned from getToken.');
                     }
                 }
             } else if (status === 'denied') {
-                console.warn('FCM: Permission denied by user.');
+                // console.warn('FCM: Permission denied by user.');
                 toast.error('Notificaciones bloqueadas', {
                     description: 'Debes habilitarlas manualmente desde la configuración de tu navegador (en el ícono del candado junto a la URL).'
                 });
@@ -100,7 +100,7 @@ export function useNotifications() {
 
                 // 1. Setup Foreground Listener
                 onMessage(msg, (payload) => {
-                    console.log('FCM: Foreground message received (Toast disabled to avoid duplication):', payload);
+                    // console.log('FCM: Foreground message received (Toast disabled to avoid duplication):', payload);
                     /* 
                     const targetUrl = payload.data?.url || '/';
                     toast.info(payload.notification?.title || 'Notificación', {
@@ -117,7 +117,7 @@ export function useNotifications() {
 
                 // 2. Token Refresh/Save Logic
                 if (!token && process.env.NEXT_PUBLIC_VAPID_KEY) {
-                    console.log('FCM: Refreshing token...');
+                    // console.log('FCM: Refreshing token...');
                     const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
                     const currentToken = await getToken(msg, {
                         vapidKey: process.env.NEXT_PUBLIC_VAPID_KEY,
@@ -127,16 +127,16 @@ export function useNotifications() {
                     if (currentToken) {
                         setToken(currentToken);
                         const currentTokens = profile?.fcmTokens || [];
-                        console.log('FCM: Current profile tokens:', currentTokens);
+                        // console.log('FCM: Current profile tokens:', currentTokens);
 
                         if (!currentTokens.includes(currentToken)) {
-                            console.log('FCM: Token is new (UID:', user.uid, ')');
+                            // console.log('FCM: Token is new (UID:', user.uid, ')');
                             try {
                                 await updateUserProfile(user.uid, {
                                     fcmTokens: [...currentTokens, currentToken],
                                     notificationsEnabled: true
                                 });
-                                console.log('FCM: Firestore profile updated.');
+                                // console.log('FCM: Firestore profile updated.');
                             } catch (dbError) {
                                 console.error('FCM: Firestore update FAILED:', dbError);
                             }

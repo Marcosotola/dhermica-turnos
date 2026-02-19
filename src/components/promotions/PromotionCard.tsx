@@ -13,13 +13,14 @@ interface PromotionCardProps {
 
 export function PromotionCard({ promotion, isAdmin, onEdit, onDelete }: PromotionCardProps) {
     return (
-        <div className="relative group bg-white rounded-[2.5rem] overflow-hidden shadow-sm border border-gray-100 hover:shadow-xl transition-all duration-500 h-full flex flex-col">
+        <div className="relative group bg-white rounded-[2.5rem] overflow-hidden shadow-lg border-2 border-gray-100 hover:border-[#34baab]/20 hover:shadow-2xl transition-all duration-500 h-full flex flex-col">
             {/* Image Container */}
-            <div className="relative aspect-[4/3] w-full overflow-hidden">
+            <div className="relative aspect-[16/10] md:aspect-[4/3] w-full overflow-hidden">
                 <Image
                     src={promotion.imageUrl}
                     alt={promotion.title}
                     fill
+                    priority
                     className="object-cover group-hover:scale-110 transition-transform duration-700"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
@@ -50,7 +51,7 @@ export function PromotionCard({ promotion, isAdmin, onEdit, onDelete }: Promotio
             </div>
 
             {/* Content Container */}
-            <div className="p-8 flex flex-col flex-1">
+            <div className="p-4 md:p-8 flex flex-col flex-1">
                 <div className="flex items-center gap-2 mb-3">
                     <div className="w-8 h-8 bg-pink-50 rounded-lg flex items-center justify-center">
                         <Tag className="w-4 h-4 text-pink-500" />
@@ -58,18 +59,18 @@ export function PromotionCard({ promotion, isAdmin, onEdit, onDelete }: Promotio
                     <span className="text-[10px] font-black uppercase tracking-widest text-pink-500">Promoción Especial</span>
                 </div>
 
-                <h3 className="text-2xl font-black text-gray-900 mb-3 leading-tight group-hover:text-[#34baab] transition-colors">
+                <h3 className="text-xl md:text-2xl font-black text-gray-900 mb-3 leading-tight group-hover:text-[#34baab] transition-colors">
                     {promotion.title}
                 </h3>
 
-                <p className="text-gray-500 font-medium leading-relaxed line-clamp-3 mb-6">
+                <p className="text-gray-500 font-medium leading-relaxed line-clamp-2 md:line-clamp-3 mb-4 md:mb-6 text-xs md:text-base">
                     {promotion.description}
                 </p>
 
                 <div className="mt-auto">
                     <div className="w-full bg-[#484450]/5 h-[1px] mb-6" />
-                    <button className="w-full bg-gray-50 hover:bg-[#34baab] hover:text-white text-gray-900 py-4 rounded-2xl font-black uppercase tracking-widest transition-all active:scale-95 text-sm">
-                        Ver Más Detalles
+                    <button className="w-full bg-gray-50 hover:bg-[#34baab] hover:text-white text-gray-900 py-3 md:py-4 rounded-xl md:rounded-2xl font-black uppercase tracking-widest transition-all active:scale-95 text-[10px] md:text-sm">
+                        Ver Detalles
                     </button>
                 </div>
             </div>

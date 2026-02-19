@@ -167,7 +167,7 @@ export default function PromosPage() {
             <Toaster position="top-center" richColors />
 
             {/* Header / Hero Section */}
-            <div className="bg-[#484450] text-white pt-14 md:pt-10 pb-12 px-4 md:px-8">
+            <div className="bg-[#484450] text-white pt-20 md:pt-10 pb-12 px-4 md:px-8">
                 <div className="max-w-7xl mx-auto flex items-start justify-between">
                     <div className="animate-in slide-in-from-left-8 duration-700">
                         <div className="flex items-center gap-2 mb-2">
@@ -192,7 +192,7 @@ export default function PromosPage() {
             </div>
 
             {/* Main Content - Carousel */}
-            <div className="max-w-7xl mx-auto px-4 -mt-6">
+            <div className="max-w-7xl mx-auto px-4 mt-6">
                 {promotions.length > 0 ? (
                     <div className="relative group/carousel">
                         {/* Carousel Container */}
@@ -203,7 +203,7 @@ export default function PromosPage() {
                             {promotions.map((promo, index) => (
                                 <div
                                     key={promo.id}
-                                    className="flex-none w-[90vw] md:w-[450px] snap-center"
+                                    className="flex-none w-[72vw] md:w-[450px] snap-center"
                                 >
                                     <PromotionCard
                                         promotion={promo}

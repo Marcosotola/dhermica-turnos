@@ -26,10 +26,10 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('/sw.js').then(
                     (registration) => {
-                        console.log('SW registered: ', registration);
+                        // console.log('SW registered: ', registration);
                     },
                     (registrationError) => {
-                        console.log('SW registration failed: ', registrationError);
+                        console.error('SW registration failed: ', registrationError);
                     }
                 );
             });

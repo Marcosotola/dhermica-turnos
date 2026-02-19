@@ -13,7 +13,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
     useEffect(() => {
         if (user && token && profile) {
-            console.log('Push notifications active for user:', user.email);
+            // console.log('Push notifications active for user:', user.email);
         }
     }, [user, token, profile]);
 
