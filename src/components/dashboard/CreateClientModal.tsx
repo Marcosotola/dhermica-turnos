@@ -2,12 +2,13 @@
 
 import { useState } from 'react';
 import { UserProfile } from '@/lib/types/user';
-import { createUserProfile } from '@/lib/firebase/users';
+import { createUserProfile, formatPhone } from '@/lib/firebase/users';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { X, UserPlus } from 'lucide-react';
 import { toast } from 'sonner';
+import { PhoneInput } from '@/components/ui/PhoneInput';
 
 interface CreateClientModalProps {
     isOpen: boolean;
@@ -27,6 +28,7 @@ export function CreateClientModal({ isOpen, onClose, onCreated }: CreateClientMo
         isPregnant: false,
         relevantMedicalInfo: '',
     });
+    const [countryCode, setCountryCode] = useState('+54');
 
     if (!isOpen) return null;
 
@@ -46,7 +48,7 @@ export function CreateClientModal({ isOpen, onClose, onCreated }: CreateClientMo
                 uid: manualId,
                 email: finalEmail,
                 fullName: formData.fullName.trim(),
-                phone: formData.phone.trim(),
+                phone: formatPhone(`${countryCode}${formData.phone}`),
                 birthDate: formData.birthDate,
                 sex: formData.sex,
                 hasTattoos: formData.hasTattoos,
@@ -94,12 +96,13 @@ export function CreateClientModal({ isOpen, onClose, onCreated }: CreateClientMo
                             onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
                             required
                         />
-                        <div className="grid grid-cols-2 gap-4">
-                            <Input
-                                label="Teléfono"
-                                placeholder="Ej: 1122334455"
-                                value={formData.phone}
-                                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <PhoneInput
+                                label="Teléfono (WhatsApp)"
+                                countryCode={countryCode}
+                                onCountryCodeChange={setCountryCode}
+                                phoneNumber={formData.phone}
+                                onPhoneNumberChange={(number) => setFormData({ ...formData, phone: number })}
                                 required
                             />
                             <Input

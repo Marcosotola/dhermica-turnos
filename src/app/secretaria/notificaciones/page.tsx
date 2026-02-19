@@ -487,12 +487,13 @@ export default function NotificationsPage() {
                                     <div
                                         key={item.id}
                                         className={`p-4 rounded-2xl border transition-all relative group flex gap-4 ${selectedHistoryIds.has(item.id!)
-                                                ? 'border-amber-300 bg-amber-50/30'
-                                                : 'border-gray-100 bg-gray-50/50 hover:bg-white hover:shadow-sm'
+                                            ? 'border-amber-300 bg-amber-50/30'
+                                            : 'border-gray-100 bg-gray-50/50 hover:bg-white hover:shadow-sm'
                                             }`}
                                     >
                                         <div className="flex-shrink-0 pt-1">
                                             <Checkbox
+                                                id={`select-${item.id}`}
                                                 checked={selectedHistoryIds.has(item.id!)}
                                                 onCheckedChange={() => toggleSelection(item.id!)}
                                             />

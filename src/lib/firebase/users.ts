@@ -22,21 +22,43 @@ import { UserProfile, UserRole } from '../types/user';
 
 const USERS_COLLECTION = 'users';
 
+import { parsePhoneNumber, isValidPhoneNumber } from 'libphonenumber-js';
+
 /**
- * Sanitize phone number to format (XXXXXXXXXX)
+ * Sanitize and format phone number to E.164 standard (+549...)
+ * Useful for WhatsApp integration and n8n automations.
  */
 export function formatPhone(phone: string): string {
-    const cleaned = phone.replace(/\D/g, '');
-    // If it starts with 54, remove it (assuming Argentina)
-    let digits = cleaned;
-    if (digits.startsWith('54')) {
-        digits = digits.substring(2);
-    }
-    // Remove 0 and 15
-    if (digits.startsWith('0')) digits = digits.substring(1);
-    if (digits.startsWith('15')) digits = digits.substring(2);
+    try {
+        // Clean any weird chars but keep + if present
+        const cleaned = phone.trim();
+        if (!cleaned) return '';
 
-    return `(${digits})`;
+        // If it doesn't start with +, assume AR (+54) for now as default
+        const phoneWithContext = cleaned.startsWith('+') ? cleaned : `+54${cleaned}`;
+
+        const phoneNumber = parsePhoneNumber(phoneWithContext, 'AR');
+
+        if (phoneNumber && phoneNumber.isValid()) {
+            // Specialized handling for Argentina: WhatsApp requires the '9' prefix for mobile numbers (+54 9 ...)
+            if (phoneNumber.country === 'AR') {
+                const nationalNumber = phoneNumber.nationalNumber;
+                // If it already starts with 9 and has 11 digits (54 9 ...), libphonenumber might have parsed it differently
+                // But generally, the national number for AR mobile is 10 digits (area code + number).
+                // We prepending 9 for WhatsApp.
+                return `+549${nationalNumber}`;
+            }
+            return phoneNumber.format('E.164');
+        }
+
+        // Fallback: just return digits with + prefix
+        const digits = cleaned.replace(/\D/g, '');
+        return `+${digits}`;
+    } catch (error) {
+        console.error('Error formatting phone:', error);
+        const digits = phone.replace(/\D/g, '');
+        return `+${digits}`;
+    }
 }
 
 export async function getUserProfile(uid: string): Promise<UserProfile | null> {

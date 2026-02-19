@@ -2,12 +2,13 @@
 
 import { useState } from 'react';
 import { UserProfile } from '@/lib/types/user';
-import { updateUserProfile, createUserProfile } from '@/lib/firebase/users';
+import { updateUserProfile, createUserProfile, formatPhone } from '@/lib/firebase/users';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { X, Save, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import { PhoneInput } from '@/components/ui/PhoneInput';
 
 interface EditProfileModalProps {
     isOpen: boolean;
@@ -19,14 +20,37 @@ interface EditProfileModalProps {
 
 export function EditProfileModal({ isOpen, onClose, user, onUpdate, isNewUser = false }: EditProfileModalProps) {
     const [loading, setLoading] = useState(false);
-    const [formData, setFormData] = useState({
-        fullName: user.fullName || '',
-        phone: user.phone || '',
-        birthDate: user.birthDate || '',
-        hasTattoos: user.hasTattoos || false,
-        sex: user.sex || 'female',
-        isPregnant: user.isPregnant || false,
-        relevantMedicalInfo: user.relevantMedicalInfo || '',
+    const [formData, setFormData] = useState(() => {
+        let phoneDisplay = user.phone || '';
+        if (phoneDisplay.startsWith('+')) {
+            const code = phoneDisplay.startsWith('+598') ? '+598' :
+                phoneDisplay.startsWith('+54') ? '+54' :
+                    phoneDisplay.startsWith('+56') ? '+56' :
+                        phoneDisplay.startsWith('+55') ? '+55' :
+                            phoneDisplay.startsWith('+34') ? '+34' :
+                                phoneDisplay.startsWith('+1') ? '+1' : '';
+            if (code) {
+                phoneDisplay = phoneDisplay.substring(code.length);
+            }
+        }
+        return {
+            fullName: user.fullName || '',
+            phone: phoneDisplay,
+            birthDate: user.birthDate || '',
+            hasTattoos: user.hasTattoos || false,
+            sex: user.sex || 'female',
+            isPregnant: user.isPregnant || false,
+            relevantMedicalInfo: user.relevantMedicalInfo || '',
+        };
+    });
+
+    const [countryCode, setCountryCode] = useState(() => {
+        if (user.phone?.startsWith('+598')) return '+598';
+        if (user.phone?.startsWith('+56')) return '+56';
+        if (user.phone?.startsWith('+55')) return '+55';
+        if (user.phone?.startsWith('+34')) return '+34';
+        if (user.phone?.startsWith('+1')) return '+1';
+        return '+54';
     });
 
     if (!isOpen) return null;
@@ -46,7 +70,11 @@ export function EditProfileModal({ isOpen, onClose, user, onUpdate, isNewUser = 
                 toast.success('¡Registro completado! Bienvenido.');
             } else {
                 // Update existing
-                await updateUserProfile(user.uid, formData);
+                const finalPhone = formatPhone(`${countryCode}${formData.phone}`);
+                await updateUserProfile(user.uid, {
+                    ...formData,
+                    phone: finalPhone
+                });
                 toast.success('Perfil actualizado correctamente');
             }
             onUpdate();
@@ -84,11 +112,13 @@ export function EditProfileModal({ isOpen, onClose, user, onUpdate, isNewUser = 
                             onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
                             required
                         />
-                        <div className="grid grid-cols-2 gap-4">
-                            <Input
-                                label="Teléfono"
-                                value={formData.phone}
-                                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <PhoneInput
+                                label="Teléfono (WhatsApp)"
+                                countryCode={countryCode}
+                                onCountryCodeChange={setCountryCode}
+                                phoneNumber={formData.phone}
+                                onPhoneNumberChange={(number) => setFormData({ ...formData, phone: number })}
                                 required
                             />
                             <Input

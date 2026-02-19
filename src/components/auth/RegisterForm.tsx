@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { UserProfile } from '@/lib/types/user';
 import { useNotifications } from '@/lib/hooks/useNotifications';
 import { Checkbox } from '@/components/ui/Checkbox';
+import { PhoneInput } from '@/components/ui/PhoneInput';
 
 interface RegisterFormProps {
     onToggleMode: () => void;
@@ -32,6 +33,7 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
         relevantMedicalInfo: '',
         wantNotifications: true,
     });
+    const [countryCode, setCountryCode] = useState('+54');
 
     const handleNext = () => {
         if (step === 1) {
@@ -60,12 +62,14 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
             const user = userCredential.user;
 
             // 2. Create user profile in Firestore
+            const finalPhone = formatPhone(`${countryCode}${formData.phone}`);
+
             await createUserProfile({
                 uid: user.uid,
                 email: formData.email,
                 fullName: formData.fullName,
                 birthDate: formData.birthDate,
-                phone: formData.phone,
+                phone: finalPhone,
                 hasTattoos: formData.hasTattoos,
                 sex: formData.sex as 'male' | 'female',
                 isPregnant: formData.sex === 'male' ? false : formData.isPregnant,
@@ -147,11 +151,12 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
                                 onChange={(e) => setFormData({ ...formData, birthDate: e.target.value })}
                                 required
                             />
-                            <Input
-                                label="Teléfono"
-                                value={formData.phone}
-                                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                                placeholder="3523908198 (sin 0 ni 15)"
+                            <PhoneInput
+                                label="Teléfono (WhatsApp)"
+                                countryCode={countryCode}
+                                onCountryCodeChange={setCountryCode}
+                                phoneNumber={formData.phone}
+                                onPhoneNumberChange={(number) => setFormData({ ...formData, phone: number })}
                                 required
                             />
                         </div>
