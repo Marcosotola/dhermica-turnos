@@ -25,7 +25,7 @@ export default function ProductosPage() {
     const [editingProduct, setEditingProduct] = useState<Product | undefined>();
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
-    const isAdmin = profile?.role === 'admin' || profile?.role === 'secretary';
+    const isAdmin = profile?.role === 'admin' || profile?.role === 'secretary' || profile?.role === 'promotor';
 
     useEffect(() => {
         fetchProducts();

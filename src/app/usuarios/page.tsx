@@ -178,7 +178,8 @@ export default function UsuariosPage() {
                                         <td className="px-6 py-4">
                                             <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${user.role === 'admin' ? 'bg-purple-100 text-purple-600' :
                                                 user.role === 'professional' ? 'bg-blue-100 text-blue-600' :
-                                                    'bg-green-100 text-green-600'
+                                                    user.role === 'promotor' ? 'bg-teal-100 text-teal-600' :
+                                                        'bg-green-100 text-green-600'
                                                 }`}>
                                                 {user.role}
                                             </span>
@@ -190,6 +191,7 @@ export default function UsuariosPage() {
                                                     onChange={(e) => handleRoleChange(user.uid, e.target.value as UserRole)}
                                                     options={[
                                                         { value: 'client', label: 'Cliente' },
+                                                        { value: 'promotor', label: 'Promotor' },
                                                         { value: 'professional', label: 'Profesional' },
                                                         { value: 'secretary', label: 'Secretaria' },
                                                         { value: 'admin', label: 'Administrador' }

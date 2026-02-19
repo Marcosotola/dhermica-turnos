@@ -111,8 +111,8 @@ export function BottomNav() {
                 active: pathname_real === '/comunidad'
             }
         ] : []),
-        // Client specific
-        ...(role === 'client' ? [
+        // Client and Promotor specific
+        ...(role === 'client' || role === 'promotor' ? [
             {
                 label: 'Servicios',
                 icon: Sparkles,

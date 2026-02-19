@@ -39,7 +39,7 @@ export default function PromosPage() {
     // Carousel ref
     const carouselRef = useRef<HTMLDivElement>(null);
 
-    const isAdmin = profile?.role === 'admin' || profile?.role === 'secretary';
+    const isAdmin = profile?.role === 'admin' || profile?.role === 'secretary' || profile?.role === 'promotor';
 
     useEffect(() => {
         fetchPromotions();

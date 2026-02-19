@@ -84,8 +84,8 @@ export function TopNavbar() {
             { href: '/comunidad', label: 'Comunidad', icon: Users },
             { href: '/ubicacion', label: 'Ubicación', icon: MapPin },
         ] : []),
-        // Client only
-        ...(role === 'client' ? [
+        // Client and Promotor
+        ...(role === 'client' || role === 'promotor' ? [
             { href: '/mis-turnos', label: 'Turnos', icon: Calendar },
             { href: '/tratamientos', label: 'Servicios', icon: Sparkles },
             { href: '/productos', label: 'Productos', icon: ShoppingBag },

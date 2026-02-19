@@ -51,7 +51,7 @@ export default function DashboardPage() {
             setHistoryLoading(true);
             try {
                 let data: Appointment[] = [];
-                if (profile.role === 'client') {
+                if (profile.role === 'client' || profile.role === 'promotor') {
                     // Fetch by ID (registered) and Name (legacy)
                     data = await getAppointmentsByClientId(user.uid, profile.fullName);
                 } else if (profile.role === 'professional') {
@@ -149,7 +149,7 @@ export default function DashboardPage() {
                                 Hola, {profile?.fullName || 'Usuario'}
                             </h1>
                             <p className="text-gray-100 font-medium opacity-100">
-                                {role === 'admin' ? 'Administrador' : role === 'professional' ? 'Profesional' : role === 'secretary' ? 'Secretaría' : 'Cliente'}
+                                {role === 'admin' ? 'Administrador' : role === 'professional' ? 'Profesional' : role === 'secretary' ? 'Secretaría' : role === 'promotor' ? 'Promotor' : 'Cliente'}
                             </p>
                         </div>
                     </div>
@@ -284,7 +284,7 @@ export default function DashboardPage() {
                         </>
                     )}
 
-                    {role === 'client' && (
+                    {(role === 'client' || role === 'promotor') && (
                         <Link href="/mis-turnos" className="flex flex-col items-center justify-center bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-all group">
                             <Calendar className="w-10 h-10 text-[#34baab] mb-4 group-hover:scale-110 transition-transform" />
                             <span className="text-xl font-bold text-gray-900 text-center">Turnos</span>

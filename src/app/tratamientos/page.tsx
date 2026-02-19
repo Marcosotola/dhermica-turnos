@@ -29,7 +29,7 @@ export default function TratamientosPage() {
     const [editingTreatment, setEditingTreatment] = useState<Treatment | undefined>();
     const [selectedTreatment, setSelectedTreatment] = useState<Treatment | null>(null);
 
-    const isAdmin = profile?.role === 'admin' || profile?.role === 'secretary';
+    const isAdmin = profile?.role === 'admin' || profile?.role === 'secretary' || profile?.role === 'promotor';
 
     useEffect(() => {
         fetchTreatments();
