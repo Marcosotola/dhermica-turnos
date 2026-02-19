@@ -207,7 +207,7 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
                                 onChange={(e) => setFormData({ ...formData, relevantMedicalInfo: e.target.value })}
                                 placeholder="Describe cualquier información relevante para tus tratamientos..."
                                 rows={3}
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#34baab] focus:border-transparent resize-none"
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#34baab] focus:border-transparent resize-none text-gray-900 bg-white"
                             />
                         </div>
 

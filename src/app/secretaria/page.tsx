@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
-import { Calendar, TrendingUp, Sparkles, ShoppingBag, BookOpen, Bell, MapPin } from 'lucide-react';
+import { Calendar, TrendingUp, Sparkles, ShoppingBag, BookOpen, Bell, MapPin, Users } from 'lucide-react';
 import { ProfileSection } from '@/components/dashboard/ProfileSection';
 import { EditProfileModal } from '@/components/dashboard/EditProfileModal';
 import { Toaster } from 'sonner';
@@ -132,6 +132,16 @@ export default function SecretariaPage() {
                         <MapPin className="w-10 h-10 text-red-500 group-hover:scale-110 transition-transform mb-4" />
                         <h2 className="text-xl font-bold text-gray-900">Ubicación</h2>
                         <p className="hidden md:block text-sm text-gray-500 mt-2">Dirección y mapa</p>
+                    </button>
+
+                    {/* Comunidad */}
+                    <button
+                        onClick={() => router.push('/comunidad')}
+                        className="flex flex-col items-center justify-center bg-white rounded-3xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-all text-center group"
+                    >
+                        <Users className="w-10 h-10 text-[#34baab] group-hover:scale-110 transition-transform mb-4" />
+                        <h2 className="text-xl font-bold text-gray-900">Comunidad</h2>
+                        <p className="hidden md:block text-sm text-gray-500 mt-2">Resultados e inspiración</p>
                     </button>
                 </div>
             </div>

@@ -1,5 +1,5 @@
 import { initializeApp, getApps } from 'firebase/app';
-import { getFirestore } from 'firebase/firestore';
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 import { getStorage } from 'firebase/storage';
 import { getMessaging, isSupported } from 'firebase/messaging';
@@ -17,22 +17,15 @@ const firebaseConfig = {
 // Initialize Firebase only if it hasn't been initialized yet
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 
-export const db = getFirestore(app);
+// Initialize Firestore with modern persistent cache (handles multiple tabs better)
+export const db = initializeFirestore(app, {
+    localCache: persistentLocalCache({
+        tabManager: persistentMultipleTabManager()
+    })
+});
+
 export const auth = getAuth(app);
 export const storage = getStorage(app);
-
-// Enable offline persistence
-if (typeof window !== 'undefined') {
-    import('firebase/firestore').then(({ enableMultiTabIndexedDbPersistence }) => {
-        enableMultiTabIndexedDbPersistence(db).catch((err) => {
-            if (err.code === 'failed-precondition') {
-                console.warn('Firestore persistence failed: Multiple tabs open');
-            } else if (err.code === 'unimplemented') {
-                console.warn('Firestore persistence is not supported by this browser');
-            }
-        });
-    });
-}
 
 // Messaging is only supported in browser environments
 export const messaging = async () => {

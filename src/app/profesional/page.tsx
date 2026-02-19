@@ -5,7 +5,7 @@ import { useAuth } from '@/lib/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { getAppointmentsByProfessional } from '@/lib/firebase/appointments';
 import { Appointment } from '@/lib/types/appointment';
-import { Calendar, TrendingUp, Sparkles, BookOpen, ShoppingBag, MapPin } from 'lucide-react';
+import { Calendar, TrendingUp, Sparkles, BookOpen, ShoppingBag, MapPin, Users } from 'lucide-react';
 import { ProfileSection } from '@/components/dashboard/ProfileSection';
 import { EditProfileModal } from '@/components/dashboard/EditProfileModal';
 import { toast, Toaster } from 'sonner';
@@ -137,6 +137,18 @@ export default function ProfesionalPage() {
                         </div>
                         <h2 className="text-xl font-black text-gray-900 mb-1">Ubicación</h2>
                         <p className="hidden md:block text-xs text-gray-400 font-bold uppercase tracking-wider">Dirección y mapa</p>
+                    </button>
+
+                    {/* Comunidad */}
+                    <button
+                        onClick={() => router.push('/comunidad')}
+                        className="flex flex-col items-center justify-center bg-white rounded-[2rem] shadow-sm border border-gray-100 p-8 hover:shadow-xl hover:-translate-y-1 transition-all text-center group"
+                    >
+                        <div className="w-16 h-16 bg-teal-50 rounded-2xl flex items-center justify-center mb-6 group-hover:bg-[#34baab] transition-colors">
+                            <Users className="w-8 h-8 text-[#34baab] group-hover:text-white transition-colors" />
+                        </div>
+                        <h2 className="text-xl font-black text-gray-900 mb-1">Comunidad</h2>
+                        <p className="hidden md:block text-xs text-gray-400 font-bold uppercase tracking-wider">Resultados e inspiración</p>
                     </button>
                 </div>
             </div>

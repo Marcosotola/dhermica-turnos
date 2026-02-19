@@ -64,16 +64,10 @@ export function BottomNav() {
                 active: pathname_real === '/profesional/turnos'
             },
             {
-                label: 'Buscar',
-                icon: Search,
-                action: () => {
-                    if (pathname_real === '/profesional/turnos') {
-                        window.dispatchEvent(new CustomEvent('toggle-search'));
-                    } else {
-                        router.push('/profesional/turnos?action=search');
-                    }
-                },
-                active: false
+                label: 'Comunidad',
+                icon: Users,
+                href: '/comunidad',
+                active: pathname_real === '/comunidad'
             }
         ] : []),
         // Admin & Secretary specific
@@ -111,16 +105,10 @@ export function BottomNav() {
                 active: pathname_real === '/turnos'
             },
             {
-                label: 'Buscar',
-                icon: Search,
-                action: () => {
-                    if (pathname_real === '/turnos') {
-                        window.dispatchEvent(new CustomEvent('toggle-search'));
-                    } else {
-                        router.push('/turnos?action=search');
-                    }
-                },
-                active: false
+                label: 'Comunidad',
+                icon: Users,
+                href: '/comunidad',
+                active: pathname_real === '/comunidad'
             }
         ] : []),
         // Client specific
@@ -138,10 +126,10 @@ export function BottomNav() {
                 active: pathname_real === '/productos'
             },
             {
-                label: 'Promociones',
-                icon: Tag,
-                href: '/promociones',
-                active: pathname_real === '/promociones'
+                label: 'Comunidad',
+                icon: Users,
+                href: '/comunidad',
+                active: pathname_real === '/comunidad'
             },
             {
                 label: 'Turnos',

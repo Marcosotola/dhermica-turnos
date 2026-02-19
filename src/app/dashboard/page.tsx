@@ -222,6 +222,12 @@ export default function DashboardPage() {
                                 <span className="text-xl font-bold text-gray-900 text-center">Avisos</span>
                                 <p className="hidden md:block text-gray-500 text-sm mt-2 text-center">Enviar notificaciones push.</p>
                             </Link>
+
+                            <Link href="/comunidad" className="flex flex-col items-center justify-center bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-all group">
+                                <Users className="w-10 h-10 text-[#34baab] mb-4 group-hover:scale-110 transition-transform" />
+                                <span className="text-xl font-bold text-gray-900 text-center">Comunidad</span>
+                                <p className="hidden md:block text-gray-500 text-sm mt-2 text-center">Resultados e inspiración.</p>
+                            </Link>
                         </>
                     )}
 
@@ -268,6 +274,12 @@ export default function DashboardPage() {
                                 <Tag className="w-10 h-10 text-pink-500 mb-4 group-hover:scale-110 transition-transform" />
                                 <span className="text-xl font-bold text-gray-900 text-center">Promos</span>
                                 <p className="hidden md:block text-gray-500 text-sm mt-2 text-center">Ofertas y paquetes especiales.</p>
+                            </Link>
+
+                            <Link href="/comunidad" className="flex flex-col items-center justify-center bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-all group">
+                                <Users className="w-10 h-10 text-[#34baab] mb-4 group-hover:scale-110 transition-transform" />
+                                <span className="text-xl font-bold text-gray-900 text-center">Comunidad</span>
+                                <p className="hidden md:block text-gray-500 text-sm mt-2 text-center">Resultados e inspiración.</p>
                             </Link>
                         </>
                     )}

@@ -60,6 +60,7 @@ export function TopNavbar() {
             { href: '/profesionales', label: 'Profesionales', icon: Users },
             { href: '/alquileres', label: 'Alquiler', icon: Truck },
             { href: '/secretaria/notificaciones', label: 'Avisos', icon: Bell },
+            { href: '/comunidad', label: 'Comunidad', icon: Users },
             { href: '/ubicacion', label: 'Ubicación', icon: MapPin },
         ] : []),
         // Professional only
@@ -69,6 +70,7 @@ export function TopNavbar() {
             { href: '/tratamientos', label: 'Servicios', icon: Sparkles },
             { href: '/productos', label: 'Productos', icon: ShoppingBag },
             { href: '/promociones', label: 'Promociones', icon: Tag },
+            { href: '/comunidad', label: 'Comunidad', icon: Users },
             { href: '/ubicacion', label: 'Ubicación', icon: MapPin },
         ] : []),
         // Secretary only
@@ -79,6 +81,7 @@ export function TopNavbar() {
             { href: '/tratamientos', label: 'Servicios', icon: Sparkles },
             { href: '/productos', label: 'Productos', icon: ShoppingBag },
             { href: '/secretaria/notificaciones', label: 'Avisos', icon: Bell },
+            { href: '/comunidad', label: 'Comunidad', icon: Users },
             { href: '/ubicacion', label: 'Ubicación', icon: MapPin },
         ] : []),
         // Client only
@@ -87,6 +90,7 @@ export function TopNavbar() {
             { href: '/tratamientos', label: 'Servicios', icon: Sparkles },
             { href: '/productos', label: 'Productos', icon: ShoppingBag },
             { href: '/promociones', label: 'Promociones', icon: Tag },
+            { href: '/comunidad', label: 'Comunidad', icon: Users },
             { href: '/ubicacion', label: 'Ubicación', icon: MapPin },
         ] : []),
     ];
