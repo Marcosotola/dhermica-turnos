@@ -12,9 +12,10 @@ import {
     deleteProfessional
 } from '@/lib/firebase/professionals';
 import { Professional } from '@/lib/types/professional';
-import { Plus, Edit2, Check, X, Shield, ShieldOff, Palette, ArrowLeft, Trash2 } from 'lucide-react';
+import { Plus, Edit2, Check, X, Shield, ShieldOff, Palette, ArrowLeft, Trash2, History } from 'lucide-react';
 import { toast, Toaster } from 'sonner';
 import Link from 'next/link';
+import { ProfessionalHistoryModal } from '@/components/professionals/ProfessionalHistoryModal';
 
 export default function ProfesionalesPage() {
     const [professionals, setProfessionals] = useState<Professional[]>([]);
@@ -23,6 +24,8 @@ export default function ProfesionalesPage() {
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [editingProfessional, setEditingProfessional] = useState<Professional | null>(null);
     const [professionalToDelete, setProfessionalToDelete] = useState<Professional | null>(null);
+    const [professionalHistory, setProfessionalHistory] = useState<Professional | null>(null);
+    const [historyModalOpen, setHistoryModalOpen] = useState(false);
 
     // Form states
     const [name, setName] = useState('');
@@ -102,6 +105,11 @@ export default function ProfesionalesPage() {
         setDeleteDialogOpen(true);
     };
 
+    const handleHistoryClick = (prof: Professional) => {
+        setProfessionalHistory(prof);
+        setHistoryModalOpen(true);
+    };
+
     const handleConfirmDelete = async () => {
         if (!professionalToDelete) return;
 
@@ -175,6 +183,13 @@ export default function ProfesionalesPage() {
                                         </td>
                                         <td className="px-6 py-4 text-right">
                                             <div className="flex justify-end gap-2">
+                                                <button
+                                                    onClick={() => handleHistoryClick(prof)}
+                                                    className="p-2 hover:bg-blue-50 text-blue-600 rounded-lg transition-colors"
+                                                    title="Ver Historial"
+                                                >
+                                                    <History className="w-5 h-5" />
+                                                </button>
                                                 <button
                                                     onClick={() => handleToggleStatus(prof.id, prof.active)}
                                                     className={`p-2 rounded-lg transition-colors ${prof.active ? 'hover:bg-red-50 text-red-600' : 'hover:bg-green-50 text-green-600'
@@ -308,6 +323,13 @@ export default function ProfesionalesPage() {
                     </div>
                 </div>
             </Modal>
+
+            {/* History Modal */}
+            <ProfessionalHistoryModal
+                isOpen={historyModalOpen}
+                onClose={() => setHistoryModalOpen(false)}
+                professional={professionalHistory}
+            />
         </div>
     );
 }
