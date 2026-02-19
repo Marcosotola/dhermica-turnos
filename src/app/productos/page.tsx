@@ -10,6 +10,8 @@ import { ProductForm } from '@/components/products/ProductForm';
 import { ProductDetail } from '@/components/products/ProductDetail';
 import { Button } from '@/components/ui/Button';
 import { toast, Toaster } from 'sonner';
+import { CardSkeleton } from '@/components/ui/Skeleton';
+import { haptics } from '@/lib/utils/haptics';
 
 export default function ProductosPage() {
     const { profile, loading: authLoading } = useAuth();
@@ -170,7 +172,7 @@ export default function ProductosPage() {
                 {loading ? (
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-8">
                         {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
-                            <div key={i} className="bg-white rounded-[2rem] aspect-[3/4] animate-pulse border border-gray-100" />
+                            <CardSkeleton key={i} />
                         ))}
                     </div>
                 ) : filteredProducts.length === 0 ? (
@@ -183,14 +185,19 @@ export default function ProductosPage() {
                     </div>
                 ) : (
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-8">
-                        {filteredProducts.map(p => (
+                        {filteredProducts.map((p, index) => (
                             <ProductCard
                                 key={p.id}
                                 product={p}
                                 isAdmin={isAdmin}
                                 onEdit={(p) => { setEditingProduct(p); setIsFormOpen(true); }}
                                 onDelete={handleDelete}
-                                onClick={(p) => { setSelectedProduct(p); setIsDetailOpen(true); }}
+                                onClick={(p) => {
+                                    haptics.light();
+                                    setSelectedProduct(p);
+                                    setIsDetailOpen(true);
+                                }}
+                                priority={index < 2}
                             />
                         ))}
                     </div>

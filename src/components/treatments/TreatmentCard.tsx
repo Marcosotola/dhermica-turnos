@@ -19,7 +19,7 @@ export function TreatmentCard({ treatment, isAdmin, onEdit, onDelete, onClick }:
     return (
         <div
             onClick={() => onClick?.(treatment)}
-            className="group relative bg-white rounded-2xl md:rounded-[2rem] border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all p-3 md:p-6 cursor-pointer overflow-hidden"
+            className="group relative bg-white rounded-2xl md:rounded-[2.5rem] border-2 border-gray-100 shadow-lg hover:shadow-2xl hover:border-[#34baab]/20 hover:-translate-y-1 transition-all p-3 md:p-6 cursor-pointer overflow-hidden"
         >
             {/* Background Accent */}
             <div className="absolute top-0 right-0 w-24 h-24 md:w-32 md:h-32 bg-teal-50/50 rounded-full -mr-8 -mt-8 md:-mr-12 md:-mt-12 group-hover:scale-110 transition-transform" />

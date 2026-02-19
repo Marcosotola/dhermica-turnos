@@ -11,9 +11,10 @@ interface ProductCardProps {
     onEdit?: (product: Product) => void;
     onDelete?: (id: string) => void;
     onClick?: (product: Product) => void;
+    priority?: boolean;
 }
 
-export function ProductCard({ product, isAdmin, onEdit, onDelete, onClick }: ProductCardProps) {
+export function ProductCard({ product, isAdmin, onEdit, onDelete, onClick, priority }: ProductCardProps) {
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
     const nextImage = (e: React.MouseEvent) => {
@@ -29,7 +30,7 @@ export function ProductCard({ product, isAdmin, onEdit, onDelete, onClick }: Pro
     return (
         <div
             onClick={() => onClick?.(product)}
-            className="group relative bg-white rounded-[2rem] border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all cursor-pointer overflow-hidden flex flex-col h-full"
+            className="group relative bg-white rounded-[2.5rem] border-2 border-gray-100 shadow-lg hover:shadow-2xl hover:border-[#34baab]/20 hover:-translate-y-1 transition-all cursor-pointer overflow-hidden flex flex-col h-full"
         >
             {/* Image Section */}
             <div className="relative aspect-square overflow-hidden bg-gray-50">
@@ -39,6 +40,7 @@ export function ProductCard({ product, isAdmin, onEdit, onDelete, onClick }: Pro
                             src={product.images[currentImageIndex]}
                             alt={product.name}
                             fill
+                            priority={priority}
                             className="object-cover group-hover:scale-105 transition-transform duration-500"
                         />
                         {product.images.length > 1 && (

@@ -11,6 +11,8 @@ import { TreatmentDetail } from '@/components/treatments/TreatmentDetail';
 import { TreatmentSeeder } from '@/components/treatments/TreatmentSeeder';
 import { Button } from '@/components/ui/Button';
 import { toast, Toaster } from 'sonner';
+import { CardSkeleton } from '@/components/ui/Skeleton';
+import { haptics } from '@/lib/utils/haptics';
 
 const CATEGORIES: (TreatmentCategory | 'Todos')[] = ['Todos', 'Facial', 'Corporal', 'Aparatología', 'Depilación', 'Manos', 'Pies', 'Cejas', 'Pestañas'];
 
@@ -153,9 +155,9 @@ export default function TratamientosPage() {
 
                 {/* Grid */}
                 {loading ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-6">
                         {[1, 2, 3, 4, 5, 6].map(i => (
-                            <div key={i} className="bg-white rounded-[2rem] h-64 animate-pulse border border-gray-100" />
+                            <CardSkeleton key={i} />
                         ))}
                     </div>
                 ) : filteredTreatments.length === 0 ? (
@@ -175,7 +177,11 @@ export default function TratamientosPage() {
                                 isAdmin={isAdmin}
                                 onEdit={(t) => { setEditingTreatment(t); setIsFormOpen(true); }}
                                 onDelete={handleDelete}
-                                onClick={(t) => { setSelectedTreatment(t); setIsDetailOpen(true); }}
+                                onClick={(t) => {
+                                    haptics.light();
+                                    setSelectedTreatment(t);
+                                    setIsDetailOpen(true);
+                                }}
                             />
                         ))}
                     </div>

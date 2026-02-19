@@ -23,6 +23,8 @@ import {
     Loader2
 } from 'lucide-react';
 import { toast, Toaster } from 'sonner';
+import { PromoCardSkeleton } from '@/components/ui/Skeleton';
+import { haptics } from '@/lib/utils/haptics';
 
 export default function PromosPage() {
     const { profile, loading: authLoading } = useAuth();
@@ -139,12 +141,14 @@ export default function PromosPage() {
     };
 
     const handleNext = () => {
+        haptics.light();
         const nextIndex = (currentIndex + 1) % promotions.length;
         setCurrentIndex(nextIndex);
         scrollToIndex(nextIndex);
     };
 
     const handlePrev = () => {
+        haptics.light();
         const prevIndex = (currentIndex - 1 + promotions.length) % promotions.length;
         setCurrentIndex(prevIndex);
         scrollToIndex(prevIndex);
@@ -153,10 +157,20 @@ export default function PromosPage() {
 
     if (authLoading || (loading && promotions.length === 0)) {
         return (
-            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-                <div className="flex flex-col items-center gap-4">
-                    <Loader2 className="w-12 h-12 text-[#34baab] animate-spin" />
-                    <p className="text-[#484450] font-black uppercase tracking-widest text-xs">Cargando Ofertas...</p>
+            <div className="min-h-screen bg-gray-50 pb-24">
+                <div className="bg-[#484450] text-white pt-20 md:pt-10 pb-12 px-4 md:px-8">
+                    <div className="max-w-7xl mx-auto">
+                        <div className="h-24 w-64 bg-white/10 animate-pulse rounded-2xl" />
+                    </div>
+                </div>
+                <div className="max-w-7xl mx-auto px-4 mt-6">
+                    <div className="flex gap-4 overflow-hidden">
+                        {[1, 2, 3].map(i => (
+                            <div key={i} className="flex-none w-[72vw] md:w-[450px]">
+                                <PromoCardSkeleton />
+                            </div>
+                        ))}
+                    </div>
                 </div>
             </div>
         );

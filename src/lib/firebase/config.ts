@@ -21,6 +21,19 @@ export const db = getFirestore(app);
 export const auth = getAuth(app);
 export const storage = getStorage(app);
 
+// Enable offline persistence
+if (typeof window !== 'undefined') {
+    import('firebase/firestore').then(({ enableMultiTabIndexedDbPersistence }) => {
+        enableMultiTabIndexedDbPersistence(db).catch((err) => {
+            if (err.code === 'failed-precondition') {
+                console.warn('Firestore persistence failed: Multiple tabs open');
+            } else if (err.code === 'unimplemented') {
+                console.warn('Firestore persistence is not supported by this browser');
+            }
+        });
+    });
+}
+
 // Messaging is only supported in browser environments
 export const messaging = async () => {
     const supported = await isSupported();
