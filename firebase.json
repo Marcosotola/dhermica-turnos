@@ -15,5 +15,8 @@
         "npm run build --prefix functions"
       ]
     }
-  ]
+  ],
+  "firestore": {
+    "rules": "firestore.rules"
+  }
 }
