@@ -55,3 +55,8 @@ export async function getNotificationHistory(maxResults: number = 50): Promise<N
 export async function deleteNotificationRecord(id: string): Promise<void> {
     await deleteDoc(doc(db, NOTIFICATIONS_COLLECTION, id));
 }
+
+export async function deleteMultipleNotificationRecords(ids: string[]): Promise<void> {
+    const promises = ids.map(id => deleteNotificationRecord(id));
+    await Promise.all(promises);
+}

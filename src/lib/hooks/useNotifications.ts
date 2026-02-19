@@ -100,10 +100,19 @@ export function useNotifications() {
 
                 // 1. Setup Foreground Listener
                 onMessage(msg, (payload) => {
-                    console.log('FCM: Foreground message received:', payload);
+                    console.log('FCM: Foreground message received (Toast disabled to avoid duplication):', payload);
+                    /* 
+                    const targetUrl = payload.data?.url || '/';
                     toast.info(payload.notification?.title || 'Notificación', {
                         description: payload.notification?.body,
+                        action: {
+                            label: 'Ver',
+                            onClick: () => {
+                                if (targetUrl) window.location.href = targetUrl;
+                            }
+                        }
                     });
+                    */
                 });
 
                 // 2. Token Refresh/Save Logic

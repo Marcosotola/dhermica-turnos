@@ -8,8 +8,10 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { toast } from 'sonner';
 import { getAllUsers } from '@/lib/firebase/users';
-import { getNotificationHistory, deleteNotificationRecord, NotificationRecord } from '@/lib/firebase/notifications';
+import { getNotificationHistory, deleteNotificationRecord, deleteMultipleNotificationRecords, NotificationRecord } from '@/lib/firebase/notifications';
 import { UserProfile } from '@/lib/types/user';
+import { useMemo } from 'react';
+import { Checkbox } from '@/components/ui/Checkbox';
 
 export default function NotificationsPage() {
     const { user, profile, loading: authLoading } = useAuth();
@@ -20,7 +22,7 @@ export default function NotificationsPage() {
     const [loading, setLoading] = useState(false);
 
     // Form state
-    const [title, setTitle] = useState('');
+    const [title, setTitle] = useState('Dhermica Estetica Unisex: ');
     const [body, setBody] = useState('');
     const [targetType, setTargetType] = useState<'all' | 'specific'>('all');
     const [selectedUserId, setSelectedUserId] = useState('');
@@ -28,6 +30,12 @@ export default function NotificationsPage() {
     const [searchQuery, setSearchQuery] = useState("");
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [filteredClients, setFilteredClients] = useState<UserProfile[]>([]);
+    const [targetUrl, setTargetUrl] = useState('/');
+
+    // History management state
+    const [historySearchQuery, setHistorySearchQuery] = useState('');
+    const [filterType, setFilterType] = useState<'all' | 'broadcast' | 'targeted' | 'system'>('all');
+    const [selectedHistoryIds, setSelectedHistoryIds] = useState<Set<string>>(new Set());
 
 
     // Config check
@@ -72,16 +80,51 @@ export default function NotificationsPage() {
         }
         const query = searchQuery.toLowerCase();
         const filtered = allUsers.filter(user =>
-            user.fullName.toLowerCase().includes(query) ||
-            user.email.toLowerCase().includes(query)
+            (user.fullName || "").toLowerCase().includes(query) ||
+            (user.email || "").toLowerCase().includes(query)
         );
         setFilteredClients(filtered);
     }, [searchQuery, allUsers]);
 
     const selectClient = (client: UserProfile) => {
         setSelectedUserId(client.uid);
-        setSearchQuery(client.fullName);
+        setSearchQuery(client.fullName || "");
         setShowSuggestions(false);
+    };
+
+    // Filter history based on search and type
+    const filteredHistory = useMemo(() => {
+        return history.filter(item => {
+            const matchesSearch =
+                item.title.toLowerCase().includes(historySearchQuery.toLowerCase()) ||
+                item.body.toLowerCase().includes(historySearchQuery.toLowerCase());
+
+            const matchesType =
+                filterType === 'all' ||
+                (filterType === 'system' && item.sentBy === 'system') ||
+                (filterType === 'broadcast' && item.type === 'broadcast' && item.sentBy !== 'system') ||
+                (filterType === 'targeted' && item.type === 'targeted' && item.sentBy !== 'system');
+
+            return matchesSearch && matchesType;
+        });
+    }, [history, historySearchQuery, filterType]);
+
+    const toggleSelection = (id: string) => {
+        const newSelection = new Set(selectedHistoryIds);
+        if (newSelection.has(id)) {
+            newSelection.delete(id);
+        } else {
+            newSelection.add(id);
+        }
+        setSelectedHistoryIds(newSelection);
+    };
+
+    const toggleAllSelection = () => {
+        if (selectedHistoryIds.size === filteredHistory.length) {
+            setSelectedHistoryIds(new Set());
+        } else {
+            setSelectedHistoryIds(new Set(filteredHistory.map(h => h.id!)));
+        }
     };
 
 
@@ -122,7 +165,8 @@ export default function NotificationsPage() {
                     tokens: targetTokens,
                     targetUserId: targetUid,
                     sentBy: user!.uid,
-                    type: targetType === 'all' ? 'broadcast' : 'targeted'
+                    type: targetType === 'all' ? 'broadcast' : 'targeted',
+                    url: targetUrl
                 }),
             });
 
@@ -148,8 +192,30 @@ export default function NotificationsPage() {
             await deleteNotificationRecord(id);
             setHistory(history.filter(h => h.id !== id));
             toast.success('Registro eliminado');
+            // Remove from selection if present
+            const newSelection = new Set(selectedHistoryIds);
+            newSelection.delete(id);
+            setSelectedHistoryIds(newSelection);
         } catch (error) {
             toast.error('Error al eliminar registro');
+        }
+    };
+
+    const handleBulkDelete = async () => {
+        if (selectedHistoryIds.size === 0) return;
+        if (!confirm(`¿Estás seguro que deseas eliminar ${selectedHistoryIds.size} registros?`)) return;
+
+        setLoading(true);
+        try {
+            const idsToDelete = Array.from(selectedHistoryIds);
+            await deleteMultipleNotificationRecords(idsToDelete);
+            setHistory(history.filter(h => !selectedHistoryIds.has(h.id!)));
+            setSelectedHistoryIds(new Set());
+            toast.success(`${idsToDelete.length} registros eliminados`);
+        } catch (error) {
+            toast.error('Error al realizar la eliminación masiva');
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -288,6 +354,25 @@ export default function NotificationsPage() {
                                 </div>
                             )}
 
+                            {/* Destination URL Selector */}
+                            <div className="space-y-3">
+                                <label className="block text-sm font-bold text-gray-700">
+                                    Abrir al hacer click
+                                </label>
+                                <select
+                                    value={targetUrl}
+                                    onChange={(e) => setTargetUrl(e.target.value)}
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white"
+                                >
+                                    <option value="/">Inicio</option>
+                                    <option value="/promociones">Promociones</option>
+                                    <option value="/tratamientos">Servicios</option>
+                                    <option value="/productos">Productos</option>
+                                    <option value="/mis-turnos">Mis Turnos</option>
+                                    <option value="/ubicacion">Ubicación</option>
+                                </select>
+                            </div>
+
 
                             <div className="p-4 bg-gray-50 rounded-xl border border-gray-100 text-xs text-gray-500">
                                 <p className="font-bold mb-1 uppercase tracking-wider text-[10px]">Estado de Envío</p>
@@ -318,50 +403,130 @@ export default function NotificationsPage() {
                 {/* History */}
                 <div className="lg:col-span-2 space-y-6">
                     <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 h-full">
-                        <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-                            <History className="w-5 h-5 text-amber-500" />
-                            Historial de Envíos
+                        <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <History className="w-5 h-5 text-amber-500" />
+                                Historial de Envíos
+                            </div>
+                            {selectedHistoryIds.size > 0 && (
+                                <div className="flex items-center gap-2 animate-in zoom-in duration-200">
+                                    <span className="text-xs font-medium text-amber-600 bg-amber-50 px-2 py-1 rounded-full border border-amber-100">
+                                        {selectedHistoryIds.size} seleccionados
+                                    </span>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={handleBulkDelete}
+                                        className="text-red-600 border-red-100 hover:bg-red-50 py-1 h-8 px-3 rounded-lg flex items-center gap-1 font-bold text-xs"
+                                    >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                        Borrar
+                                    </Button>
+                                    <button
+                                        onClick={() => setSelectedHistoryIds(new Set())}
+                                        className="text-xs text-gray-400 hover:text-gray-600 underline"
+                                    >
+                                        Limpiar
+                                    </button>
+                                </div>
+                            )}
                         </h2>
 
+                        {/* History Filters & Search */}
+                        <div className="mb-6 space-y-4">
+                            <div className="relative">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                <input
+                                    type="text"
+                                    placeholder="Buscar en el historial..."
+                                    value={historySearchQuery}
+                                    onChange={(e) => setHistorySearchQuery(e.target.value)}
+                                    className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all"
+                                />
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                                {[
+                                    { label: 'Todos', value: 'all' },
+                                    { label: 'Masivos', value: 'broadcast' },
+                                    { label: 'Individuales', value: 'targeted' },
+                                    { label: 'Automáticos', value: 'system' }
+                                ].map((tab) => (
+                                    <button
+                                        key={tab.value}
+                                        onClick={() => setFilterType(tab.value as any)}
+                                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${filterType === tab.value
+                                            ? 'bg-amber-100 text-amber-700 border border-amber-200 shadow-sm'
+                                            : 'bg-white text-gray-500 border border-gray-100 hover:bg-gray-50'
+                                            }`}
+                                    >
+                                        {tab.label}
+                                    </button>
+                                ))}
+                                {history.length > 0 && (
+                                    <button
+                                        onClick={toggleAllSelection}
+                                        className="ml-auto text-xs font-bold text-gray-500 hover:text-amber-600 transition-colors"
+                                    >
+                                        {selectedHistoryIds.size === filteredHistory.length ? 'Desmarcar todo' : 'Marcar todo'}
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+
                         <div className="space-y-4">
-                            {history.length === 0 ? (
+                            {filteredHistory.length === 0 ? (
                                 <div className="text-center py-12">
-                                    <p className="text-gray-500">No hay notificaciones enviadas recientemente.</p>
+                                    <p className="text-gray-500">
+                                        {historySearchQuery || filterType !== 'all'
+                                            ? 'No se encontraron resultados para tu búsqueda.'
+                                            : 'No hay notificaciones enviadas recientemente.'}
+                                    </p>
                                 </div>
                             ) : (
-                                history.map((item) => (
+                                filteredHistory.map((item) => (
                                     <div
                                         key={item.id}
-                                        className="p-4 rounded-2xl border border-gray-100 bg-gray-50/50 hover:bg-white hover:shadow-sm transition-all relative group"
+                                        className={`p-4 rounded-2xl border transition-all relative group flex gap-4 ${selectedHistoryIds.has(item.id!)
+                                                ? 'border-amber-300 bg-amber-50/30'
+                                                : 'border-gray-100 bg-gray-50/50 hover:bg-white hover:shadow-sm'
+                                            }`}
                                     >
-                                        <div className="flex justify-between items-start mb-2">
-                                            <div className="flex items-center gap-2">
-                                                <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider ${item.sentBy === 'system'
+                                        <div className="flex-shrink-0 pt-1">
+                                            <Checkbox
+                                                checked={selectedHistoryIds.has(item.id!)}
+                                                onCheckedChange={() => toggleSelection(item.id!)}
+                                            />
+                                        </div>
+                                        <div className="flex-grow">
+                                            <div className="flex justify-between items-start mb-2">
+                                                <div className="flex items-center gap-2">
+                                                    <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider ${item.sentBy === 'system'
                                                         ? 'bg-purple-100 text-purple-700'
                                                         : item.type === 'broadcast'
                                                             ? 'bg-blue-100 text-blue-700'
                                                             : 'bg-amber-100 text-amber-700'
-                                                    }`}>
-                                                    {item.sentBy === 'system' ? 'Automático' : item.type === 'broadcast' ? 'Masivo' : 'Individual'}
-                                                </span>
-                                                <span className="text-xs text-gray-400">
-                                                    {item.sentAt.toLocaleString()}
-                                                </span>
+                                                        }`}>
+                                                        {item.sentBy === 'system' ? 'Automático' : item.type === 'broadcast' ? 'Masivo' : 'Individual'}
+                                                    </span>
+                                                    <span className="text-xs text-gray-400">
+                                                        {item.sentAt.toLocaleString()}
+                                                    </span>
+                                                </div>
+                                                <button
+                                                    onClick={() => handleDelete(item.id!)}
+                                                    className="text-gray-300 hover:text-red-500 transition-colors p-1"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
                                             </div>
-                                            <button
-                                                onClick={() => handleDelete(item.id!)}
-                                                className="text-gray-300 hover:text-red-500 transition-colors p-1"
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </button>
+                                            <h3 className="font-bold text-gray-900">{item.title}</h3>
+                                            <p className="text-sm text-gray-600 mt-1">{item.body}</p>
+                                            {item.targetUserId && (
+                                                <p className="text-[10px] text-gray-400 mt-2">
+                                                    ID Cliente: {item.targetUserId}
+                                                </p>
+                                            )}
                                         </div>
-                                        <h3 className="font-bold text-gray-900">{item.title}</h3>
-                                        <p className="text-sm text-gray-600 mt-1">{item.body}</p>
-                                        {item.targetUserId && (
-                                            <p className="text-[10px] text-gray-400 mt-2">
-                                                ID Cliente: {item.targetUserId}
-                                            </p>
-                                        )}
                                     </div>
                                 ))
                             )}

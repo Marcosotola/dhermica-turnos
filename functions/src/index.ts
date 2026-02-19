@@ -62,14 +62,32 @@ export const sendAppointmentReminders = onSchedule("every 30 minutes",
                         const tokens = userData?.fcmTokens || [];
 
                         if (tokens.length > 0) {
+                            const [year, month, day] = apt.date.split("-");
+                            const formattedDate = `${day}-${month}-${year}`;
+
                             const body = `Dhermica Estetica Unisex: Hola ${apt.clientName}, ` +
                                 `recordatorio de turno para ${apt.treatment} ` +
-                                `${interval.label} a las ${apt.time}hs.`;
+                                `${interval.label} (${formattedDate}) a las ${apt.time}hs.`;
 
                             const message = {
                                 notification: {
                                     title: "Recordatorio de Turno",
                                     body: body,
+                                },
+                                data: {
+                                    url: "/mis-turnos",
+                                },
+                                webpush: {
+                                    notification: {
+                                        icon: "/icon.svg",
+                                        badge: "/icon.svg",
+                                        data: {
+                                            url: "/mis-turnos",
+                                        },
+                                    },
+                                    fcmOptions: {
+                                        link: "/mis-turnos",
+                                    },
                                 },
                                 tokens: tokens,
                             };
@@ -81,7 +99,7 @@ export const sendAppointmentReminders = onSchedule("every 30 minutes",
 
                                 // Log to notifications history
                                 await db.collection("notifications").add({
-                                    title: "Recordatorio Automático",
+                                    title: "Dhermica Estetica Unisex: Recordatorio Automático",
                                     body: body,
                                     sentAt: admin.firestore.Timestamp.now(),
                                     sentBy: "system",

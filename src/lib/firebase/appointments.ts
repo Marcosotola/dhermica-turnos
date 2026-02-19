@@ -17,8 +17,37 @@ import { db } from './config';
 import { Professional } from '../types/professional';
 import { Appointment } from '../types/appointment';
 import { getActiveProfessionals } from './professionals';
+import { getUserProfile } from './users';
 
 const APPOINTMENTS_COLLECTION = 'appointments';
+
+/**
+ * Sends an automated push notification via the API
+ */
+async function sendAutomatedNotification(title: string, body: string, uid: string, url: string) {
+    try {
+        const clientProfile = await getUserProfile(uid);
+        if (!clientProfile || !clientProfile.fcmTokens || clientProfile.fcmTokens.length === 0 || clientProfile.notificationsEnabled === false) {
+            return;
+        }
+
+        await fetch('/api/notifications/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                title,
+                body,
+                tokens: clientProfile.fcmTokens,
+                targetUserId: uid,
+                sentBy: 'system',
+                type: 'targeted',
+                url
+            }),
+        });
+    } catch (error) {
+        console.error('Error sending automated notification:', error);
+    }
+}
 
 /**
  * Mapea datos de Firebase (pueden ser legacy en español) al tipo Appointment
@@ -119,6 +148,19 @@ export async function createAppointment(
     // Sincronizar con legacy
     await syncWithLegacy(data.professionalId, docRef.id, 'create', data);
 
+    // Notificar al cliente si existe
+    if (data.clientId) {
+        const [year, month, day] = data.date.split('-');
+        const formattedDate = `${day}-${month}-${year}`;
+
+        sendAutomatedNotification(
+            'Dhermica Estetica Unisex: ¡Turno Registrado! 👋',
+            `Tu cita para ${data.treatment} el ${formattedDate} a las ${data.time} ha sido agendada.`,
+            data.clientId,
+            '/mis-turnos'
+        );
+    }
+
     return docRef.id;
 }
 
@@ -189,15 +231,40 @@ export async function updateAppointment(
 export async function deleteAppointment(id: string): Promise<void> {
     const docRef = doc(db, APPOINTMENTS_COLLECTION, id);
 
-    // Necesitamos saber de quién era el turno para borrarlo de su legacy
+    // Necesitamos saber de quién era el turno para borrarlo de su legacy (y para notificar)
     const snap = await getDoc(docRef);
     let professionalId = '';
+    let clientId = '';
+    let treatment = '';
+
     if (snap.exists()) {
-        professionalId = snap.data().professionalId;
+        const data = snap.data();
+        professionalId = data.professionalId;
+        clientId = data.clientId;
+        treatment = data.treatment || data.servicio || 'Servicio';
     }
 
     // Eliminar de la colección principal
     await deleteDoc(docRef);
+
+    // Notificar al cliente si existe
+    if (clientId) {
+        const appointmentDate = snap.data()?.date || '';
+        const appointmentTime = snap.data()?.time || '';
+        let dateDisplay = '';
+
+        if (appointmentDate.includes('-')) {
+            const [year, month, day] = appointmentDate.split('-');
+            dateDisplay = ` del ${day}-${month}-${year}`;
+        }
+
+        sendAutomatedNotification(
+            'Dhermica Estetica Unisex: Turno Cancelado ❌',
+            `Tu cita para ${treatment}${dateDisplay} a las ${appointmentTime} ha sido cancelada.`,
+            clientId,
+            '/mis-turnos'
+        );
+    }
 
     // Sincronizar con legacy
     if (professionalId) {
