@@ -219,7 +219,7 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
                             />
                             <div className="flex flex-col">
                                 <label htmlFor="notifications" className="text-sm font-bold text-gray-700">
-                                    Habilitar notificaciones push
+                                    Habilitar notificaciones
                                 </label>
                                 <p className="text-xs text-gray-500">Recibe recordatorios de tus turnos y promociones especiales.</p>
                             </div>

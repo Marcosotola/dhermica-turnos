@@ -6,9 +6,11 @@ import { updateUserProfile, createUserProfile, formatPhone } from '@/lib/firebas
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
+import { Checkbox } from '@/components/ui/Checkbox';
 import { X, Save, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { PhoneInput } from '@/components/ui/PhoneInput';
+import { useNotifications } from '@/lib/hooks/useNotifications';
 
 interface EditProfileModalProps {
     isOpen: boolean;
@@ -20,6 +22,7 @@ interface EditProfileModalProps {
 
 export function EditProfileModal({ isOpen, onClose, user, onUpdate, isNewUser = false }: EditProfileModalProps) {
     const [loading, setLoading] = useState(false);
+    const { requestPermission } = useNotifications();
     const [formData, setFormData] = useState(() => {
         let phoneDisplay = user.phone || '';
         if (phoneDisplay.startsWith('+')) {
@@ -41,6 +44,7 @@ export function EditProfileModal({ isOpen, onClose, user, onUpdate, isNewUser = 
             sex: user.sex || 'female',
             isPregnant: user.isPregnant || false,
             relevantMedicalInfo: user.relevantMedicalInfo || '',
+            wantNotifications: user.notificationsEnabled ?? true,
         };
     });
 
@@ -60,21 +64,37 @@ export function EditProfileModal({ isOpen, onClose, user, onUpdate, isNewUser = 
         setLoading(true);
 
         try {
+            const finalPhone = formatPhone(`${countryCode}${formData.phone}`);
+
             if (isNewUser) {
                 // Create new profile
                 await createUserProfile({
                     ...user,
                     ...formData,
+                    phone: finalPhone,
+                    notificationsEnabled: formData.wantNotifications,
                     role: 'client' // Default role
                 });
+
+                // Request push notification permission if requested
+                if (formData.wantNotifications) {
+                    await requestPermission();
+                }
+
                 toast.success('¡Registro completado! Bienvenido.');
             } else {
                 // Update existing
-                const finalPhone = formatPhone(`${countryCode}${formData.phone}`);
                 await updateUserProfile(user.uid, {
                     ...formData,
-                    phone: finalPhone
+                    phone: finalPhone,
+                    notificationsEnabled: formData.wantNotifications,
                 });
+
+                // Request push notification permission if requested
+                if (formData.wantNotifications) {
+                    await requestPermission();
+                }
+
                 toast.success('Perfil actualizado correctamente');
             }
             onUpdate();
@@ -182,6 +202,20 @@ export function EditProfileModal({ isOpen, onClose, user, onUpdate, isNewUser = 
                             className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent min-h-[100px] resize-none"
                             placeholder="Alergias, enfermedades crónicas, medicación..."
                         />
+                    </div>
+
+                    <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl border border-gray-100">
+                        <Checkbox
+                            id="modal-notifications"
+                            checked={formData.wantNotifications}
+                            onCheckedChange={(checked) => setFormData({ ...formData, wantNotifications: !!checked })}
+                        />
+                        <div className="flex flex-col">
+                            <label htmlFor="modal-notifications" className="text-sm font-bold text-gray-700 leading-none">
+                                Habilitar notificaciones
+                            </label>
+                            <p className="text-[10px] text-gray-500 mt-1">Recibe recordatorios de tus turnos y promociones.</p>
+                        </div>
                     </div>
 
                     <div className="flex gap-3 pt-2">
