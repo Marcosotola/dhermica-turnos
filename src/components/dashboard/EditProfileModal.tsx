@@ -134,7 +134,7 @@ export function EditProfileModal({ isOpen, onClose, user, onUpdate, isNewUser = 
                         />
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <PhoneInput
-                                label="Teléfono (WhatsApp)"
+                                label="WhatsApp"
                                 countryCode={countryCode}
                                 onCountryCodeChange={setCountryCode}
                                 phoneNumber={formData.phone}

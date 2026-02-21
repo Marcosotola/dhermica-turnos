@@ -152,7 +152,7 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
                                 required
                             />
                             <PhoneInput
-                                label="Teléfono (WhatsApp)"
+                                label="WhatsApp"
                                 countryCode={countryCode}
                                 onCountryCodeChange={setCountryCode}
                                 phoneNumber={formData.phone}
