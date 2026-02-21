@@ -136,99 +136,121 @@ export function SalesHistoryModal({ isOpen, onClose, professionals, onRefresh }:
                         <p className="text-sm">No hay ventas en este período.</p>
                     </div>
                 ) : (
-                    <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
-                        {sales.map(sale => (
-                            <div key={sale.id} className="bg-gray-50 rounded-2xl p-4 border border-gray-100">
-                                {editingId === sale.id ? (
-                                    /* Edit mode */
-                                    <div className="space-y-3">
-                                        <p className="font-black text-gray-800 text-sm">{sale.productName}</p>
-                                        <div className="grid grid-cols-2 gap-3">
-                                            <Input
-                                                label="Cantidad"
-                                                type="number"
-                                                min={1}
-                                                value={editForm.quantity ?? ''}
-                                                onChange={e => setEditForm(f => ({ ...f, quantity: Number(e.target.value) }))}
-                                            />
-                                            <Input
-                                                label="Comisión"
-                                                type="number"
-                                                value={editForm.commission ?? ''}
-                                                onChange={e => setEditForm(f => ({ ...f, commission: Number(e.target.value) }))}
-                                            />
-                                        </div>
-                                        <div className="grid grid-cols-2 gap-3">
-                                            <Input
-                                                label="Fecha"
-                                                type="date"
-                                                value={editForm.date ?? ''}
-                                                onChange={e => setEditForm(f => ({ ...f, date: e.target.value }))}
-                                            />
+                    <>
+                        {/* Totals summary */}
+                        <div className="bg-[#34baab]/10 border border-[#34baab]/20 rounded-2xl p-4 grid grid-cols-3 gap-2">
+                            <div className="text-center">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Ventas</p>
+                                <p className="text-lg font-black text-gray-800">{sales.length}</p>
+                            </div>
+                            <div className="text-center border-x border-[#34baab]/20">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Total</p>
+                                <p className="text-lg font-black text-[#34baab]">
+                                    {formatCurrency(sales.reduce((acc, s) => acc + (s.totalAmount || 0), 0))}
+                                </p>
+                            </div>
+                            <div className="text-center">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Comisiones</p>
+                                <p className="text-lg font-black text-gray-800">
+                                    {formatCurrency(sales.reduce((acc, s) => acc + (s.commission || 0), 0))}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-1">
+                            {sales.map(sale => (
+                                <div key={sale.id} className="bg-gray-50 rounded-2xl p-4 border border-gray-100">
+                                    {editingId === sale.id ? (
+                                        /* Edit mode */
+                                        <div className="space-y-3">
+                                            <p className="font-black text-gray-800 text-sm">{sale.productName}</p>
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <Input
+                                                    label="Cantidad"
+                                                    type="number"
+                                                    min={1}
+                                                    value={editForm.quantity ?? ''}
+                                                    onChange={e => setEditForm(f => ({ ...f, quantity: Number(e.target.value) }))}
+                                                />
+                                                <Input
+                                                    label="Comisión"
+                                                    type="number"
+                                                    value={editForm.commission ?? ''}
+                                                    onChange={e => setEditForm(f => ({ ...f, commission: Number(e.target.value) }))}
+                                                />
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <Input
+                                                    label="Fecha"
+                                                    type="date"
+                                                    value={editForm.date ?? ''}
+                                                    onChange={e => setEditForm(f => ({ ...f, date: e.target.value }))}
+                                                />
+                                                <Select
+                                                    label="Método"
+                                                    value={editForm.paymentMethod ?? 'cash'}
+                                                    onChange={e => setEditForm(f => ({ ...f, paymentMethod: e.target.value as any }))}
+                                                    options={PAYMENT_OPTIONS}
+                                                />
+                                            </div>
                                             <Select
-                                                label="Método"
-                                                value={editForm.paymentMethod ?? 'cash'}
-                                                onChange={e => setEditForm(f => ({ ...f, paymentMethod: e.target.value as any }))}
-                                                options={PAYMENT_OPTIONS}
+                                                label="Vendido por"
+                                                value={editForm.soldById ?? ''}
+                                                onChange={e => setEditForm(f => ({ ...f, soldById: e.target.value }))}
+                                                options={[
+                                                    { value: '', label: 'Seleccionar...' },
+                                                    ...professionals.map(p => ({ value: p.userId || p.id, label: p.name }))
+                                                ]}
                                             />
-                                        </div>
-                                        <Select
-                                            label="Vendido por"
-                                            value={editForm.soldById ?? ''}
-                                            onChange={e => setEditForm(f => ({ ...f, soldById: e.target.value }))}
-                                            options={[
-                                                { value: '', label: 'Seleccionar...' },
-                                                ...professionals.map(p => ({ value: p.userId || p.id, label: p.name }))
-                                            ]}
-                                        />
-                                        <div className="flex gap-2 pt-1">
-                                            <Button
-                                                onClick={() => saveEdit(sale)}
-                                                disabled={savingId === sale.id}
-                                                className="flex-1 bg-[#34baab] text-white text-sm"
-                                            >
-                                                {savingId === sale.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Check className="w-4 h-4 mr-1" />Guardar</>}
-                                            </Button>
-                                            <Button variant="ghost" onClick={cancelEdit} className="flex-1 text-sm">
-                                                <X className="w-4 h-4 mr-1" />Cancelar
-                                            </Button>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    /* View mode */
-                                    <div className="flex items-center justify-between gap-3">
-                                        <div className="min-w-0">
-                                            <p className="font-black text-gray-800 text-sm truncate">{sale.productName}</p>
-                                            <p className="text-xs text-gray-500">{sale.date} · {sale.soldByName} · {PAYMENT_LABELS[sale.paymentMethod]}</p>
-                                            <div className="flex gap-3 mt-1">
-                                                <span className="text-xs text-gray-600">x{sale.quantity} · {formatCurrency(sale.totalAmount)}</span>
-                                                {sale.commission !== undefined && sale.commission > 0 && (
-                                                    <span className="text-xs text-[#34baab] font-bold">Comisión: {formatCurrency(sale.commission)}</span>
-                                                )}
+                                            <div className="flex gap-2 pt-1">
+                                                <Button
+                                                    onClick={() => saveEdit(sale)}
+                                                    disabled={savingId === sale.id}
+                                                    className="flex-1 bg-[#34baab] text-white text-sm"
+                                                >
+                                                    {savingId === sale.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Check className="w-4 h-4 mr-1" />Guardar</>}
+                                                </Button>
+                                                <Button variant="ghost" onClick={cancelEdit} className="flex-1 text-sm">
+                                                    <X className="w-4 h-4 mr-1" />Cancelar
+                                                </Button>
                                             </div>
                                         </div>
-                                        <div className="flex gap-2 shrink-0">
-                                            <button
-                                                onClick={() => startEdit(sale)}
-                                                className="p-2 rounded-xl hover:bg-blue-50 text-blue-500 transition-colors"
-                                            >
-                                                <Pencil className="w-4 h-4" />
-                                            </button>
-                                            <button
-                                                onClick={() => handleDelete(sale.id)}
-                                                disabled={deletingId === sale.id}
-                                                className="p-2 rounded-xl hover:bg-red-50 text-red-500 transition-colors"
-                                            >
-                                                {deletingId === sale.id
-                                                    ? <Loader2 className="w-4 h-4 animate-spin" />
-                                                    : <Trash2 className="w-4 h-4" />}
-                                            </button>
+                                    ) : (
+                                        /* View mode */
+                                        <div className="flex items-center justify-between gap-3">
+                                            <div className="min-w-0">
+                                                <p className="font-black text-gray-800 text-sm truncate">{sale.productName}</p>
+                                                <p className="text-xs text-gray-500">{sale.date} · {sale.soldByName} · {PAYMENT_LABELS[sale.paymentMethod]}</p>
+                                                <div className="flex gap-3 mt-1">
+                                                    <span className="text-xs text-gray-600">x{sale.quantity} · {formatCurrency(sale.totalAmount)}</span>
+                                                    {sale.commission !== undefined && sale.commission > 0 && (
+                                                        <span className="text-xs text-[#34baab] font-bold">Comisión: {formatCurrency(sale.commission)}</span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div className="flex gap-2 shrink-0">
+                                                <button
+                                                    onClick={() => startEdit(sale)}
+                                                    className="p-2 rounded-xl hover:bg-blue-50 text-blue-500 transition-colors"
+                                                >
+                                                    <Pencil className="w-4 h-4" />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDelete(sale.id)}
+                                                    disabled={deletingId === sale.id}
+                                                    className="p-2 rounded-xl hover:bg-red-50 text-red-500 transition-colors"
+                                                >
+                                                    {deletingId === sale.id
+                                                        ? <Loader2 className="w-4 h-4 animate-spin" />
+                                                        : <Trash2 className="w-4 h-4" />}
+                                                </button>
+                                            </div>
                                         </div>
-                                    </div>
-                                )}
-                            </div>
-                        ))}
-                    </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    </>
                 )}
             </div>
         </Modal>

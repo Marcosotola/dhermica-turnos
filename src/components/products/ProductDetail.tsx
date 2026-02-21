@@ -31,6 +31,7 @@ export function ProductDetail({ isOpen, onClose, product, isAdmin, onEdit, onDel
                                 src={product.images[activeImage]}
                                 alt={product.name}
                                 fill
+                                sizes="(max-width: 768px) 100vw, 50vw"
                                 className="object-cover animate-in fade-in zoom-in-95 duration-500"
                             />
                         ) : (
@@ -56,7 +57,7 @@ export function ProductDetail({ isOpen, onClose, product, isAdmin, onEdit, onDel
                                     onClick={() => setActiveImage(i)}
                                     className={`relative w-20 h-20 rounded-2xl overflow-hidden border-2 transition-all shadow-sm ${i === activeImage ? 'border-[#34baab] scale-110 shadow-teal-100' : 'border-transparent hover:border-gray-200'}`}
                                 >
-                                    <Image src={img} alt={`Thumb ${i}`} fill className="object-cover" />
+                                    <Image src={img} alt={`Thumb ${i}`} fill sizes="80px" className="object-cover" />
                                 </button>
                             ))}
                         </div>

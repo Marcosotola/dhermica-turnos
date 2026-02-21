@@ -272,35 +272,6 @@ export default function FinanzasPage() {
                                         )}
                                     </div>
                                 </div>
-
-                                {/* Product Sales Ranking */}
-                                <div className="bg-white rounded-[2.5rem] p-8 shadow-xl border border-gray-100 mt-8">
-                                    <h3 className="text-gray-800 font-black text-2xl mb-8 flex items-center gap-3">
-                                        <ShoppingBag className="w-6 h-6 text-emerald-500" /> Historial de Productos
-                                    </h3>
-                                    <div className="space-y-4">
-                                        {Object.entries(overview?.byProduct || {}).sort((a, b) => b[1].quantity - a[1].quantity).map(([id, product]) => (
-                                            <div key={id} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl hover:bg-emerald-50 transition-colors border border-transparent hover:border-emerald-100 group">
-                                                <div className="flex items-center gap-4">
-                                                    <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-emerald-500 shadow-sm font-black text-sm">
-                                                        {product.quantity}
-                                                    </div>
-                                                    <div>
-                                                        <h4 className="font-black text-gray-800 group-hover:text-emerald-600 transition-colors">{product.name}</h4>
-                                                        <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">Cantidad vendida</p>
-                                                    </div>
-                                                </div>
-                                                <div className="text-right">
-                                                    <p className="font-black text-gray-900">{formatCurrency(product.income)}</p>
-                                                    <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">Total recaudado</p>
-                                                </div>
-                                            </div>
-                                        ))}
-                                        {Object.keys(overview?.byProduct || {}).length === 0 && (
-                                            <p className="text-center text-gray-400 py-8 italic">No se registran ventas de productos en este período.</p>
-                                        )}
-                                    </div>
-                                </div>
                             </>
                         ) : (
                             <div className="bg-white rounded-[2.5rem] p-8 shadow-xl border border-gray-100">

@@ -183,6 +183,7 @@ export function ProductForm({ isOpen, onClose, onSubmit, product }: ProductFormP
                                         src={img}
                                         alt={`Preview ${index}`}
                                         fill
+                                        sizes="33vw"
                                         className="object-cover"
                                     />
                                     <button

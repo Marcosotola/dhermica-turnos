@@ -42,6 +42,7 @@ export function ProductCard({ product, isAdmin, onEdit, onDelete, onSell, onClic
                             alt={product.name}
                             fill
                             priority={priority}
+                            sizes="(max-width: 768px) 50vw, 25vw"
                             className="object-cover group-hover:scale-105 transition-transform duration-500"
                         />
                         {product.images.length > 1 && (
