@@ -25,7 +25,7 @@ export default function UsuariosPage() {
         if (!authLoading && !user) {
             router.push('/');
         }
-        if (!authLoading && profile?.role !== 'admin') {
+        if (!authLoading && profile?.role !== 'admin' && profile?.role !== 'secretary') {
             router.push('/dashboard');
         }
     }, [user, profile, authLoading, router]);

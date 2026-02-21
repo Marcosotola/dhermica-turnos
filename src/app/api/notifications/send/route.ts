@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminMessaging, adminDb } from '@/lib/firebase/admin';
 import * as admin from 'firebase-admin';
-import { createNotificationRecord } from '@/lib/firebase/notifications';
 
 export async function POST(req: NextRequest) {
     try {
@@ -68,14 +67,23 @@ export async function POST(req: NextRequest) {
             }
         }
 
-        // Record the notification in Firestore
-        await createNotificationRecord({
-            title,
-            body,
-            sentBy,
-            type,
-            targetUserId: type === 'targeted' ? targetUserId : undefined,
-        });
+        // Record the notification in Firestore using ADMIN SDK to avoid permission issues
+        try {
+            await adminDb.collection('notifications').add({
+                title,
+                body,
+                sentBy,
+                type,
+                targetUserId: type === 'targeted' ? targetUserId : admin.firestore.FieldValue.delete(),
+                sentAt: admin.firestore.FieldValue.serverTimestamp(),
+                url: url || '/'
+            });
+            console.log('FCM SERVER: Notification record created in Firestore');
+        } catch (dbError) {
+            console.error('FCM SERVER: Error creating notification record:', dbError);
+            // We don't fail the whole request if just the logging fails, 
+            // but we already sent the notification.
+        }
 
         return NextResponse.json({
             success: true,

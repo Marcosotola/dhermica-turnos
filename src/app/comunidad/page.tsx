@@ -22,7 +22,7 @@ export default function CommunityPage() {
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [filterTreatmentId, setFilterTreatmentId] = useState('');
 
-    const isAdmin = profile?.role === 'admin';
+    const isAdmin = profile?.role === 'admin' || profile?.role === 'secretary' || profile?.role === 'promotor';
 
     useEffect(() => {
         loadData();

@@ -81,6 +81,7 @@ export function TopNavbar() {
             { href: '/tratamientos', label: 'Servicios', icon: Sparkles },
             { href: '/productos', label: 'Productos', icon: ShoppingBag },
             { href: '/secretaria/notificaciones', label: 'Avisos', icon: Bell },
+            { href: '/usuarios', label: 'Usuarios', icon: Settings },
             { href: '/comunidad', label: 'Comunidad', icon: Users },
             { href: '/ubicacion', label: 'Ubicación', icon: MapPin },
         ] : []),
