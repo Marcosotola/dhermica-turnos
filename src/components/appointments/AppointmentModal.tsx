@@ -8,7 +8,7 @@ import { Button } from '../ui/Button';
 import { Appointment, DURATION_OPTIONS } from '@/lib/types/appointment';
 import { Professional } from '@/lib/types/professional';
 import { UserProfile } from '@/lib/types/user';
-import { getUsersByRole } from '@/lib/firebase/users';
+import { getAllUsers } from '@/lib/firebase/users';
 import { capitalizeName } from '@/lib/utils/time';
 import { Search, UserPlus, User } from 'lucide-react';
 import { validateAppointment, checkOverlap } from '@/lib/utils/validation';
@@ -59,7 +59,7 @@ export function AppointmentModal({
         const fetchClients = async () => {
             setClientsLoading(true);
             try {
-                const data = await getUsersByRole('client');
+                const data = await getAllUsers();
                 setClients(data);
             } catch (error) {
                 console.error('Error fetching clients:', error);

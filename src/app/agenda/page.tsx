@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { getClientsPaginated, searchClients } from '@/lib/firebase/users';
 import { UserProfile } from '@/lib/types/user';
 import { Toaster } from 'sonner';
-import { BookOpen, Search, User as UserIcon, Mail, Phone, Calendar, Heart, AlertCircle, Info, CalendarCheck, ChevronDown, Loader2 } from 'lucide-react';
+import { BookOpen, Search, User as UserIcon, Mail, Phone, Calendar, Heart, AlertCircle, Info, CalendarCheck, ChevronDown, Loader2, ArrowLeft } from 'lucide-react';
 import { Appointment } from '@/lib/types/appointment';
 import { getAppointmentsByClientId } from '@/lib/firebase/appointments';
 import { QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
@@ -14,7 +14,8 @@ import { Button } from '@/components/ui/Button';
 import { getActiveProfessionals } from '@/lib/firebase/professionals';
 import { Professional } from '@/lib/types/professional';
 import { CreateClientModal } from '@/components/dashboard/CreateClientModal';
-import { ChevronUp, DollarSign, UserPlus } from 'lucide-react';
+import { searchAppointmentsByClient } from '@/lib/firebase/appointments';
+import { ChevronUp, DollarSign, UserPlus, History } from 'lucide-react';
 
 export default function AgendaPage() {
     const { user, profile, loading: authLoading } = useAuth();
@@ -92,9 +93,52 @@ export default function AgendaPage() {
                 // Reset to pagination mode
                 loadInitialUsers();
             } else {
-                // Perform search
-                const results = await searchClients(term);
-                setUsers(results);
+                // Perform search in both users and appointments
+                const [registeredUsers, appointmentsResults] = await Promise.all([
+                    searchClients(term),
+                    searchAppointmentsByClient(term)
+                ]);
+
+                // Create a map to find registered users by name (normalized)
+                const registeredNames = new Set(registeredUsers.map(u =>
+                    u.fullName.toLowerCase().replace(/\s+/g, ' ')
+                        .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+                ));
+
+                // Extract unique client names from appointments that are not in registered results
+                const virtualProfiles: UserProfile[] = [];
+                const seenNamesNormalized = new Set(); // Use normalized name for absolute uniqueness
+
+                appointmentsResults.forEach(apt => {
+                    const trimmedName = apt.clientName.trim();
+                    if (!trimmedName) return;
+
+                    // Normalize name for comparison (remove accents and extra spaces)
+                    const normalizedName = trimmedName.toLowerCase().replace(/\s+/g, ' ')
+                        .normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+                    if (!registeredNames.has(normalizedName) && !seenNamesNormalized.has(normalizedName)) {
+                        seenNamesNormalized.add(normalizedName);
+                        // Create a virtual profile structure
+                        const vUid = `legacy-${trimmedName.replace(/\s+/g, '-').toLowerCase()}`;
+                        virtualProfiles.push({
+                            uid: vUid,
+                            fullName: trimmedName,
+                            email: 'Sin correo electrónico',
+                            phone: 'Sin teléfono',
+                            role: 'client',
+                            birthDate: 'No registrada',
+                            createdAt: new Date(),
+                            updatedAt: new Date(),
+                            sex: 'female',
+                            hasTattoos: false,
+                            isPregnant: false,
+                            notificationsEnabled: false,
+                        } as UserProfile);
+                    }
+                });
+
+                setUsers([...registeredUsers, ...virtualProfiles]);
                 setHasMore(false); // Disable pagination during search
             }
         } catch (error) {
@@ -164,7 +208,7 @@ export default function AgendaPage() {
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     {/* List Column */}
-                    <div className="lg:col-span-1 space-y-4">
+                    <div className={`lg:col-span-1 space-y-4 ${selectedUser ? 'hidden lg:block' : 'block'}`}>
                         <div className="relative">
                             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
                             <input
@@ -184,12 +228,18 @@ export default function AgendaPage() {
                                         onClick={() => setSelectedUser(user)}
                                         className={`w-full p-4 flex items-center gap-3 hover:bg-gray-50 transition-colors text-left ${selectedUser?.uid === user.uid ? 'bg-gray-50 border-r-4 border-[#34baab]' : ''}`}
                                     >
-                                        <div className="w-10 h-10 bg-[#484450]/10 rounded-xl flex items-center justify-center shrink-0">
-                                            <UserIcon className="w-6 h-6 text-[#484450]" />
+                                        <div className={`w-10 h-10 ${user.uid.startsWith('legacy-') ? 'bg-amber-100' : 'bg-[#484450]/10'} rounded-xl flex items-center justify-center shrink-0`}>
+                                            {user.uid.startsWith('legacy-') ? (
+                                                <History className="w-6 h-6 text-amber-600" />
+                                            ) : (
+                                                <UserIcon className="w-6 h-6 text-[#484450]" />
+                                            )}
                                         </div>
                                         <div className="min-w-0">
                                             <p className="font-bold text-gray-900 truncate">{user.fullName}</p>
-                                            <p className="text-xs text-gray-400 truncate">{user.email}</p>
+                                            <p className="text-xs text-gray-400 truncate">
+                                                {user.uid.startsWith('legacy-') ? 'Cita Manual / Anterior' : user.email}
+                                            </p>
                                         </div>
                                     </button>
                                 ))}
@@ -223,9 +273,17 @@ export default function AgendaPage() {
                     </div>
 
                     {/* Content Column */}
-                    <div className="lg:col-span-2">
+                    <div className={`lg:col-span-2 ${selectedUser ? 'block' : 'hidden lg:block'}`}>
                         {selectedUser ? (
-                            <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 space-y-6 animate-in fade-in duration-300">
+                            <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 md:p-8 space-y-6 animate-in slide-in-from-right-4 duration-300">
+                                {/* Back Button Mobile */}
+                                <button
+                                    onClick={() => setSelectedUser(null)}
+                                    className="lg:hidden flex items-center gap-2 text-[#34baab] font-bold mb-4 active:scale-95 transition-transform"
+                                >
+                                    <ArrowLeft className="w-5 h-5" />
+                                    <span>Volver a la lista</span>
+                                </button>
                                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                                     <div className="flex items-center gap-4">
                                         <div className="w-20 h-20 bg-[#484450] rounded-2xl flex items-center justify-center shadow-lg">
@@ -235,10 +293,10 @@ export default function AgendaPage() {
                                             <h2 className="text-2xl font-black text-gray-900">{selectedUser.fullName}</h2>
                                             <div className="flex flex-wrap gap-2 mt-1">
                                                 <span className="px-2 py-1 bg-gray-100 text-gray-500 rounded-lg text-[10px] uppercase font-black tracking-widest">
-                                                    ID: {selectedUser.uid.substring(0, 8)}...
+                                                    {selectedUser.uid.startsWith('legacy-') ? 'LEGACY' : `ID: ${selectedUser.uid.substring(0, 8)}...`}
                                                 </span>
-                                                <span className="px-2 py-1 bg-green-100 text-green-600 rounded-lg text-[10px] uppercase font-black tracking-widest">
-                                                    Cliente Registrado
+                                                <span className={`px-2 py-1 ${selectedUser.uid.startsWith('legacy-') ? 'bg-amber-100 text-amber-600' : 'bg-green-100 text-green-600'} rounded-lg text-[10px] uppercase font-black tracking-widest`}>
+                                                    {selectedUser.uid.startsWith('legacy-') ? 'Historial Manual' : 'Cliente Registrado'}
                                                 </span>
                                             </div>
                                         </div>
@@ -251,95 +309,105 @@ export default function AgendaPage() {
                                     </div>
                                 </div>
 
-                                {/* Personal Info Collapsible */}
-                                <div className="border border-gray-100 rounded-3xl overflow-hidden">
-                                    <button
-                                        onClick={() => setIsInfoOpen(!isInfoOpen)}
-                                        className="w-full flex items-center justify-between p-4 bg-gray-50 hover:bg-gray-100 transition-colors"
-                                    >
-                                        <div className="flex items-center gap-2">
-                                            <Info className="w-5 h-5 text-[#34baab]" />
-                                            <span className="font-bold text-gray-900">Información Personal</span>
-                                        </div>
-                                        {isInfoOpen ? (
-                                            <ChevronUp className="w-5 h-5 text-gray-400" />
-                                        ) : (
-                                            <ChevronDown className="w-5 h-5 text-gray-400" />
-                                        )}
-                                    </button>
+                                {selectedUser.uid.startsWith('legacy-') ? (
+                                    <div className="bg-amber-50 border border-amber-200 rounded-3xl p-6 text-center">
+                                        <History className="w-10 h-10 text-amber-600 mx-auto mb-3" />
+                                        <h3 className="text-lg font-bold text-amber-900 mb-1">Perfil sin registrar</h3>
+                                        <p className="text-amber-700 text-sm max-w-md mx-auto">
+                                            Este cliente proviene del historial de turnos manuales o de la versión anterior.
+                                            No tiene una ficha de salud completa porque aún no se ha registrado en la aplicación.
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <div className="border border-gray-100 rounded-3xl overflow-hidden">
+                                        <button
+                                            onClick={() => setIsInfoOpen(!isInfoOpen)}
+                                            className="w-full flex items-center justify-between p-4 bg-gray-50 hover:bg-gray-100 transition-colors"
+                                        >
+                                            <div className="flex items-center gap-2">
+                                                <Info className="w-5 h-5 text-[#34baab]" />
+                                                <span className="font-bold text-gray-900">Información Personal</span>
+                                            </div>
+                                            {isInfoOpen ? (
+                                                <ChevronUp className="w-5 h-5 text-gray-400" />
+                                            ) : (
+                                                <ChevronDown className="w-5 h-5 text-gray-400" />
+                                            )}
+                                        </button>
 
-                                    {isInfoOpen && (
-                                        <div className="p-6 space-y-8 animate-in slide-in-from-top-2 duration-200">
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                                <div className="space-y-4">
-                                                    <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest border-b border-gray-100 pb-2 flex items-center gap-2">
-                                                        <CalendarCheck className="w-4 h-4 text-[#34baab]" /> Información Básica
-                                                    </h3>
-                                                    <div className="grid grid-cols-2 gap-4">
-                                                        <div className="bg-gray-50 p-4 rounded-2xl">
-                                                            <p className="text-[10px] text-gray-400 font-black uppercase mb-1">F. Nacimiento</p>
-                                                            <p className="font-bold text-gray-900">
-                                                                {(() => {
-                                                                    const parts = selectedUser.birthDate.split('-');
-                                                                    if (parts.length === 3) {
-                                                                        const [year, month, day] = parts;
-                                                                        return `${day}/${month}/${year}`;
-                                                                    }
-                                                                    return selectedUser.birthDate;
-                                                                })()}
-                                                            </p>
-                                                        </div>
-                                                        <div className="bg-gray-50 p-4 rounded-2xl">
-                                                            <p className="text-[10px] text-gray-400 font-black uppercase mb-1">Desde</p>
-                                                            <p className="font-bold text-gray-900">
-                                                                {(() => {
-                                                                    const d = new Date(selectedUser.createdAt);
-                                                                    const day = d.getDate().toString().padStart(2, '0');
-                                                                    const month = (d.getMonth() + 1).toString().padStart(2, '0');
-                                                                    const year = d.getFullYear();
-                                                                    return `${day}/${month}/${year}`;
-                                                                })()}
-                                                            </p>
-                                                        </div>
-                                                    </div>
-                                                </div>
-
-                                                <div className="space-y-4">
-                                                    <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest border-b border-gray-100 pb-2 flex items-center gap-2">
-                                                        <Heart className="w-4 h-4 text-pink-500" /> Salud & Advertencias
-                                                    </h3>
-                                                    <div className="flex gap-4">
-                                                        <div className="flex-1 p-4 rounded-2xl bg-gray-50">
-                                                            <p className="text-[10px] text-gray-400 font-black uppercase mb-1">Sexo</p>
-                                                            <p className="font-bold text-gray-900">{selectedUser.sex === 'male' ? 'Masculino' : 'Femenino'}</p>
-                                                        </div>
-                                                        <div className={`flex-1 p-4 rounded-2xl ${selectedUser.hasTattoos ? 'bg-orange-50' : 'bg-gray-50'}`}>
-                                                            <p className="text-[10px] text-gray-400 font-black uppercase mb-1">Tatuajes</p>
-                                                            <p className={`font-black ${selectedUser.hasTattoos ? 'text-orange-600' : 'text-gray-900'}`}>{selectedUser.hasTattoos ? 'SÍ' : 'NO'}</p>
-                                                        </div>
-                                                        {selectedUser.sex === 'female' && (
-                                                            <div className={`flex-1 p-4 rounded-2xl ${selectedUser.isPregnant ? 'bg-pink-50' : 'bg-gray-50'}`}>
-                                                                <p className="text-[10px] text-gray-400 font-black uppercase mb-1">Embarazo</p>
-                                                                <p className={`font-black ${selectedUser.isPregnant ? 'text-pink-600' : 'text-gray-900'}`}>{selectedUser.isPregnant ? 'SÍ' : 'NO'}</p>
+                                        {isInfoOpen && (
+                                            <div className="p-6 space-y-8 animate-in slide-in-from-top-2 duration-200">
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                    <div className="space-y-4">
+                                                        <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest border-b border-gray-100 pb-2 flex items-center gap-2">
+                                                            <CalendarCheck className="w-4 h-4 text-[#34baab]" /> Información Básica
+                                                        </h3>
+                                                        <div className="grid grid-cols-2 gap-4">
+                                                            <div className="bg-gray-50 p-4 rounded-2xl">
+                                                                <p className="text-[10px] text-gray-400 font-black uppercase mb-1">F. Nacimiento</p>
+                                                                <p className="font-bold text-gray-900">
+                                                                    {(() => {
+                                                                        const parts = selectedUser.birthDate.split('-');
+                                                                        if (parts.length === 3) {
+                                                                            const [year, month, day] = parts;
+                                                                            return `${day}/${month}/${year}`;
+                                                                        }
+                                                                        return selectedUser.birthDate;
+                                                                    })()}
+                                                                </p>
                                                             </div>
-                                                        )}
+                                                            <div className="bg-gray-50 p-4 rounded-2xl">
+                                                                <p className="text-[10px] text-gray-400 font-black uppercase mb-1">Desde</p>
+                                                                <p className="font-bold text-gray-900">
+                                                                    {(() => {
+                                                                        const d = new Date(selectedUser.createdAt);
+                                                                        const day = d.getDate().toString().padStart(2, '0');
+                                                                        const month = (d.getMonth() + 1).toString().padStart(2, '0');
+                                                                        const year = d.getFullYear();
+                                                                        return `${day}/${month}/${year}`;
+                                                                    })()}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="space-y-4">
+                                                        <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest border-b border-gray-100 pb-2 flex items-center gap-2">
+                                                            <Heart className="w-4 h-4 text-pink-500" /> Salud & Advertencias
+                                                        </h3>
+                                                        <div className="flex gap-4">
+                                                            <div className="flex-1 p-4 rounded-2xl bg-gray-50">
+                                                                <p className="text-[10px] text-gray-400 font-black uppercase mb-1">Sexo</p>
+                                                                <p className="font-bold text-gray-900">{selectedUser.sex === 'male' ? 'Masculino' : 'Femenino'}</p>
+                                                            </div>
+                                                            <div className={`flex-1 p-4 rounded-2xl ${selectedUser.hasTattoos ? 'bg-orange-50' : 'bg-gray-50'}`}>
+                                                                <p className="text-[10px] text-gray-400 font-black uppercase mb-1">Tatuajes</p>
+                                                                <p className={`font-black ${selectedUser.hasTattoos ? 'text-orange-600' : 'text-gray-900'}`}>{selectedUser.hasTattoos ? 'SÍ' : 'NO'}</p>
+                                                            </div>
+                                                            {selectedUser.sex === 'female' && (
+                                                                <div className={`flex-1 p-4 rounded-2xl ${selectedUser.isPregnant ? 'bg-pink-50' : 'bg-gray-50'}`}>
+                                                                    <p className="text-[10px] text-gray-400 font-black uppercase mb-1">Embarazo</p>
+                                                                    <p className={`font-black ${selectedUser.isPregnant ? 'text-pink-600' : 'text-gray-900'}`}>{selectedUser.isPregnant ? 'SÍ' : 'NO'}</p>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div className="space-y-4">
+                                                    <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest border-b border-gray-100 pb-2 flex items-center gap-2">
+                                                        <AlertCircle className="w-4 h-4 text-red-500" /> Información Relevante
+                                                    </h3>
+                                                    <div className="bg-red-50/50 p-6 rounded-2xl border border-red-100">
+                                                        <p className="text-gray-700 italic">
+                                                            {selectedUser.relevantMedicalInfo || 'No hay información médica relevante registrada.'}
+                                                        </p>
                                                     </div>
                                                 </div>
                                             </div>
-
-                                            <div className="space-y-4">
-                                                <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest border-b border-gray-100 pb-2 flex items-center gap-2">
-                                                    <AlertCircle className="w-4 h-4 text-red-500" /> Información Relevante
-                                                </h3>
-                                                <div className="bg-red-50/50 p-6 rounded-2xl border border-red-100">
-                                                    <p className="text-gray-700 italic">
-                                                        {selectedUser.relevantMedicalInfo || 'No hay información médica relevante registrada.'}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
+                                        )}
+                                    </div>
+                                )}
 
                                 <div className="pt-6 border-t border-gray-100">
                                     <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest mb-6 flex items-center gap-2">

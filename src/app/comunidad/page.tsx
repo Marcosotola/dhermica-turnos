@@ -6,6 +6,7 @@ import { getCommunityPosts, deleteCommunityPost, toggleLikePost } from '@/lib/fi
 import { CommunityPost } from '@/lib/types/community';
 import { CommunityPostCard } from '@/components/community/CommunityPostCard';
 import { CommunityPostForm } from '@/components/community/CommunityPostForm';
+import { CommunityImageModal } from '@/components/community/CommunityImageModal';
 import { Button } from '@/components/ui/Button';
 import { Plus, Users, Image as ImageIcon, Search } from 'lucide-react';
 import { CardSkeleton } from '@/components/ui/Skeleton';
@@ -21,6 +22,7 @@ export default function CommunityPage() {
     const [loading, setLoading] = useState(true);
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [filterTreatmentId, setFilterTreatmentId] = useState('');
+    const [selectedViewerPost, setSelectedViewerPost] = useState<CommunityPost | null>(null);
 
     const isAdmin = profile?.role === 'admin' || profile?.role === 'secretary' || profile?.role === 'promotor';
 
@@ -50,7 +52,8 @@ export default function CommunityPage() {
 
         try {
             haptics.medium();
-            await deleteCommunityPost(post.id, post.imageUrl);
+            const urlsToDelete = post.imageUrls || (post.imageUrl ? [post.imageUrl] : []);
+            await deleteCommunityPost(post.id, urlsToDelete);
             setPosts(posts.filter(p => p.id !== post.id));
             toast.success('Publicación eliminada correctamente');
         } catch (error) {
@@ -95,28 +98,29 @@ export default function CommunityPage() {
         <div className="min-h-screen bg-gray-50 pb-24">
             <Toaster position="top-center" />
 
-            {/* Elegant Header */}
-            <div className="bg-[#484450] text-white pt-20 md:pt-10 pb-16 px-4 md:px-8 relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-[#34baab]/10 rounded-full -mr-32 -mt-32 blur-3xl opacity-50" />
-
-                <div className="max-w-4xl mx-auto relative z-10">
-                    <div className="flex items-center gap-3 mb-4">
-                        <div className="w-12 h-12 bg-[#34baab] rounded-2xl flex items-center justify-center shadow-lg shadow-teal-900/20">
-                            <Users className="w-6 h-6 text-white" />
-                        </div>
+            {/* Header Section */}
+            <div className="bg-[#484450] text-white overflow-hidden relative">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-[#34baab]/10 rounded-full -mr-32 -mt-32 blur-3xl animate-pulse" />
+                <div className="max-w-7xl mx-auto px-4 py-12 relative z-10">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                         <div>
-                            <h1 className="text-3xl md:text-5xl font-black tracking-tighter italic">Comunidad<span className="text-[#34baab]">.</span></h1>
-                            <p className="text-white/60 text-sm font-medium">Resultados reales, inspiración constante</p>
+                            <div className="flex items-center gap-3 mb-2">
+                                <div className="p-3 bg-[#34baab]/20 rounded-2xl border border-[#34baab]/30">
+                                    <Users className="w-8 h-8 text-[#34baab]" />
+                                </div>
+                                <div>
+                                    <h1 className="text-4xl font-black tracking-tight italic">Comunidad<span className="text-[#34baab]">.</span></h1>
+                                    <p className="text-gray-300 font-medium">Resultados reales, inspiración constante.</p>
+                                </div>
+                            </div>
                         </div>
+                        <Button
+                            onClick={() => { haptics.light(); setIsFormOpen(true); }}
+                            className="bg-[#34baab] hover:bg-[#2aa89a] border-none rounded-2xl py-4 px-8 shadow-lg shadow-[#34baab]/20 transform hover:-translate-y-1 transition-all font-black uppercase tracking-widest text-xs"
+                        >
+                            <Plus className="w-5 h-5 mr-2" /> Compartir Mi Resultado
+                        </Button>
                     </div>
-
-                    <Button
-                        onClick={() => { haptics.light(); setIsFormOpen(true); }}
-                        className="mt-6 !bg-white !text-[#484450] hover:bg-teal-50 rounded-2xl py-4 px-6 font-black shadow-xl border-none"
-                    >
-                        <Plus className="w-5 h-5 mr-2 !text-[#484450]" />
-                        Compartir Mi Resultado
-                    </Button>
                 </div>
             </div>
 
@@ -164,8 +168,9 @@ export default function CommunityPage() {
                                 isAdmin={isAdmin}
                                 onDelete={handleDelete}
                                 onLike={handleLike}
+                                onClick={(p) => setSelectedViewerPost(p)}
                                 treatmentName={treatments.find(t => t.id === post.treatmentId)?.name}
-                                priority={index < 2} // Cargar con prioridad las primeras 2 imágenes
+                                priority={index < 2}
                             />
                         ))}
                     </div>
@@ -184,6 +189,12 @@ export default function CommunityPage() {
                     </div>
                 </div>
             )}
+            {/* Image Viewer Modal */}
+            <CommunityImageModal
+                post={selectedViewerPost}
+                onClose={() => setSelectedViewerPost(null)}
+                treatmentName={treatments.find(t => t.id === selectedViewerPost?.treatmentId)?.name}
+            />
         </div>
     );
 }

@@ -86,15 +86,18 @@ export const toggleLikePost = async (postId: string, userId: string): Promise<vo
 /**
  * Delete a community post and its associated image from Storage
  */
-export const deleteCommunityPost = async (postId: string, imageUrl: string): Promise<void> => {
-    // 1. Delete image from Storage
-    try {
-        const imageRef = ref(storage, imageUrl);
-        await deleteObject(imageRef);
-    } catch (error) {
-        console.error('Error deleting community post image:', error);
-        // Continue deleting the doc even if image deletion fails (it might have been deleted already)
-    }
+export const deleteCommunityPost = async (postId: string, imageUrls: string[]): Promise<void> => {
+    // 1. Delete images from Storage
+    const deletePromises = imageUrls.map(async (url) => {
+        try {
+            const imageRef = ref(storage, url);
+            await deleteObject(imageRef);
+        } catch (error) {
+            console.error('Error deleting community post image:', url, error);
+        }
+    });
+
+    await Promise.all(deletePromises);
 
     // 2. Delete document from Firestore
     const docRef = doc(db, COLLECTION_NAME, postId);

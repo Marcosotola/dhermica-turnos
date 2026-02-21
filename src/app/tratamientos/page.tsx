@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { Sparkles, Plus, Search, Filter, AlertTriangle } from 'lucide-react';
+import { Sparkles, Plus, Search, Filter } from 'lucide-react';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { getTreatments, createTreatment, updateTreatment, deleteTreatment } from '@/lib/firebase/treatments';
 import { Treatment, TreatmentCategory } from '@/lib/types/treatment';
@@ -111,17 +111,6 @@ export default function TratamientosPage() {
             <div className="max-w-7xl mx-auto px-4 -mt-8 relative z-20">
                 {/* Seeder for initial data - Removed after migration to prevent data resets */}
                 {/* {isAdmin && <TreatmentSeeder />} */}
-
-                {/* Price Warning Banner */}
-                <div className="bg-amber-50 border-l-4 border-amber-400 p-4 rounded-2xl mb-8 flex items-center gap-4 shadow-sm animate-in fade-in slide-in-from-top-4 duration-500">
-                    <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                        <AlertTriangle className="w-6 h-6 text-amber-600" />
-                    </div>
-                    <div>
-                        <p className="text-amber-900 font-black text-sm uppercase tracking-wide">Precios en actualización</p>
-                        <p className="text-amber-700 text-xs font-medium">Los valores mostrados son referenciales y aún no han sido actualizados al catálogo vigente.</p>
-                    </div>
-                </div>
 
                 {/* Search & Filter Bar */}
                 <div className="bg-white rounded-[2rem] shadow-xl border border-gray-100 p-4 md:p-6 mb-8">

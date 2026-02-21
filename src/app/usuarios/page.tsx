@@ -7,7 +7,7 @@ import { getAllUsers, updateUserProfile, deleteUserProfile } from '@/lib/firebas
 import { ensureProfessionalEntry } from '@/lib/firebase/professionals';
 import { UserProfile, UserRole } from '@/lib/types/user';
 import { toast, Toaster } from 'sonner';
-import { Users, Shield, User as UserIcon, Search, Mail, Phone, Pencil, Trash } from 'lucide-react';
+import { Users, Shield, User as UserIcon, Search, Mail, Phone, Pencil, Trash, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
 import { EditProfileModal } from '@/components/dashboard/EditProfileModal';
@@ -114,18 +114,32 @@ export default function UsuariosPage() {
     return (
         <div className="min-h-screen bg-gray-50 pb-24">
             <Toaster position="top-center" richColors />
-            <div className="container mx-auto px-4 py-8">
-                <div className="bg-[#484450] rounded-3xl p-8 mb-8 shadow-lg text-white">
-                    <div className="flex items-center gap-4">
-                        <div className="w-14 h-14 bg-[#34baab] rounded-2xl flex items-center justify-center shadow-lg">
-                            <Shield className="w-8 h-8 text-white" />
-                        </div>
+            {/* Header Section */}
+            <div className="bg-[#484450] text-white overflow-hidden relative">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-[#34baab]/10 rounded-full -mr-32 -mt-32 blur-3xl animate-pulse" />
+                <div className="max-w-7xl mx-auto px-4 py-12 relative z-10">
+                    <button
+                        onClick={() => router.back()}
+                        className="flex items-center gap-2 mb-6 text-gray-400 hover:text-white transition-colors group px-4 py-2 bg-white/5 rounded-xl border border-white/10 w-fit"
+                    >
+                        <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+                        <span className="text-sm font-black uppercase tracking-widest">Volver</span>
+                    </button>
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                         <div>
-                            <h1 className="text-3xl font-black tracking-tight">Gestión de Usuarios</h1>
-                            <p className="text-gray-300 font-medium">Asigna roles, edita datos y gestiona permisos.</p>
+                            <h1 className="text-4xl font-black tracking-tight mb-2 flex items-center gap-4">
+                                <div className="p-3 bg-[#34baab]/20 rounded-2xl border border-[#34baab]/30">
+                                    <Shield className="w-8 h-8 text-[#34baab]" />
+                                </div>
+                                Gestión de Usuarios
+                            </h1>
+                            <p className="text-gray-300 font-medium">Asigna roles, edita datos y gestiona permisos de la plataforma.</p>
                         </div>
                     </div>
                 </div>
+            </div>
+
+            <div className="max-w-7xl mx-auto px-4 -mt-8 relative z-20">
 
                 <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
                     <div className="p-6 border-b border-gray-100">

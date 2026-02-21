@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { useRouter } from 'next/navigation';
 import { Modal } from '@/components/ui/Modal';
 import {
     getProfessionals,
@@ -12,12 +13,13 @@ import {
     deleteProfessional
 } from '@/lib/firebase/professionals';
 import { Professional } from '@/lib/types/professional';
-import { Plus, Edit2, Check, X, Shield, ShieldOff, Palette, ArrowLeft, Trash2, History } from 'lucide-react';
+import { Plus, Edit2, Check, X, Shield, ShieldOff, Palette, ArrowLeft, Trash2, History, Users } from 'lucide-react';
 import { toast, Toaster } from 'sonner';
 import Link from 'next/link';
 import { ProfessionalHistoryModal } from '@/components/professionals/ProfessionalHistoryModal';
 
 export default function ProfesionalesPage() {
+    const router = useRouter();
     const [professionals, setProfessionals] = useState<Professional[]>([]);
     const [loading, setLoading] = useState(true);
     const [modalOpen, setModalOpen] = useState(false);
@@ -129,19 +131,41 @@ export default function ProfesionalesPage() {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 p-4 md:p-8 pb-24 md:pb-8">
+        <div className="min-h-screen bg-gray-50 pb-24">
             <Toaster position="top-center" richColors />
 
-            <div className="max-w-4xl mx-auto">
-                <div className="flex items-center justify-between mb-8">
-                    <div>
-                        <h1 className="text-3xl font-bold text-gray-900">Gestión de Profesionales</h1>
-                        <p className="text-gray-600">Configura quiénes aparecen en la tabla de turnos</p>
+            {/* Header Section */}
+            <div className="bg-[#484450] text-white overflow-hidden relative">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-violet-500/10 rounded-full -mr-32 -mt-32 blur-3xl animate-pulse" />
+                <div className="max-w-7xl mx-auto px-4 py-12 relative z-10">
+                    <button
+                        onClick={() => router.back()}
+                        className="flex items-center gap-2 mb-6 text-gray-400 hover:text-white transition-colors group px-4 py-2 bg-white/5 rounded-xl border border-white/10 w-fit"
+                    >
+                        <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+                        <span className="text-sm font-black uppercase tracking-widest">Volver</span>
+                    </button>
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                        <div>
+                            <h1 className="text-4xl font-black tracking-tight mb-2 flex items-center gap-4">
+                                <div className="p-3 bg-violet-500/20 rounded-2xl border border-violet-500/30">
+                                    <Users className="w-8 h-8 text-violet-400" />
+                                </div>
+                                Gestión de Profesionales
+                            </h1>
+                            <p className="text-gray-300 font-medium">Configura quiénes aparecen en la tabla de turnos y su orden.</p>
+                        </div>
+                        <Button
+                            onClick={() => handleOpenModal()}
+                            className="bg-[#34baab] hover:bg-[#2aa89a] border-none rounded-2xl py-4 px-8 shadow-lg shadow-[#34baab]/20 transform hover:-translate-y-1 transition-all font-black uppercase tracking-widest text-xs"
+                        >
+                            <Plus className="w-5 h-5 mr-2" /> Nuevo Profesional
+                        </Button>
                     </div>
-                    <Button onClick={() => handleOpenModal()} className="bg-[#45a049] hover:bg-[#3d8b40] text-white shadow-md">
-                        <Plus className="w-4 h-4 mr-2" /> Nuevo Profesional
-                    </Button>
                 </div>
+            </div>
+
+            <div className="max-w-7xl mx-auto px-4 -mt-8 relative z-20">
 
                 {loading ? (
                     <div className="flex justify-center py-12">

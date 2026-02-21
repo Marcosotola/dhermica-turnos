@@ -485,7 +485,8 @@ export async function searchAppointmentsByClient(
     clientName: string,
     date?: string
 ): Promise<Appointment[]> {
-    const searchTerm = clientName.toLowerCase();
+    const searchTerm = clientName.trim().toLowerCase();
+    if (!searchTerm) return [];
     const allAppointmentsMap = new Map<string, Appointment>();
 
     try {

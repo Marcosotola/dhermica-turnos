@@ -23,9 +23,10 @@ export function CommunityPostForm({ onSuccess, onCancel }: CommunityPostFormProp
     const [content, setContent] = useState('');
     const [selectedTreatmentId, setSelectedTreatmentId] = useState('');
     const [treatments, setTreatments] = useState<Treatment[]>([]);
-    const [imageFile, setImageFile] = useState<File | null>(null);
-    const [imagePreview, setImagePreview] = useState<string | null>(null);
+    const [imageFiles, setImageFiles] = useState<(File | null)[]>([null, null, null]);
+    const [imagePreviews, setImagePreviews] = useState<(string | null)[]>([null, null, null]);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const activeIndexRef = useRef<number>(0);
 
     useEffect(() => {
         loadTreatments();
@@ -43,28 +44,53 @@ export function CommunityPostForm({ onSuccess, onCancel }: CommunityPostFormProp
                 toast.error('La imagen es muy pesada (máx 5MB)');
                 return;
             }
-            setImageFile(file);
+
+            const index = activeIndexRef.current;
+            const newFiles = [...imageFiles];
+            newFiles[index] = file;
+            setImageFiles(newFiles);
+
             const reader = new FileReader();
             reader.onloadend = () => {
-                setImagePreview(reader.result as string);
+                const newPreviews = [...imagePreviews];
+                newPreviews[index] = reader.result as string;
+                setImagePreviews(newPreviews);
             };
             reader.readAsDataURL(file);
         }
     };
 
+    const removeImage = (index: number) => {
+        const newFiles = [...imageFiles];
+        newFiles[index] = null;
+        setImageFiles(newFiles);
+
+        const newPreviews = [...imagePreviews];
+        newPreviews[index] = null;
+        setImagePreviews(newPreviews);
+    };
+
+    const triggerFileInput = (index: number) => {
+        activeIndexRef.current = index;
+        fileInputRef.current?.click();
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!profile) return;
-        if (!imageFile) {
-            toast.error('Debes subir una foto para compartir tu resultado');
+
+        const validFiles = imageFiles.filter(f => f !== null) as File[];
+        if (validFiles.length === 0) {
+            toast.error('Debes subir al menos una foto para compartir tu resultado');
             return;
         }
 
         setLoading(true);
         try {
             haptics.medium();
-            // 1. Upload Image
-            const imageUrl = await uploadCommunityImage(imageFile, profile.uid);
+            // 1. Upload Images
+            const uploadPromises = validFiles.map(file => uploadCommunityImage(file, profile.uid));
+            const imageUrls = await Promise.all(uploadPromises);
 
             // 2. Create Post
             await createCommunityPost({
@@ -72,7 +98,8 @@ export function CommunityPostForm({ onSuccess, onCancel }: CommunityPostFormProp
                 userName: profile.fullName,
                 userAvatar: user?.photoURL || undefined,
                 content,
-                imageUrl,
+                imageUrls,
+                imageUrl: imageUrls[0], // Keep first one for legacy support
                 treatmentId: selectedTreatmentId || undefined,
                 likes: [],
             });
@@ -94,30 +121,45 @@ export function CommunityPostForm({ onSuccess, onCancel }: CommunityPostFormProp
                 <p className="text-sm text-gray-500 font-medium">Inspira a otros con tu experiencia en Dhermica</p>
             </div>
 
-            {/* Image Upload Area */}
-            <div
-                onClick={() => !loading && fileInputRef.current?.click()}
-                className={`relative aspect-square rounded-[2rem] border-4 border-dashed transition-all flex flex-col items-center justify-center cursor-pointer overflow-hidden ${imagePreview ? 'border-[#34baab]/20' : 'border-gray-100 hover:border-[#34baab]/40 hover:bg-teal-50/30'
-                    }`}
-            >
-                {imagePreview ? (
-                    <>
-                        <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
-                        <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-                            <Upload className="w-10 h-10 text-white" />
-                        </div>
-                    </>
-                ) : (
-                    <div className="flex flex-col items-center gap-3">
-                        <div className="w-16 h-16 bg-teal-50 rounded-2xl flex items-center justify-center">
-                            <ImageIcon className="w-8 h-8 text-[#34baab]" />
-                        </div>
-                        <div className="text-center">
-                            <p className="text-sm font-black text-gray-900">Toca para subir foto</p>
-                            <p className="text-[10px] text-gray-400 uppercase font-black tracking-widest">JPG o PNG hasta 5MB</p>
-                        </div>
+            {/* Multi Image Upload Area */}
+            <div className="grid grid-cols-3 gap-2 md:gap-4">
+                {[0, 1, 2].map((index) => (
+                    <div
+                        key={index}
+                        onClick={() => !loading && triggerFileInput(index)}
+                        className={`relative aspect-square rounded-2xl border-2 border-dashed transition-all flex flex-col items-center justify-center cursor-pointer overflow-hidden ${imagePreviews[index] ? 'border-[#34baab]/20' : 'border-gray-100 hover:border-[#34baab]/40 hover:bg-teal-50/30'
+                            }`}
+                    >
+                        {imagePreviews[index] ? (
+                            <>
+                                <img src={imagePreviews[index]!} alt={`Preview ${index}`} className="w-full h-full object-cover" />
+                                <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                                    <Upload className="w-6 h-6 text-white" />
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        removeImage(index);
+                                    }}
+                                    className="absolute top-1 right-1 w-6 h-6 bg-black/50 text-white rounded-full flex items-center justify-center hover:bg-black/70 transition-colors"
+                                >
+                                    <X className="w-3 h-3" />
+                                </button>
+                            </>
+                        ) : (
+                            <div className="flex flex-col items-center gap-1 p-2">
+                                <div className="w-8 h-8 bg-teal-50 rounded-lg flex items-center justify-center">
+                                    <ImageIcon className="w-4 h-4 text-[#34baab]" />
+                                </div>
+                                <div className="text-center">
+                                    <p className="text-[8px] md:text-[10px] font-black text-gray-900 uppercase">Foto {index + 1}</p>
+                                    <p className="text-[7px] text-gray-400 uppercase font-black tracking-widest mt-0.5">Subir</p>
+                                </div>
+                            </div>
+                        )}
                     </div>
-                )}
+                ))}
                 <input
                     type="file"
                     ref={fileInputRef}

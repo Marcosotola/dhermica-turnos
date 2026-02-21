@@ -223,23 +223,26 @@ export default function NotificationsPage() {
 
     return (
         <div className="min-h-screen bg-gray-50 pb-20">
-            {/* Header */}
-            <div className="bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg">
-                <div className="max-w-7xl mx-auto px-4 py-8">
+            {/* Header Section */}
+            <div className="bg-[#484450] text-white overflow-hidden relative">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/10 rounded-full -mr-32 -mt-32 blur-3xl animate-pulse" />
+                <div className="max-w-7xl mx-auto px-4 py-12 relative z-10">
                     <button
                         onClick={() => router.back()}
-                        className="flex items-center gap-2 mb-4 text-amber-100 hover:text-white transition-colors"
+                        className="flex items-center gap-2 mb-6 text-gray-400 hover:text-white transition-colors group px-4 py-2 bg-white/5 rounded-xl border border-white/10 w-fit"
                     >
-                        <ArrowLeft className="w-5 h-5" />
-                        <span>Volver</span>
+                        <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+                        <span className="text-sm font-black uppercase tracking-widest">Volver</span>
                     </button>
-                    <div className="flex items-center gap-4">
-                        <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-sm">
-                            <Bell className="w-8 h-8 text-white" />
-                        </div>
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                         <div>
-                            <h1 className="text-3xl font-bold">Gestión de Avisos</h1>
-                            <p className="text-amber-100">Envía notificaciones push a tus usuarios</p>
+                            <h1 className="text-4xl font-black tracking-tight mb-2 flex items-center gap-4">
+                                <div className="p-3 bg-[#34baab]/20 rounded-2xl border border-[#34baab]/30">
+                                    <Bell className="w-8 h-8 text-[#34baab]" />
+                                </div>
+                                Gestión de Avisos
+                            </h1>
+                            <p className="text-gray-300 font-medium">Envía notificaciones push a tus usuarios y visualiza el historial.</p>
                         </div>
                     </div>
                 </div>
