@@ -5,6 +5,7 @@ import {
     deleteDoc,
     doc,
     query,
+    where,
     orderBy,
     onSnapshot,
     Timestamp,
@@ -50,6 +51,29 @@ export async function updateRental(
 export async function deleteRental(id: string): Promise<void> {
     const docRef = doc(db, RENTALS_COLLECTION, id);
     await deleteDoc(docRef);
+}
+
+/**
+ * Obtiene alquileres en un rango de fechas
+ */
+export async function getRentalsByDateRange(startDate: string, endDate: string): Promise<Rental[]> {
+    const q = query(
+        collection(db, RENTALS_COLLECTION),
+        where('date', '>=', startDate),
+        where('date', '<=', endDate),
+        orderBy('date', 'desc')
+    );
+
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map((doc) => {
+        const data = doc.data();
+        return {
+            id: doc.id,
+            ...data,
+            createdAt: data.createdAt?.toDate() || new Date(),
+            updatedAt: data.updatedAt?.toDate() || new Date(),
+        } as Rental;
+    });
 }
 
 /**

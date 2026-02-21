@@ -11,6 +11,8 @@ export interface Appointment {
     price?: number; // Precio del turno
     createdAt: Date;
     updatedAt: Date;
+    paymentMethod?: 'cash' | 'transfer' | 'debit' | 'credit' | 'qr';
+    isPaid?: boolean;
 
     // Legacy fields (from original app)
     nombre?: string;

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Pencil, Trash2, Plus, MoreVertical, X } from 'lucide-react';
+import { Pencil, Trash2, Plus, MoreVertical, X, DollarSign, CheckCircle2 } from 'lucide-react';
 import { Appointment } from '@/lib/types/appointment';
 import { Professional } from '@/lib/types/professional';
 import { generateTimeSlots, timeToDecimal } from '@/lib/utils/time';
@@ -171,9 +171,17 @@ function AppointmentCell({
                         {appointment.treatment}
                     </p>
                     {appointment.price !== undefined && (
-                        <p className="text-[10px] font-bold text-violet-600 mt-1">
-                            ${appointment.price.toFixed(2)}
-                        </p>
+                        <div className="flex items-center gap-1.5 mt-1">
+                            <p className="text-[10px] font-bold text-violet-600">
+                                ${appointment.price.toFixed(2)}
+                            </p>
+                            {appointment.isPaid && (
+                                <div className="flex items-center gap-0.5 bg-green-50 text-green-600 px-1 py-0.5 rounded text-[9px] font-black uppercase tracking-tighter border border-green-100">
+                                    <CheckCircle2 className="w-2 h-2" />
+                                    <span>Pagado</span>
+                                </div>
+                            )}
+                        </div>
                     )}
                 </div>
 

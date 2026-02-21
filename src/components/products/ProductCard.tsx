@@ -1,7 +1,7 @@
 'use client';
 
 import { Product } from '@/lib/types/product';
-import { ShoppingBag, Edit2, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ShoppingBag, Edit2, Trash2, ChevronLeft, ChevronRight, DollarSign } from 'lucide-react';
 import { useState } from 'react';
 import Image from 'next/image';
 
@@ -10,11 +10,12 @@ interface ProductCardProps {
     isAdmin: boolean;
     onEdit?: (product: Product) => void;
     onDelete?: (id: string) => void;
+    onSell?: (product: Product) => void;
     onClick?: (product: Product) => void;
     priority?: boolean;
 }
 
-export function ProductCard({ product, isAdmin, onEdit, onDelete, onClick, priority }: ProductCardProps) {
+export function ProductCard({ product, isAdmin, onEdit, onDelete, onSell, onClick, priority }: ProductCardProps) {
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
     const nextImage = (e: React.MouseEvent) => {
@@ -121,8 +122,19 @@ export function ProductCard({ product, isAdmin, onEdit, onDelete, onClick, prior
                             ${product.price.toLocaleString('es-AR')}
                         </span>
                     </div>
-                    <div className="p-3 bg-teal-50 rounded-2xl group-hover:bg-[#34baab] transition-all">
-                        <ShoppingBag className="w-5 h-5 text-[#34baab] group-hover:text-white transition-colors" />
+                    <div className="flex gap-2">
+                        {onSell && (
+                            <button
+                                onClick={(e) => { e.stopPropagation(); onSell(product); }}
+                                className="p-3 bg-green-50 rounded-2xl group-hover:bg-[#34baab] transition-all"
+                                title="Registrar Venta"
+                            >
+                                <DollarSign className="w-5 h-5 text-green-600 group-hover:text-white transition-colors" />
+                            </button>
+                        )}
+                        <div className="p-3 bg-teal-50 rounded-2xl group-hover:bg-[#34baab] transition-all">
+                            <ShoppingBag className="w-5 h-5 text-[#34baab] group-hover:text-white transition-colors" />
+                        </div>
                     </div>
                 </div>
             </div>

@@ -45,6 +45,8 @@ export function AppointmentModal({
         professionalId: defaultProfessionalId || '',
         notes: '',
         price: 0,
+        isPaid: false,
+        paymentMethod: 'cash' as 'cash' | 'transfer' | 'debit' | 'credit' | 'qr',
     });
     const [loading, setLoading] = useState(false);
     const [clients, setClients] = useState<UserProfile[]>([]);
@@ -99,6 +101,8 @@ export function AppointmentModal({
                 professionalId: appointment.professionalId || '',
                 notes: appointment.notes || '',
                 price: appointment.price || 0,
+                isPaid: appointment.isPaid || false,
+                paymentMethod: appointment.paymentMethod || 'cash',
             });
             if (appointment.clientId) {
                 setClientMode('registered');
@@ -115,6 +119,8 @@ export function AppointmentModal({
                 professionalId: defaultProfessionalId || (professionals.length > 0 ? professionals[0].id : ''),
                 notes: '',
                 price: 0,
+                isPaid: false,
+                paymentMethod: 'cash',
             });
             setClientMode('registered');
         }
@@ -424,6 +430,43 @@ export function AppointmentModal({
                     min="0"
                     step="0.01"
                 />
+
+                <div className="bg-gray-50 p-4 rounded-xl space-y-4">
+                    <div className="flex items-center justify-between">
+                        <label className="text-sm font-bold text-gray-700 flex items-center gap-2">
+                            <input
+                                type="checkbox"
+                                checked={formData.isPaid}
+                                onChange={(e) => setFormData({ ...formData, isPaid: e.target.checked })}
+                                className="w-5 h-5 rounded border-gray-300 text-[#34baab] focus:ring-[#34baab]"
+                            />
+                            ¿Está pagado?
+                        </label>
+                        {formData.isPaid && (
+                            <span className="text-[10px] font-black uppercase tracking-widest bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
+                                Pago Efectuado
+                            </span>
+                        )}
+                    </div>
+
+                    {formData.isPaid && (
+                        <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+                            <Select
+                                label="Método de Pago"
+                                value={formData.paymentMethod}
+                                onChange={(e) => setFormData({ ...formData, paymentMethod: e.target.value as any })}
+                                options={[
+                                    { value: 'cash', label: 'Efectivo' },
+                                    { value: 'transfer', label: 'Transferencia' },
+                                    { value: 'debit', label: 'Débito' },
+                                    { value: 'credit', label: 'Crédito' },
+                                    { value: 'qr', label: 'QR' },
+                                ]}
+                                required={formData.isPaid}
+                            />
+                        </div>
+                    )}
+                </div>
 
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">

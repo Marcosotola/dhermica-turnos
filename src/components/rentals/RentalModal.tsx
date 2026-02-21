@@ -6,6 +6,9 @@ import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
 import { Rental } from '@/lib/types/rental';
 import { createRental, updateRental } from '@/lib/firebase/rentals';
+import { getUsersByRole } from '@/lib/firebase/users';
+import { UserProfile } from '@/lib/types/user';
+import { Select } from '../ui/Select';
 import { toast } from 'sonner';
 
 interface RentalModalProps {
@@ -19,8 +22,14 @@ export function RentalModal({ isOpen, onClose, rental }: RentalModalProps) {
         date: '',
         clientName: '',
         machine: '',
+        price: '',
+        commission: '',
+        sellerId: '',
+        paymentMethod: 'cash' as 'cash' | 'transfer' | 'debit' | 'credit' | 'qr',
     });
+    const [staff, setStaff] = useState<UserProfile[]>([]);
     const [loading, setLoading] = useState(false);
+    const [fetchingStaff, setFetchingStaff] = useState(false);
 
     useEffect(() => {
         if (rental) {
@@ -28,26 +37,64 @@ export function RentalModal({ isOpen, onClose, rental }: RentalModalProps) {
                 date: rental.date,
                 clientName: rental.clientName,
                 machine: rental.machine,
+                price: rental.price.toString(),
+                commission: rental.commission.toString(),
+                sellerId: rental.sellerId,
+                paymentMethod: rental.paymentMethod,
             });
         } else {
             setFormData({
                 date: '',
                 clientName: '',
                 machine: '',
+                price: '',
+                commission: '10000',
+                sellerId: '',
+                paymentMethod: 'cash',
             });
         }
     }, [rental, isOpen]);
+
+    useEffect(() => {
+        const fetchStaff = async () => {
+            if (!isOpen) return;
+            setFetchingStaff(true);
+            try {
+                const roles: ('admin' | 'secretary' | 'promotor' | 'professional')[] = ['admin', 'secretary', 'promotor', 'professional'];
+                const results = await Promise.all(roles.map(role => getUsersByRole(role)));
+                const allStaff = results.flat().sort((a, b) => a.fullName.localeCompare(b.fullName));
+
+                // Remove duplicates by UID if any (e.g. professional also being admin, though rare)
+                const uniqueStaff = allStaff.filter((v, i, a) => a.findIndex(t => (t.uid === v.uid)) === i);
+                setStaff(uniqueStaff);
+            } catch (error) {
+                console.error('Error fetching staff:', error);
+            } finally {
+                setFetchingStaff(false);
+            }
+        };
+        fetchStaff();
+    }, [isOpen]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
 
         try {
+            const selectedStaff = staff.find(s => s.uid === formData.sellerId);
+            const rentalData = {
+                ...formData,
+                price: Number(formData.price),
+                commission: Number(formData.commission),
+                sellerId: formData.sellerId,
+                sellerName: selectedStaff?.fullName || 'Desconocido',
+            };
+
             if (rental) {
-                await updateRental(rental.id, formData);
+                await updateRental(rental.id, rentalData);
                 toast.success('Alquiler actualizado exitosamente');
             } else {
-                await createRental(formData);
+                await createRental(rentalData);
                 toast.success('Alquiler creado exitosamente');
             }
             onClose();
@@ -88,6 +135,50 @@ export function RentalModal({ isOpen, onClose, rental }: RentalModalProps) {
                     value={formData.machine}
                     onChange={(e) => setFormData({ ...formData, machine: e.target.value })}
                     placeholder="Ej: Laser Soprano"
+                    required
+                />
+
+                <div className="grid grid-cols-2 gap-4">
+                    <Input
+                        label="Precio Alquiler"
+                        type="number"
+                        value={formData.price}
+                        onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                        placeholder="0"
+                        required
+                    />
+                    <Input
+                        label="Comisión Vendedor"
+                        type="number"
+                        value={formData.commission}
+                        onChange={(e) => setFormData({ ...formData, commission: e.target.value })}
+                        placeholder="10000"
+                        required
+                    />
+                </div>
+
+                <Select
+                    label="Vendido por"
+                    value={formData.sellerId}
+                    onChange={(e) => setFormData({ ...formData, sellerId: e.target.value })}
+                    options={[
+                        { value: '', label: fetchingStaff ? 'Cargando staff...' : 'Seleccionar vendedor...' },
+                        ...staff.map(s => ({ value: s.uid, label: s.fullName }))
+                    ]}
+                    required
+                />
+
+                <Select
+                    label="Método de Pago"
+                    value={formData.paymentMethod}
+                    onChange={(e) => setFormData({ ...formData, paymentMethod: e.target.value as any })}
+                    options={[
+                        { value: 'cash', label: 'Efectivo' },
+                        { value: 'transfer', label: 'Transferencia' },
+                        { value: 'debit', label: 'Débito' },
+                        { value: 'credit', label: 'Crédito' },
+                        { value: 'qr', label: 'QR / Digital' },
+                    ]}
                     required
                 />
 

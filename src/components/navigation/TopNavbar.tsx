@@ -3,7 +3,7 @@
 import { useState, useEffect, ElementType } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Menu, X, Home, Calendar, Truck, Users, LayoutDashboard, LogOut, BookOpen, Settings, Sparkles, Tag, ShoppingBag, Bell, Share2, MapPin } from 'lucide-react';
+import { Menu, X, Home, Calendar, Truck, Users, LayoutDashboard, LogOut, BookOpen, Settings, Sparkles, Tag, ShoppingBag, Bell, Share2, MapPin, DollarSign } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
@@ -52,6 +52,7 @@ export function TopNavbar() {
         // Admin only - in dashboard order
         ...(role === 'admin' ? [
             { href: '/turnos', label: 'Turnos', icon: Calendar },
+            { href: '/finanzas', label: 'Finanzas', icon: DollarSign },
             { href: '/agenda', label: 'Fichas', icon: BookOpen },
             { href: '/promociones', label: 'Promociones', icon: Tag },
             { href: '/tratamientos', label: 'Servicios', icon: Sparkles },
@@ -66,6 +67,7 @@ export function TopNavbar() {
         // Professional only
         ...(role === 'professional' ? [
             { href: '/profesional/turnos', label: 'Mis Turnos', icon: Calendar },
+            { href: '/finanzas', label: 'Mis Finanzas', icon: DollarSign },
             { href: '/agenda', label: 'Fichas', icon: BookOpen },
             { href: '/tratamientos', label: 'Servicios', icon: Sparkles },
             { href: '/productos', label: 'Productos', icon: ShoppingBag },

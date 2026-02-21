@@ -30,6 +30,8 @@ export function RentalTable({ rentals, onEdit, onDelete }: RentalTableProps) {
                                 <th className="px-6 py-4 text-sm font-bold text-gray-400 uppercase tracking-widest">Fecha</th>
                                 <th className="px-6 py-4 text-sm font-bold text-gray-400 uppercase tracking-widest">Cliente</th>
                                 <th className="px-6 py-4 text-sm font-bold text-gray-400 uppercase tracking-widest">Máquina</th>
+                                <th className="px-6 py-4 text-sm font-bold text-gray-400 uppercase tracking-widest">Vendedor</th>
+                                <th className="px-6 py-4 text-sm font-bold text-gray-400 uppercase tracking-widest">Precio</th>
                                 <th className="px-6 py-4 text-sm font-bold text-gray-400 uppercase tracking-widest text-right">Acciones</th>
                             </tr>
                         </thead>
@@ -48,6 +50,8 @@ export function RentalTable({ rentals, onEdit, onDelete }: RentalTableProps) {
                                             {rental.machine}
                                         </span>
                                     </td>
+                                    <td className="px-6 py-4 font-bold text-gray-700">{rental.sellerName}</td>
+                                    <td className="px-6 py-4 font-black text-gray-900">${(rental.price || 0).toLocaleString('es-AR')}</td>
                                     <td className="px-6 py-4 text-right">
                                         <div className="flex justify-end gap-2">
                                             <button
@@ -92,6 +96,17 @@ export function RentalTable({ rentals, onEdit, onDelete }: RentalTableProps) {
                             <span className="px-3 py-1 bg-[#34baab]/10 text-[#34baab] rounded-lg text-[10px] font-black uppercase tracking-widest">
                                 {rental.machine}
                             </span>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4 mb-4">
+                            <div className="p-3 bg-gray-50 rounded-xl border border-gray-100">
+                                <p className="text-[10px] text-gray-400 font-black uppercase mb-1">Vendedor</p>
+                                <p className="font-bold text-gray-700 text-sm whitespace-nowrap overflow-hidden text-ellipsis">{rental.sellerName}</p>
+                            </div>
+                            <div className="p-3 bg-gray-50 rounded-xl border border-gray-100">
+                                <p className="text-[10px] text-gray-400 font-black uppercase mb-1">Precio</p>
+                                <p className="font-black text-gray-900 text-sm">${(rental.price || 0).toLocaleString('es-AR')}</p>
+                            </div>
                         </div>
 
                         <div className="flex justify-end gap-3 pt-3 border-t border-gray-50">

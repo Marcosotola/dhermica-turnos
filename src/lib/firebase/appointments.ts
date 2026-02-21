@@ -63,6 +63,8 @@ function mapLegacyAppointment(docId: string, data: any, professionalId?: string)
         professionalId: professionalId || data.professionalId,
         notes: data.notes || data.observaciones || '',
         price: data.price !== undefined ? data.price : data.precio,
+        isPaid: data.isPaid || false,
+        paymentMethod: data.paymentMethod || undefined,
         createdAt: data.createdAt?.toDate() || new Date(),
         updatedAt: data.updatedAt?.toDate() || new Date(),
     } as Appointment;
@@ -80,6 +82,8 @@ function mapToLegacy(data: any) {
     if (data.duration !== undefined) legacy.duracion = data.duration;
     if (data.notes !== undefined) legacy.observaciones = data.notes;
     if (data.price !== undefined) legacy.precio = data.price;
+    if (data.isPaid !== undefined) legacy.isPaid = data.isPaid;
+    if (data.paymentMethod !== undefined) legacy.paymentMethod = data.paymentMethod;
     return legacy;
 }
 

@@ -12,9 +12,10 @@ interface ProductDetailProps {
     isAdmin?: boolean;
     onEdit?: (product: Product) => void;
     onDelete?: (id: string) => void;
+    onSell?: (product: Product) => void;
 }
 
-export function ProductDetail({ isOpen, onClose, product, isAdmin, onEdit, onDelete }: ProductDetailProps) {
+export function ProductDetail({ isOpen, onClose, product, isAdmin, onEdit, onDelete, onSell }: ProductDetailProps) {
     const [activeImage, setActiveImage] = useState(0);
 
     if (!isOpen || !product) return null;
@@ -132,6 +133,14 @@ export function ProductDetail({ isOpen, onClose, product, isAdmin, onEdit, onDel
                                     <Trash2 className="w-4 h-4" /> Borrar
                                 </button>
                             </div>
+                        )}
+                        {onSell && (
+                            <button
+                                onClick={() => { onSell(product); onClose(); }}
+                                className="w-full bg-[#34baab] hover:bg-[#2aa89a] text-white py-4 rounded-2xl font-black uppercase tracking-widest shadow-lg shadow-teal-900/10 transition-all active:scale-95 flex items-center justify-center gap-2"
+                            >
+                                <DollarSign className="w-5 h-5" /> Registrar Venta
+                            </button>
                         )}
                         <button
                             onClick={onClose}

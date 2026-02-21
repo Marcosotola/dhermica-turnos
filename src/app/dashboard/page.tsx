@@ -25,7 +25,8 @@ import {
     Bell,
     BellOff,
     CheckCircle2,
-    MapPin
+    MapPin,
+    DollarSign
 } from 'lucide-react';
 import Link from 'next/link';
 import { Appointment } from '@/lib/types/appointment';
@@ -175,6 +176,12 @@ export default function DashboardPage() {
                                 <p className="hidden md:block text-gray-500 text-sm mt-2 text-center">Ver, crear y cancelar turnos.</p>
                             </Link>
 
+                            <Link href="/finanzas" className="flex flex-col items-center justify-center bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-all group">
+                                <DollarSign className="w-10 h-10 text-emerald-600 mb-4 group-hover:scale-110 transition-transform" />
+                                <span className="text-xl font-bold text-gray-900 text-center">Finanzas</span>
+                                <p className="hidden md:block text-gray-500 text-sm mt-2 text-center">Balance e ingresos.</p>
+                            </Link>
+
                             <Link href="/agenda" className="flex flex-col items-center justify-center bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-all group">
                                 <BookOpen className="w-10 h-10 text-[#34baab] mb-4 group-hover:scale-110 transition-transform" />
                                 <span className="text-xl font-bold text-gray-900 text-center">Fichas</span>
@@ -237,6 +244,12 @@ export default function DashboardPage() {
                                 <Calendar className="w-10 h-10 text-violet-600 mb-4 group-hover:scale-110 transition-transform" />
                                 <span className="text-xl font-bold text-gray-900 text-center">Turnos</span>
                                 <p className="hidden md:block text-gray-500 text-sm mt-2 text-center">Ver y gestionar tus citas.</p>
+                            </Link>
+
+                            <Link href="/finanzas" className="flex flex-col items-center justify-center bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-all group">
+                                <DollarSign className="w-10 h-10 text-emerald-600 mb-4 group-hover:scale-110 transition-transform" />
+                                <span className="text-xl font-bold text-gray-900 text-center">Mis Finanzas</span>
+                                <p className="hidden md:block text-gray-500 text-sm mt-2 text-center">Ganancias y comisiones.</p>
                             </Link>
 
                             <Link href="/agenda" className="flex flex-col items-center justify-center bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-all group">

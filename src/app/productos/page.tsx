@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { ShoppingBag, Plus, Search, AlertTriangle, Loader2 } from 'lucide-react';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { getProducts, createProduct, updateProduct, deleteProduct, uploadProductImage } from '@/lib/firebase/products';
+import { getUsersByRole } from '@/lib/firebase/users';
 import { Product } from '@/lib/types/product';
 import { ProductCard } from '@/components/products/ProductCard';
 import { ProductForm } from '@/components/products/ProductForm';
@@ -12,6 +13,10 @@ import { Button } from '@/components/ui/Button';
 import { toast, Toaster } from 'sonner';
 import { CardSkeleton } from '@/components/ui/Skeleton';
 import { haptics } from '@/lib/utils/haptics';
+import { ProductSaleModal } from '@/components/products/ProductSaleModal';
+import { SalesHistoryModal } from '@/components/products/SalesHistoryModal';
+import { Professional } from '@/lib/types/professional';
+import { getActiveProfessionals } from '@/lib/firebase/professionals';
 
 export default function ProductosPage() {
     const { profile, loading: authLoading } = useAuth();
@@ -24,8 +29,12 @@ export default function ProductosPage() {
     const [isDetailOpen, setIsDetailOpen] = useState(false);
     const [editingProduct, setEditingProduct] = useState<Product | undefined>();
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+    const [isSaleModalOpen, setIsSaleModalOpen] = useState(false);
+    const [isSalesHistoryOpen, setIsSalesHistoryOpen] = useState(false);
+    const [professionals, setProfessionals] = useState<Professional[]>([]);
 
     const isAdmin = profile?.role === 'admin' || profile?.role === 'secretary' || profile?.role === 'promotor';
+    const canRegisterSale = profile?.role && profile.role !== 'client';
 
     useEffect(() => {
         fetchProducts();
@@ -34,10 +43,30 @@ export default function ProductosPage() {
     const fetchProducts = async () => {
         setLoading(true);
         try {
-            const data = await getProducts();
-            setProducts(data);
+            const [productsData, professionalsData, admins, secretaries, promotors] = await Promise.all([
+                getProducts(),
+                getActiveProfessionals(),
+                getUsersByRole('admin'),
+                getUsersByRole('secretary'),
+                getUsersByRole('promotor')
+            ]);
+
+            // Crear entradas temporales para staff que no está en la colección de profesionales
+            const staffAsProfessionals = [...admins, ...secretaries, ...promotors]
+                .filter(u => !professionalsData.some(p => p.userId === u.uid))
+                .map(u => ({
+                    id: u.uid,
+                    name: u.fullName,
+                    color: '#6B7280',
+                    active: true,
+                    order: 99,
+                    userId: u.uid
+                } as Professional));
+
+            setProducts(productsData);
+            setProfessionals([...professionalsData, ...staffAsProfessionals]);
         } catch (error) {
-            toast.error('Error al cargar productos');
+            toast.error('Error al cargar datos');
         } finally {
             setLoading(false);
         }
@@ -142,12 +171,20 @@ export default function ProductosPage() {
                             <p className="text-gray-300 font-medium">Llevá el cuidado de Dhermica a tu casa.</p>
                         </div>
                         {isAdmin && (
-                            <Button
-                                onClick={() => { setEditingProduct(undefined); setIsFormOpen(true); }}
-                                className="bg-[#34baab] hover:bg-[#2aa89a] border-none rounded-2xl py-4 px-8 shadow-lg shadow-[#34baab]/20 transform hover:-translate-y-1 transition-all font-black uppercase tracking-widest text-xs"
-                            >
-                                <Plus className="w-5 h-5 mr-2" /> Nuevo Producto
-                            </Button>
+                            <div className="flex gap-3">
+                                <Button
+                                    onClick={() => setIsSalesHistoryOpen(true)}
+                                    className="bg-white/10 hover:bg-white/20 border border-white/20 text-white rounded-2xl py-4 px-6 font-black uppercase tracking-widest text-xs"
+                                >
+                                    Historial Ventas
+                                </Button>
+                                <Button
+                                    onClick={() => { setEditingProduct(undefined); setIsFormOpen(true); }}
+                                    className="bg-[#34baab] hover:bg-[#2aa89a] border-none rounded-2xl py-4 px-8 shadow-lg shadow-[#34baab]/20 transform hover:-translate-y-1 transition-all font-black uppercase tracking-widest text-xs"
+                                >
+                                    <Plus className="w-5 h-5 mr-2" /> Nuevo Producto
+                                </Button>
+                            </div>
                         )}
                     </div>
                 </div>
@@ -192,6 +229,10 @@ export default function ProductosPage() {
                                 isAdmin={isAdmin}
                                 onEdit={(p) => { setEditingProduct(p); setIsFormOpen(true); }}
                                 onDelete={handleDelete}
+                                onSell={canRegisterSale ? (p) => {
+                                    setSelectedProduct(p);
+                                    setIsSaleModalOpen(true);
+                                } : undefined}
                                 onClick={(p) => {
                                     haptics.light();
                                     setSelectedProduct(p);
@@ -219,6 +260,27 @@ export default function ProductosPage() {
                 isAdmin={isAdmin}
                 onEdit={(p) => { setEditingProduct(p); setIsFormOpen(true); }}
                 onDelete={handleDelete}
+                onSell={canRegisterSale ? (p) => {
+                    setSelectedProduct(p);
+                    setIsSaleModalOpen(true);
+                } : undefined}
+            />
+
+            <ProductSaleModal
+                isOpen={isSaleModalOpen}
+                onClose={() => setIsSaleModalOpen(false)}
+                product={selectedProduct}
+                professionals={professionals}
+                onSuccess={() => {
+                    // Update stats if needed, or just let the user know
+                }}
+            />
+
+            <SalesHistoryModal
+                isOpen={isSalesHistoryOpen}
+                onClose={() => setIsSalesHistoryOpen(false)}
+                professionals={professionals}
+                onRefresh={fetchProducts}
             />
         </div>
     );

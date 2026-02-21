@@ -34,6 +34,7 @@ export default function ProfesionalesPage() {
     const [color, setColor] = useState('#6366f1');
     const [order, setOrder] = useState(0);
     const [legacyCollectionName, setLegacyCollectionName] = useState('');
+    const [serviceCommissionPercentage, setServiceCommissionPercentage] = useState(0);
     const [submitting, setSubmitting] = useState(false);
 
     useEffect(() => {
@@ -60,12 +61,14 @@ export default function ProfesionalesPage() {
             setColor(prof.color);
             setOrder(prof.order);
             setLegacyCollectionName(prof.legacyCollectionName || '');
+            setServiceCommissionPercentage(prof.serviceCommissionPercentage || 0);
         } else {
             setEditingProfessional(null);
             setName('');
             setColor('#6366f1');
             setOrder(professionals.length);
             setLegacyCollectionName('');
+            setServiceCommissionPercentage(0);
         }
         setModalOpen(true);
     };
@@ -75,10 +78,23 @@ export default function ProfesionalesPage() {
         setSubmitting(true);
         try {
             if (editingProfessional) {
-                await updateProfessional(editingProfessional.id, { name, color, order, legacyCollectionName });
+                await updateProfessional(editingProfessional.id, {
+                    name,
+                    color,
+                    order,
+                    legacyCollectionName,
+                    serviceCommissionPercentage
+                });
                 toast.success('Profesional actualizado');
             } else {
-                await createProfessional({ name, color, order, active: true, legacyCollectionName });
+                await createProfessional({
+                    name,
+                    color,
+                    order,
+                    active: true,
+                    legacyCollectionName,
+                    serviceCommissionPercentage
+                });
                 toast.success('Profesional creado');
             }
             setModalOpen(false);
@@ -306,6 +322,25 @@ export default function ProfesionalesPage() {
                             placeholder="Ej: turnosLuciana"
                         />
                         <p className="text-xs text-gray-500 mt-1">Nombre de la colección en Firebase de donde extraer datos históricos.</p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4 pt-2">
+                        <div className="space-y-1">
+                            <label className="text-[10px] text-gray-400 font-black uppercase tracking-widest ml-1">Comisión Servicios (%)</label>
+                            <div className="relative">
+                                <Input
+                                    type="number"
+                                    value={serviceCommissionPercentage || ''}
+                                    onChange={(e) => setServiceCommissionPercentage(e.target.value === '' ? 0 : parseFloat(e.target.value))}
+                                    min={0}
+                                    max={100}
+                                    step={0.5}
+                                    placeholder="Ej: 50"
+                                    className="pl-9 font-bold"
+                                />
+                                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-violet-500 font-black">%</div>
+                            </div>
+                        </div>
                     </div>
                     <div className="flex justify-end gap-3 pt-4 border-t">
                         <Button type="button" variant="ghost" onClick={() => setModalOpen(false)}>

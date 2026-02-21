@@ -7,6 +7,8 @@ export interface Professional {
     createdAt: Date;
     order: number; // Para ordenar las columnas
     legacyCollectionName?: string; // Nombre de la colección antigua (ej: turnosLuciana)
+    serviceCommissionPercentage?: number;
+    productCommissionPercentage?: number;
 }
 
 export const DEFAULT_PROFESSIONALS: Omit<Professional, 'id' | 'createdAt'>[] = [
