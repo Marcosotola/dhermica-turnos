@@ -7,7 +7,8 @@ service cloud.firestore {
     function isAdmin() {
       return request.auth != null && 
         (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
-         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'promotor');
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'promotor' ||
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'secretary');
     }
 
     // --- Community Posts ---
