@@ -37,10 +37,10 @@ export function RentalModal({ isOpen, onClose, rental }: RentalModalProps) {
                 date: rental.date,
                 clientName: rental.clientName,
                 machine: rental.machine,
-                price: rental.price.toString(),
-                commission: rental.commission.toString(),
-                sellerId: rental.sellerId,
-                paymentMethod: rental.paymentMethod,
+                price: (rental.price ?? 0).toString(),
+                commission: (rental.commission ?? 0).toString(),
+                sellerId: rental.sellerId ?? '',
+                paymentMethod: rental.paymentMethod ?? 'cash',
             });
         } else {
             setFormData({
