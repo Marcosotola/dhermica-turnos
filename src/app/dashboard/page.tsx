@@ -26,7 +26,8 @@ import {
     BellOff,
     CheckCircle2,
     MapPin,
-    DollarSign
+    DollarSign,
+    Zap
 } from 'lucide-react';
 import Link from 'next/link';
 import { Appointment } from '@/lib/types/appointment';
@@ -239,6 +240,12 @@ export default function DashboardPage() {
                                 <span className="text-xl font-bold text-gray-900 text-center">Comunidad</span>
                                 <p className="hidden md:block text-gray-500 text-sm mt-2 text-center">Resultados e inspiración.</p>
                             </Link>
+
+                            <Link href="/aparatos" className="flex flex-col items-center justify-center bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-all group">
+                                <Zap className="w-10 h-10 text-amber-500 mb-4 group-hover:scale-110 transition-transform" />
+                                <span className="text-xl font-bold text-gray-900 text-center">Aparatos</span>
+                                <p className="hidden md:block text-gray-500 text-sm mt-2 text-center">Sesiones de aparatología.</p>
+                            </Link>
                         </>
                     )}
 
@@ -260,6 +267,12 @@ export default function DashboardPage() {
                                 <BookOpen className="w-10 h-10 text-[#34baab] mb-4 group-hover:scale-110 transition-transform" />
                                 <span className="text-xl font-bold text-gray-900 text-center">Fichas</span>
                                 <p className="hidden md:block text-gray-500 text-sm mt-2 text-center">Consultar fichas e historial.</p>
+                            </Link>
+
+                            <Link href="/aparatos" className="flex flex-col items-center justify-center bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-all group">
+                                <Zap className="w-10 h-10 text-amber-500 mb-4 group-hover:scale-110 transition-transform" />
+                                <span className="text-xl font-bold text-gray-900 text-center">Aparatos</span>
+                                <p className="hidden md:block text-gray-500 text-sm mt-2 text-center">Ver mis sesiones de aparatos.</p>
                             </Link>
                         </>
                     )}

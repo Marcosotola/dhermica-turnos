@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
-import { Calendar, TrendingUp, Sparkles, ShoppingBag, BookOpen, Bell, MapPin, Users, Truck, DollarSign } from 'lucide-react';
+import { Calendar, TrendingUp, Sparkles, ShoppingBag, BookOpen, Bell, MapPin, Users, Truck, DollarSign, Zap } from 'lucide-react';
 import { ProfileSection } from '@/components/dashboard/ProfileSection';
 import { EditProfileModal } from '@/components/dashboard/EditProfileModal';
 import { Toaster } from 'sonner';
@@ -82,6 +82,16 @@ export default function SecretariaPage() {
                         <DollarSign className="w-10 h-10 text-emerald-600 group-hover:scale-110 transition-transform mb-4" />
                         <h2 className="text-xl font-bold text-gray-900">Finanzas</h2>
                         <p className="hidden md:block text-sm text-gray-500 mt-2">Ingresos y balance</p>
+                    </button>
+
+                    {/* Aparatos */}
+                    <button
+                        onClick={() => router.push('/aparatos')}
+                        className="flex flex-col items-center justify-center bg-white rounded-3xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-all text-center group"
+                    >
+                        <Zap className="w-10 h-10 text-amber-500 group-hover:scale-110 transition-transform mb-4" />
+                        <h2 className="text-xl font-bold text-gray-900">Aparatos</h2>
+                        <p className="hidden md:block text-sm text-gray-500 mt-2">Sesiones de aparatología</p>
                     </button>
 
                     {/* Promociones */}

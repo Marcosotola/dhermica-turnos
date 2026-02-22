@@ -17,7 +17,8 @@ import {
     ArrowDownRight,
     Loader2,
     Users,
-    ShoppingBag
+    ShoppingBag,
+    Zap
 } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 import { useRouter } from 'next/navigation';
@@ -31,7 +32,9 @@ export default function FinanzasPage() {
     const [dateRange, setDateRange] = useState<'day' | 'week' | 'month'>('day');
     const [currentDate, setCurrentDate] = useState(new Date());
 
-    const isAdmin = profile?.role === 'admin' || profile?.role === 'secretary';
+    const isAdmin = profile?.role === 'admin';
+    const isSecretary = profile?.role === 'secretary';
+    const canSeeIncome = isAdmin || isSecretary; // ve ingresos totales y métodos de pago
 
     useEffect(() => {
         loadData();
@@ -112,10 +115,10 @@ export default function FinanzasPage() {
                         <div className="p-3 bg-white/10 rounded-2xl border border-white/20">
                             <DollarSign className="w-8 h-8 text-[#34baab]" />
                         </div>
-                        {isAdmin ? 'Balance Financiero' : 'Mis Ganancias'}
+                        {canSeeIncome ? 'Balance Financiero' : 'Mis Ganancias'}
                     </h1>
                     <p className="text-gray-300 font-medium">
-                        {isAdmin ? 'Resumen general de ingresos y comisiones.' : 'Seguimiento de tus servicios y comisiones.'}
+                        {canSeeIncome ? 'Resumen general de ingresos y comisiones.' : 'Seguimiento de tus servicios y comisiones.'}
                     </p>
                 </div>
             </div>
@@ -152,7 +155,7 @@ export default function FinanzasPage() {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     {/* Left Column: Summary Cards */}
                     <div className="lg:col-span-1 space-y-6">
-                        {isAdmin ? (
+                        {canSeeIncome ? (
                             <div className="bg-gradient-to-br from-[#484450] to-[#2d2a33] text-white p-8 rounded-[2.5rem] shadow-2xl shadow-[#34baab]/20 border border-white/5 relative overflow-hidden group">
                                 <div className="absolute top-0 right-0 p-8 transform group-hover:scale-110 transition-transform duration-500 opacity-20">
                                     <PieChart className="w-32 h-32" />
@@ -235,7 +238,7 @@ export default function FinanzasPage() {
                                     </h3>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         {Object.entries(overview?.byProfessional || {}).map(([id, data]) => {
-                                            if (data.serviceCommission === 0 && data.productCommission === 0 && data.rentalCommission === 0) return null;
+                                            if (data.serviceCommission === 0 && data.productCommission === 0 && data.rentalCommission === 0 && data.aparatoFee === 0) return null;
                                             return (
                                                 <div key={id} className="bg-gray-50 rounded-3xl p-6 border border-gray-100 hover:border-[#34baab]/30 transition-all hover:bg-white hover:shadow-lg group">
                                                     <div className="flex justify-between items-start mb-6">
@@ -257,6 +260,12 @@ export default function FinanzasPage() {
                                                             <span className="text-gray-500 font-medium">Alquileres (comisión):</span>
                                                             <span className="font-bold text-gray-800">{formatCurrency(data.rentalCommission)}</span>
                                                         </div>
+                                                        {data.aparatoFee > 0 && (
+                                                            <div className="flex justify-between text-sm">
+                                                                <span className="text-amber-600 font-medium flex items-center gap-1"><Zap className="w-3 h-3" /> Aparatos (fijo):</span>
+                                                                <span className="font-bold text-amber-600">{formatCurrency(data.aparatoFee)}</span>
+                                                            </div>
+                                                        )}
                                                         <div className="pt-3 border-t border-gray-200 mt-3 flex justify-between items-baseline">
                                                             <span className="text-xs font-black uppercase text-[#34baab] tracking-widest">Total a Pagar:</span>
                                                             <span className="font-black text-[#34baab] text-xl">{formatCurrency(data.totalCommission)}</span>
@@ -265,7 +274,7 @@ export default function FinanzasPage() {
                                                 </div>
                                             );
                                         })}
-                                        {Object.values(overview?.byProfessional || {}).every(d => d.serviceCommission === 0 && d.productCommission === 0 && d.rentalCommission === 0) && (
+                                        {Object.values(overview?.byProfessional || {}).every(d => d.serviceCommission === 0 && d.productCommission === 0 && d.rentalCommission === 0 && d.aparatoFee === 0) && (
                                             <div className="col-span-full py-12 text-center text-gray-400">
                                                 No hay actividad registrada para profesionales en este período.
                                             </div>
@@ -273,7 +282,7 @@ export default function FinanzasPage() {
                                     </div>
                                 </div>
                             </>
-                        ) : (
+                        ) : profile?.role === 'professional' ? (
                             <div className="bg-white rounded-[2.5rem] p-8 shadow-xl border border-gray-100">
                                 <h3 className="text-gray-800 font-black text-2xl mb-8 flex items-center gap-3">
                                     <TrendingUp className="w-6 h-6 text-[#34baab]" /> Detalle de lo Generado
@@ -304,6 +313,12 @@ export default function FinanzasPage() {
                                                 <p className="text-gray-400 text-[10px] font-black uppercase tracking-widest">Total Alquileres</p>
                                                 <p className="text-3xl font-black text-gray-900">{formatCurrency(personalData?.rentalIncome || 0)}</p>
                                             </div>
+                                            {(personalData?.aparatoIncome || 0) > 0 && (
+                                                <div className="space-y-2">
+                                                    <p className="text-amber-500 text-[10px] font-black uppercase tracking-widest">Aparatos (fijo)</p>
+                                                    <p className="text-3xl font-black text-amber-600">{formatCurrency(personalData?.aparatoIncome || 0)}</p>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
 
@@ -322,6 +337,12 @@ export default function FinanzasPage() {
                                                 <span className="text-gray-600 font-bold uppercase tracking-tight text-xs">Comisión por Alquileres</span>
                                                 <span className="text-gray-900 font-black text-lg">{formatCurrency(personalData?.rentalCommission || 0)}</span>
                                             </div>
+                                            {(personalData?.aparatoFee || 0) > 0 && (
+                                                <div className="flex justify-between items-center bg-amber-50 p-4 rounded-2xl shadow-sm border border-amber-100">
+                                                    <span className="text-amber-600 font-bold uppercase tracking-tight text-xs flex items-center gap-1"><Zap className="w-3 h-3" /> Aparatos (monto fijo)</span>
+                                                    <span className="text-amber-600 font-black text-lg">{formatCurrency(personalData?.aparatoFee || 0)}</span>
+                                                </div>
+                                            )}
                                             <div className="flex justify-between items-center bg-[#34baab] text-white p-6 rounded-[2rem] shadow-lg shadow-[#34baab]/20 mt-8">
                                                 <span className="font-black uppercase tracking-[0.2em] text-xs">Total Neto a Cobrar</span>
                                                 <span className="text-3xl font-black">{formatCurrency(personalData?.totalCommission || 0)}</span>
@@ -330,7 +351,7 @@ export default function FinanzasPage() {
                                     </div>
                                 </div>
                             </div>
-                        )}
+                        ) : null}
                     </div>
                 </div>
             </div>

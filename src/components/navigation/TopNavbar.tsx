@@ -3,7 +3,7 @@
 import { useState, useEffect, ElementType } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Menu, X, Home, Calendar, Truck, Users, LayoutDashboard, LogOut, BookOpen, Settings, Sparkles, Tag, ShoppingBag, Bell, Share2, MapPin, DollarSign } from 'lucide-react';
+import { Menu, X, Home, Calendar, Truck, Users, LayoutDashboard, LogOut, BookOpen, Settings, Sparkles, Tag, ShoppingBag, Bell, Share2, MapPin, DollarSign, Zap } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
@@ -54,6 +54,7 @@ export function TopNavbar() {
             { href: '/turnos', label: 'Turnos', icon: Calendar },
             { href: '/finanzas', label: 'Finanzas', icon: DollarSign },
             { href: '/agenda', label: 'Fichas', icon: BookOpen },
+            { href: '/aparatos', label: 'Aparatos', icon: Zap },
             { href: '/promociones', label: 'Promos', icon: Tag },
             { href: '/tratamientos', label: 'Servicios', icon: Sparkles },
             { href: '/productos', label: 'Productos', icon: ShoppingBag },
@@ -68,6 +69,7 @@ export function TopNavbar() {
             { href: '/profesional', label: 'Mis Turnos', icon: Calendar },
             { href: '/finanzas', label: 'Mis Finanzas', icon: DollarSign },
             { href: '/agenda', label: 'Fichas', icon: BookOpen },
+            { href: '/aparatos', label: 'Aparatos', icon: Zap },
             { href: '/tratamientos', label: 'Servicios', icon: Sparkles },
             { href: '/productos', label: 'Productos', icon: ShoppingBag },
             { href: '/promociones', label: 'Promos', icon: Tag },
@@ -78,6 +80,7 @@ export function TopNavbar() {
         ...(role === 'secretary' ? [
             { href: '/turnos', label: 'Turnos', icon: Calendar },
             { href: '/finanzas', label: 'Finanzas', icon: DollarSign },
+            { href: '/aparatos', label: 'Aparatos', icon: Zap },
             { href: '/promociones', label: 'Promos', icon: Tag },
             { href: '/tratamientos', label: 'Servicios', icon: Sparkles },
             { href: '/productos', label: 'Productos', icon: ShoppingBag },

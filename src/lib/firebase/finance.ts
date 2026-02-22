@@ -1,10 +1,12 @@
 import { getSalesByDateRange, getSalesByProfessional } from './sales';
 import { getAppointmentsByDateRange, getAppointmentsByProfessional } from './appointments';
 import { getRentalsByDateRange } from './rentals';
+import { getAparatoSessionsByDateRange } from './aparatos';
 import { getActiveProfessionals } from './professionals';
 import { Appointment } from '../types/appointment';
 import { Sale } from '../types/sale';
 import { Rental } from '../types/rental';
+import { AparatoSession } from '../types/aparato';
 import { Professional } from '../types/professional';
 
 export interface FinanceOverview {
@@ -12,14 +14,17 @@ export interface FinanceOverview {
     totalServiceIncome: number;
     totalProductIncome: number;
     totalRentalIncome: number;
+    totalAparatoIncome: number;
     byMethod: Record<string, number>;
     byProfessional: Record<string, {
         serviceIncome: number;
         productIncome: number;
         rentalIncome: number;
+        aparatoIncome: number;
         serviceCommission: number;
         productCommission: number;
         rentalCommission: number;
+        aparatoFee: number;
         totalCommission: number;
         name: string;
         userId?: string;
@@ -37,10 +42,11 @@ import { getUsersByRole } from './users';
  * Calcula el balance financiero para un rango de fechas
  */
 export async function getFinanceOverview(startDate: string, endDate: string): Promise<FinanceOverview> {
-    const [appointments, sales, rentals, professionals, admins, secretaries, promotors] = await Promise.all([
+    const [appointments, sales, rentals, aparatos, professionals, admins, secretaries, promotors] = await Promise.all([
         getAppointmentsByDateRange(startDate, endDate),
         getSalesByDateRange(startDate, endDate),
         getRentalsByDateRange(startDate, endDate),
+        getAparatoSessionsByDateRange(startDate, endDate),
         getActiveProfessionals(),
         getUsersByRole('admin'),
         getUsersByRole('secretary'),
@@ -52,6 +58,7 @@ export async function getFinanceOverview(startDate: string, endDate: string): Pr
         totalServiceIncome: 0,
         totalProductIncome: 0,
         totalRentalIncome: 0,
+        totalAparatoIncome: 0,
         byMethod: { cash: 0, transfer: 0, debit: 0, credit: 0, qr: 0 },
         byProfessional: {},
         byProduct: {}
@@ -71,9 +78,11 @@ export async function getFinanceOverview(startDate: string, endDate: string): Pr
             serviceIncome: 0,
             productIncome: 0,
             rentalIncome: 0,
+            aparatoIncome: 0,
             serviceCommission: 0,
             productCommission: 0,
             rentalCommission: 0,
+            aparatoFee: 0,
             totalCommission: 0,
             name: p.name,
             userId: p.userId
@@ -86,14 +95,23 @@ export async function getFinanceOverview(startDate: string, endDate: string): Pr
                 serviceIncome: 0,
                 productIncome: 0,
                 rentalIncome: 0,
+                aparatoIncome: 0,
                 serviceCommission: 0,
                 productCommission: 0,
                 rentalCommission: 0,
+                aparatoFee: 0,
                 totalCommission: 0,
                 name: u.fullName,
                 userId: u.uid
             };
         }
+    });
+
+    // Pre-construir un Set: 'professionalId|YYYY-MM-DD' para días con aparato
+    // En esos días el profesional cobra el monto fijo, no comisión por porcentaje
+    const aparatoDays = new Set<string>();
+    aparatos.forEach((session: AparatoSession) => {
+        aparatoDays.add(`${session.professionalId}|${session.date}`);
     });
 
     // Procesar Turnos
@@ -113,7 +131,10 @@ export async function getFinanceOverview(startDate: string, endDate: string): Pr
                 const profData = overview.byProfessional[targetUid];
                 profData.serviceIncome += appointmentPrice;
 
-                if (prof?.serviceCommissionPercentage) {
+                // Solo calcular comisión si el profesional NO tiene sesión de aparato ese día
+                const aptDate = apt.date; // formato YYYY-MM-DD
+                const hasAparato = aparatoDays.has(`${apt.professionalId}|${aptDate}`);
+                if (!hasAparato && prof?.serviceCommissionPercentage) {
                     profData.serviceCommission += (appointmentPrice * prof.serviceCommissionPercentage) / 100;
                 }
             }
@@ -178,9 +199,22 @@ export async function getFinanceOverview(startDate: string, endDate: string): Pr
         }
     });
 
+    // Procesar Aparatos
+    // El fee NO se suma al ingreso del local — es lo que cobra el profesional.
+    // El ingreso del local ya está en totalServiceIncome a través de los turnos del día.
+    aparatos.forEach((session: AparatoSession) => {
+        const fee = Number(session.fixedFee) || 0;
+        // Solo registrar el fee como ganancia del profesional
+        const targetUid = profIdToUid[session.professionalId] || session.professionalId;
+        if (targetUid && overview.byProfessional[targetUid]) {
+            overview.byProfessional[targetUid].aparatoIncome += fee;
+            overview.byProfessional[targetUid].aparatoFee += fee;
+        }
+    });
+
     // Calcular totales de comisiones
     Object.values(overview.byProfessional).forEach(data => {
-        data.totalCommission = data.serviceCommission + data.productCommission + data.rentalCommission;
+        data.totalCommission = data.serviceCommission + data.productCommission + data.rentalCommission + data.aparatoFee;
     });
 
     return overview;
