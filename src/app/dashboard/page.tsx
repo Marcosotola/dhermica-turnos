@@ -76,7 +76,11 @@ export default function DashboardPage() {
         if (!loading && !user) {
             router.push('/');
         }
-    }, [user, loading, router]);
+        // Redirect secretary directly to their panel
+        if (!loading && user && profile?.role === 'secretary') {
+            router.push('/secretaria');
+        }
+    }, [user, profile, loading, router]);
 
     // Force profile completion if user exists but profile doesn't
     if (!loading && user && !profile) {
@@ -113,7 +117,7 @@ export default function DashboardPage() {
         );
     }
 
-    if (loading) {
+    if (loading || profile?.role === 'secretary') {
         return (
             <div className="min-h-screen flex items-center justify-center">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#34baab]"></div>
@@ -121,7 +125,7 @@ export default function DashboardPage() {
         );
     }
 
-    const role = profile?.role || 'client';
+    const role: import('@/lib/types/user').UserRole = profile?.role ?? 'client';
 
     const calculateAge = (birthDate: string) => {
         if (!birthDate) return 'N/A';
@@ -269,7 +273,7 @@ export default function DashboardPage() {
                     )}
 
                     {/* Global Buttons */}
-                    {role !== 'admin' && (
+                    {role !== 'admin' && role !== 'secretary' && (
                         <>
                             <Link href="/tratamientos" className="flex flex-col items-center justify-center bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-all group">
                                 <Sparkles className="w-10 h-10 text-purple-500 mb-4 group-hover:scale-110 transition-transform" />
@@ -305,11 +309,13 @@ export default function DashboardPage() {
                         </Link>
                     )}
 
-                    <Link href="/ubicacion" className="flex flex-col items-center justify-center bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-all group">
-                        <MapPin className="w-10 h-10 text-[#34baab] mb-4 group-hover:scale-110 transition-transform" />
-                        <span className="text-xl font-bold text-gray-900 text-center">Ubicación</span>
-                        <p className="hidden md:block text-gray-500 text-sm mt-2 text-center">Dirección y mapa del salón.</p>
-                    </Link>
+                    {role !== 'secretary' && (
+                        <Link href="/ubicacion" className="flex flex-col items-center justify-center bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-all group">
+                            <MapPin className="w-10 h-10 text-[#34baab] mb-4 group-hover:scale-110 transition-transform" />
+                            <span className="text-xl font-bold text-gray-900 text-center">Ubicación</span>
+                            <p className="hidden md:block text-gray-500 text-sm mt-2 text-center">Dirección y mapa del salón.</p>
+                        </Link>
+                    )}
                 </div>
 
 

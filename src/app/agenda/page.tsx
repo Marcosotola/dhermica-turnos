@@ -1,39 +1,41 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
-import { getClientsPaginated, searchClients } from '@/lib/firebase/users';
+import { getAllUsers } from '@/lib/firebase/users';
 import { UserProfile } from '@/lib/types/user';
 import { Toaster } from 'sonner';
-import { BookOpen, Search, User as UserIcon, Mail, Phone, Calendar, Heart, AlertCircle, Info, CalendarCheck, ChevronDown, Loader2, ArrowLeft } from 'lucide-react';
+import { BookOpen, Search, User as UserIcon, Phone, Calendar, Heart, AlertCircle, Info, CalendarCheck, ChevronDown, Loader2, ArrowLeft } from 'lucide-react';
 import { Appointment } from '@/lib/types/appointment';
-import { getAppointmentsByClientId } from '@/lib/firebase/appointments';
-import { QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
+import { getAppointmentsByClientId, searchAppointmentsByClient } from '@/lib/firebase/appointments';
 import { Button } from '@/components/ui/Button';
 import { getActiveProfessionals } from '@/lib/firebase/professionals';
 import { Professional } from '@/lib/types/professional';
 import { CreateClientModal } from '@/components/dashboard/CreateClientModal';
-import { searchAppointmentsByClient } from '@/lib/firebase/appointments';
 import { ChevronUp, DollarSign, UserPlus, History } from 'lucide-react';
 
 export default function AgendaPage() {
     const { user, profile, loading: authLoading } = useAuth();
     const router = useRouter();
+
+    // Registered clients — loaded once at init
+    const [registeredClients, setRegisteredClients] = useState<UserProfile[]>([]);
+    // Displayed list (filtered registered + legacy from search)
     const [users, setUsers] = useState<UserProfile[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    const [searchLoading, setSearchLoading] = useState(false);
     const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
     const [appointments, setAppointments] = useState<Appointment[]>([]);
     const [historyLoading, setHistoryLoading] = useState(false);
     const [isInfoOpen, setIsInfoOpen] = useState(false);
     const [professionals, setProfessionals] = useState<Professional[]>([]);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    // Pagination state
-    const [lastDoc, setLastDoc] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
-    const [hasMore, setHasMore] = useState(true);
-    const [loadingMore, setLoadingMore] = useState(false);
+    const normalize = (s: string) =>
+        s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
 
     useEffect(() => {
         if (!authLoading && !user) {
@@ -56,73 +58,63 @@ export default function AgendaPage() {
         fetchProfessionals();
     }, []);
 
-    const loadInitialUsers = useCallback(async () => {
+    // Load only registered clients at init — fast
+    const loadRegisteredClients = useCallback(async () => {
         setLoading(true);
         try {
-            const { users: newUsers, lastDoc: newLastDoc } = await getClientsPaginated(null);
-            setUsers(newUsers);
-            setLastDoc(newLastDoc);
-            setHasMore(newUsers.length === 20); // Assuming page size is 20
+            const all = await getAllUsers();
+            const clients = all
+                .filter(u => u.role === 'client' || u.role === 'promotor')
+                .sort((a, b) => a.fullName.localeCompare(b.fullName, 'es'));
+            setRegisteredClients(clients);
+            setUsers(clients);
         } catch (error) {
-            console.error('Error loading users:', error);
+            console.error('Error loading clients:', error);
         } finally {
             setLoading(false);
         }
     }, []);
 
-    const loadMoreUsers = async () => {
-        if (!hasMore || loadingMore) return;
-        setLoadingMore(true);
-        try {
-            const { users: newUsers, lastDoc: newLastDoc } = await getClientsPaginated(lastDoc);
-            setUsers(prev => [...prev, ...newUsers]);
-            setLastDoc(newLastDoc);
-            setHasMore(newUsers.length === 20);
-        } catch (error) {
-            console.error('Error loading more users:', error);
-        } finally {
-            setLoadingMore(false);
+    useEffect(() => {
+        if (profile?.role === 'admin' || profile?.role === 'professional' || profile?.role === 'secretary') {
+            loadRegisteredClients();
         }
-    };
+    }, [profile, loadRegisteredClients]);
 
-    const handleSearch = async (term: string) => {
+    // Hybrid search: local filter on registered + Firebase query for legacy
+    const handleSearch = useCallback((term: string) => {
         setSearchTerm(term);
-        setLoading(true);
-        try {
-            if (term.trim() === '') {
-                // Reset to pagination mode
-                loadInitialUsers();
-            } else {
-                // Perform search in both users and appointments
-                const [registeredUsers, appointmentsResults] = await Promise.all([
-                    searchClients(term),
-                    searchAppointmentsByClient(term)
-                ]);
 
-                // Create a map to find registered users by name (normalized)
-                const registeredNames = new Set(registeredUsers.map(u =>
-                    u.fullName.toLowerCase().replace(/\s+/g, ' ')
-                        .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-                ));
+        if (debounceRef.current) clearTimeout(debounceRef.current);
 
-                // Extract unique client names from appointments that are not in registered results
-                const virtualProfiles: UserProfile[] = [];
-                const seenNamesNormalized = new Set(); // Use normalized name for absolute uniqueness
+        if (!term.trim()) {
+            setUsers(registeredClients);
+            setSearchLoading(false);
+            return;
+        }
 
-                appointmentsResults.forEach(apt => {
+        setSearchLoading(true);
+        debounceRef.current = setTimeout(async () => {
+            const t = normalize(term);
+
+            // 1. Filter registered clients locally (instant)
+            const localMatches = registeredClients.filter(u => normalize(u.fullName).includes(t));
+            const localNames = new Set(localMatches.map(u => normalize(u.fullName)));
+
+            // 2. Search legacy in Firebase with the term
+            try {
+                const legacyApts = await searchAppointmentsByClient(term);
+                const seenNames = new Set<string>();
+                const legacyProfiles: UserProfile[] = [];
+
+                legacyApts.forEach(apt => {
                     const trimmedName = apt.clientName.trim();
                     if (!trimmedName) return;
-
-                    // Normalize name for comparison (remove accents and extra spaces)
-                    const normalizedName = trimmedName.toLowerCase().replace(/\s+/g, ' ')
-                        .normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-
-                    if (!registeredNames.has(normalizedName) && !seenNamesNormalized.has(normalizedName)) {
-                        seenNamesNormalized.add(normalizedName);
-                        // Create a virtual profile structure
-                        const vUid = `legacy-${trimmedName.replace(/\s+/g, '-').toLowerCase()}`;
-                        virtualProfiles.push({
-                            uid: vUid,
+                    const norm = normalize(trimmedName);
+                    if (!localNames.has(norm) && !seenNames.has(norm)) {
+                        seenNames.add(norm);
+                        legacyProfiles.push({
+                            uid: `legacy-${trimmedName.replace(/\s+/g, '-').toLowerCase()}`,
                             fullName: trimmedName,
                             email: 'Sin correo electrónico',
                             phone: 'Sin teléfono',
@@ -138,21 +130,17 @@ export default function AgendaPage() {
                     }
                 });
 
-                setUsers([...registeredUsers, ...virtualProfiles]);
-                setHasMore(false); // Disable pagination during search
+                setUsers([...localMatches, ...legacyProfiles]);
+            } catch (err) {
+                console.error('Error searching legacy:', err);
+                setUsers(localMatches);
+            } finally {
+                setSearchLoading(false);
             }
-        } catch (error) {
-            console.error('Error searching:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
+        }, 500);
+    }, [registeredClients]);
 
-    useEffect(() => {
-        if (profile?.role === 'admin' || profile?.role === 'professional' || profile?.role === 'secretary') {
-            loadInitialUsers();
-        }
-    }, [profile, loadInitialUsers]);
+
 
     useEffect(() => {
         const fetchHistory = async () => {
@@ -214,10 +202,13 @@ export default function AgendaPage() {
                             <input
                                 type="text"
                                 placeholder="Buscar cliente..."
-                                className="w-full pl-12 pr-4 py-3 bg-white shadow-sm border border-gray-100 rounded-2xl focus:ring-2 focus:ring-[#34baab] outline-none"
+                                className="w-full pl-12 pr-10 py-3 bg-white shadow-sm border border-gray-100 rounded-2xl focus:ring-2 focus:ring-[#34baab] outline-none"
                                 value={searchTerm}
                                 onChange={(e) => handleSearch(e.target.value)}
                             />
+                            {searchLoading && (
+                                <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 text-[#34baab] w-4 h-4 animate-spin" />
+                            )}
                         </div>
 
                         <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden flex flex-col max-h-[600px]">
@@ -250,25 +241,7 @@ export default function AgendaPage() {
                                 )}
                             </div>
 
-                            {hasMore && searchTerm === '' && (
-                                <div className="p-4 border-t border-gray-50 bg-gray-50/50">
-                                    <Button
-                                        onClick={loadMoreUsers}
-                                        className="w-full bg-white text-gray-600 border border-gray-200 hover:bg-gray-50"
-                                        disabled={loadingMore}
-                                    >
-                                        {loadingMore ? (
-                                            <>
-                                                <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Cargando...
-                                            </>
-                                        ) : (
-                                            <>
-                                                <ChevronDown className="w-4 h-4 mr-2" /> Cargar más clientes
-                                            </>
-                                        )}
-                                    </Button>
-                                </div>
-                            )}
+                            {/* No load-more button needed — all clients are loaded at once */}
                         </div>
                     </div>
 
@@ -481,8 +454,8 @@ export default function AgendaPage() {
                 isOpen={isCreateModalOpen}
                 onClose={() => setIsCreateModalOpen(false)}
                 onCreated={() => {
-                    setSearchTerm(''); // Clear search
-                    loadInitialUsers(); // Refresh list
+                    setSearchTerm('');
+                    loadRegisteredClients();
                 }}
             />
         </div>

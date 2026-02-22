@@ -553,6 +553,46 @@ export async function searchAppointmentsByClient(
 }
 
 /**
+ * Trae todos los nombres únicos de clientes de todas las colecciones de turnos
+ * (colección principal + colecciones legacy de cada profesional).
+ * Se usa en Fichas para construir la lista de clientes históricos sin search term.
+ */
+export async function getAllLegacyClientNames(): Promise<string[]> {
+    const names = new Set<string>();
+
+    try {
+        const professionals = await getActiveProfessionals();
+        const promises: Promise<void>[] = [];
+
+        // Colección principal
+        promises.push(getDocs(collection(db, APPOINTMENTS_COLLECTION)).then(snap => {
+            snap.docs.forEach(d => {
+                const name = d.data().clientName || d.data().nombre || '';
+                if (name.trim()) names.add(name.trim());
+            });
+        }));
+
+        // Colecciones legacy de profesionales
+        professionals.forEach(prof => {
+            if (prof.legacyCollectionName) {
+                promises.push(getDocs(collection(db, prof.legacyCollectionName)).then(snap => {
+                    snap.docs.forEach(d => {
+                        const name = d.data().clientName || d.data().nombre || '';
+                        if (name.trim()) names.add(name.trim());
+                    });
+                }));
+            }
+        });
+
+        await Promise.all(promises);
+        return Array.from(names);
+    } catch (error) {
+        console.error('Error obteniendo nombres de clientes legacy:', error);
+        return [];
+    }
+}
+
+/**
  * Obtiene todos los turnos de un profesional específico
  */
 export async function getAppointmentsByProfessional(

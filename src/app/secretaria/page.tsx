@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
-import { Calendar, TrendingUp, Sparkles, ShoppingBag, BookOpen, Bell, MapPin, Users, Shield, DollarSign } from 'lucide-react';
+import { Calendar, TrendingUp, Sparkles, ShoppingBag, BookOpen, Bell, MapPin, Users, Truck, DollarSign } from 'lucide-react';
 import { ProfileSection } from '@/components/dashboard/ProfileSection';
 import { EditProfileModal } from '@/components/dashboard/EditProfileModal';
 import { Toaster } from 'sonner';
@@ -37,7 +37,7 @@ export default function SecretariaPage() {
     return (
         <div className="min-h-screen bg-gray-50 pb-20">
             {/* Header */}
-            <div className="bg-gradient-to-r from-violet-600 to-purple-600 text-white">
+            <div className="bg-[#484450] text-white">
                 <div className="max-w-7xl mx-auto px-4 py-8">
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                         <div>
@@ -154,14 +154,14 @@ export default function SecretariaPage() {
                         <p className="hidden md:block text-sm text-gray-500 mt-2">Resultados e inspiración</p>
                     </button>
 
-                    {/* Usuarios */}
+                    {/* Alquileres */}
                     <button
-                        onClick={() => router.push('/usuarios')}
+                        onClick={() => router.push('/alquileres')}
                         className="flex flex-col items-center justify-center bg-white rounded-3xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-all text-center group"
                     >
-                        <Shield className="w-10 h-10 text-gray-400 group-hover:scale-110 transition-transform mb-4" />
-                        <h2 className="text-xl font-bold text-gray-900">Usuarios</h2>
-                        <p className="hidden md:block text-sm text-gray-500 mt-2">Manejo de clientes y roles</p>
+                        <Truck className="w-10 h-10 text-orange-500 group-hover:scale-110 transition-transform mb-4" />
+                        <h2 className="text-xl font-bold text-gray-900">Alquiler</h2>
+                        <p className="hidden md:block text-sm text-gray-500 mt-2">Gestionar alquileres</p>
                     </button>
                 </div>
             </div>

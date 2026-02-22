@@ -31,7 +31,7 @@ export default function FinanzasPage() {
     const [dateRange, setDateRange] = useState<'day' | 'week' | 'month'>('day');
     const [currentDate, setCurrentDate] = useState(new Date());
 
-    const isAdmin = profile?.role === 'admin';
+    const isAdmin = profile?.role === 'admin' || profile?.role === 'secretary';
 
     useEffect(() => {
         loadData();
