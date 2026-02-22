@@ -264,16 +264,9 @@ export default function DashboardPage() {
                         </>
                     )}
 
-                    {role === 'secretary' && (
-                        <Link href="/secretaria" className="flex flex-col items-center justify-center bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-all group">
-                            <LayoutDashboard className="w-10 h-10 text-violet-600 mb-4 group-hover:scale-110 transition-transform" />
-                            <span className="text-xl font-bold text-gray-900 text-center">Panel</span>
-                            <p className="hidden md:block text-gray-500 text-sm mt-2 text-center">Panel de gestión de secretaría.</p>
-                        </Link>
-                    )}
 
                     {/* Global Buttons */}
-                    {role !== 'admin' && role !== 'secretary' && (
+                    {role !== 'admin' && (
                         <>
                             <Link href="/tratamientos" className="flex flex-col items-center justify-center bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-all group">
                                 <Sparkles className="w-10 h-10 text-purple-500 mb-4 group-hover:scale-110 transition-transform" />
@@ -309,7 +302,7 @@ export default function DashboardPage() {
                         </Link>
                     )}
 
-                    {role !== 'secretary' && (
+                    {(
                         <Link href="/ubicacion" className="flex flex-col items-center justify-center bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-all group">
                             <MapPin className="w-10 h-10 text-[#34baab] mb-4 group-hover:scale-110 transition-transform" />
                             <span className="text-xl font-bold text-gray-900 text-center">Ubicación</span>
