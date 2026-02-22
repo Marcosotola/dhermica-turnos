@@ -154,7 +154,7 @@ export default function DashboardPage() {
                                 Hola, {profile?.fullName || 'Usuario'}
                             </h1>
                             <p className="text-gray-100 font-medium opacity-100">
-                                {role === 'admin' ? 'Administrador' : role === 'professional' ? 'Profesional' : role === 'secretary' ? 'Secretaría' : role === 'promotor' ? 'Promotor' : 'Cliente'}
+                                {role === 'admin' ? 'Administrador' : role === 'professional' ? 'Profesional' : role === 'promotor' ? 'Promotor' : 'Cliente'}
                             </p>
                         </div>
                     </div>
