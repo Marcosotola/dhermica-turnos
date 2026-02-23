@@ -2,11 +2,13 @@ import { getSalesByDateRange, getSalesByProfessional } from './sales';
 import { getAppointmentsByDateRange, getAppointmentsByProfessional } from './appointments';
 import { getRentalsByDateRange } from './rentals';
 import { getAparatoSessionsByDateRange } from './aparatos';
+import { getEgresosByDateRange } from './egresos';
 import { getActiveProfessionals } from './professionals';
 import { Appointment } from '../types/appointment';
 import { Sale } from '../types/sale';
 import { Rental } from '../types/rental';
 import { AparatoSession } from '../types/aparato';
+import { Egreso } from '../types/egreso';
 import { Professional } from '../types/professional';
 
 export interface FinanceOverview {
@@ -15,6 +17,11 @@ export interface FinanceOverview {
     totalProductIncome: number;
     totalRentalIncome: number;
     totalAparatoIncome: number;
+    totalEgresos: number;
+    totalProfCommissions: number;
+    totalEgresosGeneral: number;
+    saldo: number;
+    egresosByCategory: Record<string, number>;
     byMethod: Record<string, number>;
     byProfessional: Record<string, {
         serviceIncome: number;
@@ -42,11 +49,12 @@ import { getUsersByRole } from './users';
  * Calcula el balance financiero para un rango de fechas
  */
 export async function getFinanceOverview(startDate: string, endDate: string): Promise<FinanceOverview> {
-    const [appointments, sales, rentals, aparatos, professionals, admins, secretaries, promotors] = await Promise.all([
+    const [appointments, sales, rentals, aparatos, egresos, professionals, admins, secretaries, promotors] = await Promise.all([
         getAppointmentsByDateRange(startDate, endDate),
         getSalesByDateRange(startDate, endDate),
         getRentalsByDateRange(startDate, endDate),
         getAparatoSessionsByDateRange(startDate, endDate),
+        getEgresosByDateRange(startDate, endDate),
         getActiveProfessionals(),
         getUsersByRole('admin'),
         getUsersByRole('secretary'),
@@ -59,6 +67,11 @@ export async function getFinanceOverview(startDate: string, endDate: string): Pr
         totalProductIncome: 0,
         totalRentalIncome: 0,
         totalAparatoIncome: 0,
+        totalEgresos: 0,
+        totalProfCommissions: 0,
+        totalEgresosGeneral: 0,
+        saldo: 0,
+        egresosByCategory: {},
         byMethod: { cash: 0, transfer: 0, debit: 0, credit: 0, qr: 0 },
         byProfessional: {},
         byProduct: {}
@@ -216,6 +229,23 @@ export async function getFinanceOverview(startDate: string, endDate: string): Pr
     Object.values(overview.byProfessional).forEach(data => {
         data.totalCommission = data.serviceCommission + data.productCommission + data.rentalCommission + data.aparatoFee;
     });
+
+    // Procesar Egresos manuales
+    (egresos as Egreso[]).forEach((e) => {
+        const amount = Number(e.amount) || 0;
+        overview.totalEgresos += amount;
+        overview.egresosByCategory[e.category] = (overview.egresosByCategory[e.category] || 0) + amount;
+    });
+
+    // Sumar comisiones de profesionales como egreso del local
+    overview.totalProfCommissions = Object.values(overview.byProfessional).reduce(
+        (sum, d) => sum + d.totalCommission,
+        0
+    );
+
+    // Calcular totales finales
+    overview.totalEgresosGeneral = overview.totalEgresos + overview.totalProfCommissions;
+    overview.saldo = overview.totalIncome - overview.totalEgresosGeneral;
 
     return overview;
 }
