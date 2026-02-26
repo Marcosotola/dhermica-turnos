@@ -72,7 +72,7 @@ export function ProfessionalHistoryModal({ isOpen, onClose, professional }: Prof
             title={`Historial: ${professional.name}`}
             size="lg"
         >
-            <div className="pt-4 max-h-[70vh] flex flex-col">
+            <div className="pt-4 max-h-[85vh] flex flex-col">
                 <div className="flex flex-col md:flex-row gap-4 mb-6">
                     <div className="flex-1 flex items-center gap-2 bg-blue-50 p-4 rounded-xl border border-blue-100">
                         <History className="w-5 h-5 text-blue-600" />

@@ -71,7 +71,7 @@ export function CreateClientModal({ isOpen, onClose, onCreated }: CreateClientMo
 
     return (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-300">
-            <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+            <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 max-h-[90vh] flex flex-col">
                 <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 bg-[#34baab]/10 rounded-xl flex items-center justify-center">
@@ -87,7 +87,7 @@ export function CreateClientModal({ isOpen, onClose, onCreated }: CreateClientMo
                     </button>
                 </div>
 
-                <form onSubmit={handleSubmit} className="p-6 space-y-6 overflow-y-auto max-h-[80vh]">
+                <form onSubmit={handleSubmit} className="p-6 space-y-6 overflow-y-auto flex-1">
                     <div className="space-y-4">
                         <Input
                             label="Nombre Completo"

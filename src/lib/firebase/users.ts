@@ -43,9 +43,11 @@ export function formatPhone(phone: string): string {
             // Specialized handling for Argentina: WhatsApp requires the '9' prefix for mobile numbers (+54 9 ...)
             if (phoneNumber.country === 'AR') {
                 const nationalNumber = phoneNumber.nationalNumber;
-                // If it already starts with 9 and has 11 digits (54 9 ...), libphonenumber might have parsed it differently
-                // But generally, the national number for AR mobile is 10 digits (area code + number).
-                // We prepending 9 for WhatsApp.
+                // If it already starts with 9, don't add it again. 
+                // libphonenumber-js often includes the mobile prefix 9 in the national number if provided in input.
+                if (nationalNumber.startsWith('9')) {
+                    return `+54${nationalNumber}`;
+                }
                 return `+549${nationalNumber}`;
             }
             return phoneNumber.format('E.164');

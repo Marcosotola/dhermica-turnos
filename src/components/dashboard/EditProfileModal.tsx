@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { UserProfile } from '@/lib/types/user';
 import { updateUserProfile, createUserProfile, formatPhone } from '@/lib/firebase/users';
 import { Button } from '@/components/ui/Button';
@@ -48,14 +48,35 @@ export function EditProfileModal({ isOpen, onClose, user, onUpdate, isNewUser = 
         };
     });
 
-    const [countryCode, setCountryCode] = useState(() => {
-        if (user.phone?.startsWith('+598')) return '+598';
-        if (user.phone?.startsWith('+56')) return '+56';
-        if (user.phone?.startsWith('+55')) return '+55';
-        if (user.phone?.startsWith('+34')) return '+34';
-        if (user.phone?.startsWith('+1')) return '+1';
-        return '+54';
-    });
+    const [countryCode, setCountryCode] = useState('+54');
+
+    useEffect(() => {
+        if (isOpen && user) {
+            let phoneDisplay = user.phone || '';
+            let extractedCountryCode = '+54';
+
+            if (phoneDisplay.startsWith('+')) {
+                const countryCodes = ['+598', '+54', '+56', '+55', '+34', '+1'];
+                const foundCode = countryCodes.find(code => phoneDisplay.startsWith(code));
+                if (foundCode) {
+                    extractedCountryCode = foundCode;
+                    phoneDisplay = phoneDisplay.substring(foundCode.length);
+                }
+            }
+
+            setCountryCode(extractedCountryCode);
+            setFormData({
+                fullName: user.fullName || '',
+                phone: phoneDisplay,
+                birthDate: user.birthDate || '',
+                hasTattoos: user.hasTattoos || false,
+                sex: user.sex || 'female',
+                isPregnant: user.isPregnant || false,
+                relevantMedicalInfo: user.relevantMedicalInfo || '',
+                wantNotifications: user.notificationsEnabled ?? true,
+            });
+        }
+    }, [user.uid, isOpen]);
 
     if (!isOpen) return null;
 
@@ -109,7 +130,7 @@ export function EditProfileModal({ isOpen, onClose, user, onUpdate, isNewUser = 
 
     return (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-300">
-            <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+            <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 max-h-[90vh] flex flex-col">
                 <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
                     <h2 className="text-xl font-black text-gray-900">
                         {isNewUser ? 'Completa tu Registro' : 'Editar Mis Datos'}
@@ -124,7 +145,7 @@ export function EditProfileModal({ isOpen, onClose, user, onUpdate, isNewUser = 
                     )}
                 </div>
 
-                <form onSubmit={handleSubmit} className="p-6 space-y-6">
+                <form onSubmit={handleSubmit} className="p-6 space-y-6 overflow-y-auto flex-1">
                     <div className="space-y-4">
                         <Input
                             label="Nombre Completo"
