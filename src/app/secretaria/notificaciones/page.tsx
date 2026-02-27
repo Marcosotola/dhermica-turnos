@@ -139,6 +139,7 @@ export default function NotificationsPage() {
         try {
             let targetTokens: string[] = [];
             let targetUid: string | undefined = undefined;
+            let targetUserName: string | undefined = undefined;
 
             if (targetType === 'all') {
                 targetTokens = allUsers.flatMap(c => c.fcmTokens || []);
@@ -147,6 +148,7 @@ export default function NotificationsPage() {
                 if (target) {
                     targetTokens = target.fcmTokens || [];
                     targetUid = target.uid;
+                    targetUserName = target.fullName;
                 }
             }
 
@@ -164,6 +166,7 @@ export default function NotificationsPage() {
                     body,
                     tokens: targetTokens,
                     targetUserId: targetUid,
+                    targetUserName,
                     sentBy: user!.uid,
                     type: targetType === 'all' ? 'broadcast' : 'targeted',
                     url: targetUrl
@@ -527,7 +530,17 @@ export default function NotificationsPage() {
                                             </div>
                                             <h3 className="font-bold text-gray-900">{item.title}</h3>
                                             <p className="text-sm text-gray-600 mt-1">{item.body}</p>
-                                            {item.targetUserId && (
+                                            {item.targetUserName && (
+                                                <div className="mt-2 flex items-center gap-1.5">
+                                                    <div className="p-1 bg-amber-50 rounded-md border border-amber-100/50">
+                                                        <User className="w-3 h-3 text-amber-600" />
+                                                    </div>
+                                                    <p className="text-[11px] font-bold text-amber-700">
+                                                        Destinatario: {item.targetUserName}
+                                                    </p>
+                                                </div>
+                                            )}
+                                            {!item.targetUserName && item.targetUserId && (
                                                 <p className="text-[10px] text-gray-400 mt-2">
                                                     ID Cliente: {item.targetUserId}
                                                 </p>

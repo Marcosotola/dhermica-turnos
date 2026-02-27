@@ -4,7 +4,7 @@ import * as admin from 'firebase-admin';
 
 export async function POST(req: NextRequest) {
     try {
-        const { title, body, targetUserId, tokens, sentBy, type, url } = await req.json();
+        const { title, body, targetUserId, targetUserName, tokens, sentBy, type, url } = await req.json();
 
         if (!tokens || tokens.length === 0) {
             return NextResponse.json({ error: 'No tokens provided' }, { status: 400 });
@@ -75,6 +75,7 @@ export async function POST(req: NextRequest) {
                 sentBy,
                 type,
                 targetUserId: type === 'targeted' ? targetUserId : admin.firestore.FieldValue.delete(),
+                targetUserName: type === 'targeted' ? targetUserName : admin.firestore.FieldValue.delete(),
                 sentAt: admin.firestore.FieldValue.serverTimestamp(),
                 url: url || '/'
             });

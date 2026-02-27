@@ -36,13 +36,16 @@ export const sendAppointmentReminders = onSchedule("every 30 minutes",
             const targetMin = targetTime.getMinutes();
 
             const appointmentsQuery = db.collection("appointments")
-                .where("date", "==", targetDateStr)
-                .where(interval.flag, "==", false);
+                .where("date", "==", targetDateStr);
 
             const snapshot = await appointmentsQuery.get();
 
             for (const doc of snapshot.docs) {
                 const apt = doc.data();
+
+                // Skip if already notified for this interval
+                if (apt[interval.flag] === true) continue;
+
                 const [aptH, aptM] = apt.time.split(":").map(Number);
 
                 const aptTotalMins = (aptH * 60) + aptM;
@@ -95,7 +98,7 @@ export const sendAppointmentReminders = onSchedule("every 30 minutes",
                             try {
                                 const response = await messaging.sendEachForMulticast(message);
                                 logger.info(`Reminders sent for ${doc.id}: ` +
-                                    `${response.successCount} success`);
+                                    `${response.successCount} success, ${response.failureCount} failure`);
 
                                 // Log to notifications history
                                 await db.collection("notifications").add({
@@ -105,6 +108,7 @@ export const sendAppointmentReminders = onSchedule("every 30 minutes",
                                     sentBy: "system",
                                     type: "targeted",
                                     targetUserId: apt.clientId,
+                                    targetUserName: apt.clientName || "Cliente",
                                 });
                             } catch (error) {
                                 logger.error(`Error sending for ${doc.id}:`, error);

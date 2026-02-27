@@ -20,6 +20,7 @@ export interface NotificationRecord {
     sentBy: string; // admin/secretary UID
     type: 'broadcast' | 'targeted';
     targetUserId?: string;
+    targetUserName?: string;
 }
 
 const NOTIFICATIONS_COLLECTION = 'notifications';
