@@ -176,7 +176,7 @@ export default function NotificationsPage() {
             const data = await res.json();
             if (data.success) {
                 toast.success(`Notificación enviada con éxito (${data.successCount} dispositivos)`);
-                setTitle('');
+                setTitle('Dhermica Estetica Unisex: ');
                 setBody('');
                 loadData(); // Refresh history
             } else {

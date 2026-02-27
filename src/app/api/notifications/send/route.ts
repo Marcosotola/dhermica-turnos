@@ -69,16 +69,23 @@ export async function POST(req: NextRequest) {
 
         // Record the notification in Firestore using ADMIN SDK to avoid permission issues
         try {
-            await adminDb.collection('notifications').add({
+            const historyData: any = {
                 title,
                 body,
                 sentBy,
                 type,
-                targetUserId: type === 'targeted' ? targetUserId : admin.firestore.FieldValue.delete(),
-                targetUserName: type === 'targeted' ? targetUserName : admin.firestore.FieldValue.delete(),
                 sentAt: admin.firestore.FieldValue.serverTimestamp(),
                 url: url || '/'
-            });
+            };
+
+            if (type === 'targeted' && targetUserId) {
+                historyData.targetUserId = targetUserId;
+            }
+            if (type === 'targeted' && targetUserName) {
+                historyData.targetUserName = targetUserName;
+            }
+
+            await adminDb.collection('notifications').add(historyData);
             console.log('FCM SERVER: Notification record created in Firestore');
         } catch (dbError) {
             console.error('FCM SERVER: Error creating notification record:', dbError);
