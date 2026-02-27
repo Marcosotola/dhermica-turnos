@@ -82,10 +82,11 @@ export function AppointmentModal({
             return;
         }
         const query = searchQuery.toLowerCase();
-        const filtered = clients.filter(client =>
-            client.fullName.toLowerCase().includes(query) ||
-            client.email.toLowerCase().includes(query)
-        );
+        const filtered = clients.filter(client => {
+            const fullName = client?.fullName?.toLowerCase() || '';
+            const email = client?.email?.toLowerCase() || '';
+            return fullName.includes(query) || email.includes(query);
+        });
         setFilteredClients(filtered);
     }, [searchQuery, clients]);
 
@@ -320,8 +321,8 @@ export function AppointmentModal({
                                                 className={`w-full text-left px-4 py-3 hover:bg-[#34baab]/10 transition-colors border-b border-gray-100 last:border-b-0 ${formData.clientId === client.uid ? 'bg-[#34baab]/5' : ''
                                                     }`}
                                             >
-                                                <div className="font-medium text-gray-900">{client.fullName}</div>
-                                                <div className="text-sm text-gray-500">{client.email}</div>
+                                                <div className="font-medium text-gray-900">{client.fullName || 'Sin Nombre'}</div>
+                                                <div className="text-sm text-gray-500">{client.email || 'Sin Email'}</div>
                                             </button>
                                         ))}
                                         {filteredClients.length > 10 && (

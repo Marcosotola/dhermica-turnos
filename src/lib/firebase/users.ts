@@ -15,7 +15,8 @@ import {
     startAt,
     endAt,
     QueryDocumentSnapshot,
-    DocumentData
+    DocumentData,
+    arrayUnion
 } from 'firebase/firestore';
 import { db } from './config';
 import { UserProfile, UserRole } from '../types/user';
@@ -90,6 +91,14 @@ export async function createUserProfile(profile: Omit<UserProfile, 'createdAt' |
 export async function updateUserProfile(uid: string, data: Partial<UserProfile>): Promise<void> {
     await updateDoc(doc(db, USERS_COLLECTION, uid), {
         ...data,
+        updatedAt: Timestamp.now(),
+    });
+}
+
+export async function addFcmToken(uid: string, token: string): Promise<void> {
+    await updateDoc(doc(db, USERS_COLLECTION, uid), {
+        fcmTokens: arrayUnion(token),
+        notificationsEnabled: true,
         updatedAt: Timestamp.now(),
     });
 }

@@ -39,6 +39,7 @@ async function sendAutomatedNotification(title: string, body: string, uid: strin
                 body,
                 tokens: clientProfile.fcmTokens,
                 targetUserId: uid,
+                targetUserName: clientProfile.fullName,
                 sentBy: 'system',
                 type: 'targeted',
                 url

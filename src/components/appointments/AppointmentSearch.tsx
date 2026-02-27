@@ -93,18 +93,21 @@ export function AppointmentSearch({ onSelectAppointment, variant = 'dropdown' }:
                                 >
                                     <div className="flex justify-between items-start">
                                         <div>
-                                            <p className="font-bold text-gray-900">{apt.clientName}</p>
-                                            <p className="text-sm text-gray-600">{apt.treatment}</p>
+                                            <p className="font-bold text-gray-900">{apt.clientName || 'Sin nombre'}</p>
+                                            <p className="text-sm text-gray-600">{apt.treatment || 'Sin tratamiento'}</p>
                                         </div>
                                         <div className="text-right">
                                             <div className="flex items-center gap-1 text-xs text-[#45a049] font-semibold bg-green-50 px-2 py-1 rounded">
                                                 <Calendar className="w-3 h-3" />
                                                 {(() => {
-                                                    const [year, month, day] = apt.date.split('-');
+                                                    if (!apt.date) return 'Sin fecha';
+                                                    const parts = apt.date.split('-');
+                                                    if (parts.length < 3) return apt.date;
+                                                    const [year, month, day] = parts;
                                                     return `${day}/${month}/${year}`;
                                                 })()}
                                             </div>
-                                            <p className="text-xs text-gray-500 mt-1">{apt.time} hs</p>
+                                            <p className="text-xs text-gray-500 mt-1">{apt.time || '--:--'} hs</p>
                                         </div>
                                     </div>
                                     {apt.notes && (

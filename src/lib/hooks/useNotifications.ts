@@ -4,25 +4,27 @@ import { useState, useEffect, useCallback } from 'react';
 import { getToken, onMessage } from 'firebase/messaging';
 import { messaging } from '@/lib/firebase/config';
 import { useAuth } from '@/lib/contexts/AuthContext';
-import { updateUserProfile } from '@/lib/firebase/users';
+import { updateUserProfile, addFcmToken } from '@/lib/firebase/users';
 import { toast } from 'sonner';
 
-const waitForServiceWorkerActivation = (registration: ServiceWorkerRegistration): Promise<ServiceWorker> => {
-    return new Promise((resolve) => {
+const waitForServiceWorkerActivation = (registration: ServiceWorkerRegistration, timeoutMs = 15000): Promise<ServiceWorker> => {
+    return new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+            reject(new Error('Timeout esperando activación del Service Worker'));
+        }, timeoutMs);
+
         if (registration.active) {
+            clearTimeout(timeout);
             resolve(registration.active);
             return;
         }
 
         const worker = registration.installing || registration.waiting;
-        if (worker?.state === 'activated') {
-            resolve(worker);
-            return;
-        }
 
         const stateChangeListener = () => {
             if (worker?.state === 'activated') {
                 worker.removeEventListener('statechange', stateChangeListener);
+                clearTimeout(timeout);
                 resolve(worker);
             }
         };
@@ -34,7 +36,10 @@ const waitForServiceWorkerActivation = (registration: ServiceWorkerRegistration)
             registration.addEventListener('updatefound', () => {
                 const newWorker = registration.installing;
                 newWorker?.addEventListener('statechange', () => {
-                    if (newWorker.state === 'activated') resolve(newWorker);
+                    if (newWorker.state === 'activated') {
+                        clearTimeout(timeout);
+                        resolve(newWorker);
+                    }
                 });
             });
         }
@@ -69,21 +74,21 @@ export function useNotifications() {
                     // Wait for the service worker to become active to avoid AbortError: Subscription failed - no active Service Worker
                     await waitForServiceWorkerActivation(registration);
 
-                    const currentToken = await getToken(msg, {
+                    // Add a secondary timeout for getToken itself
+                    const tokenPromise = getToken(msg, {
                         vapidKey: process.env.NEXT_PUBLIC_VAPID_KEY,
                         serviceWorkerRegistration: registration
                     });
 
+                    const currentToken = await Promise.race([
+                        tokenPromise,
+                        new Promise<null>((_, reject) => setTimeout(() => reject(new Error('Timeout obteniendo el token de Firebase')), 15000))
+                    ]);
+
                     if (currentToken) {
                         setToken(currentToken);
                         if (user) {
-                            const currentTokens = profile?.fcmTokens || [];
-                            if (!currentTokens.includes(currentToken)) {
-                                await updateUserProfile(user.uid, {
-                                    fcmTokens: [...currentTokens, currentToken],
-                                    notificationsEnabled: true
-                                });
-                            }
+                            await addFcmToken(user.uid, currentToken);
                         }
                         toast.success('¡Notificaciones activadas!', {
                             description: 'Tu dispositivo ha sido vinculado correctamente.'
@@ -132,24 +137,19 @@ export function useNotifications() {
                     // Wait for the service worker to become active
                     await waitForServiceWorkerActivation(registration);
 
-                    const currentToken = await getToken(msg, {
+                    const tokenPromise = getToken(msg, {
                         vapidKey: process.env.NEXT_PUBLIC_VAPID_KEY,
                         serviceWorkerRegistration: registration
                     });
 
+                    const currentToken = await Promise.race([
+                        tokenPromise,
+                        new Promise<null>((_, reject) => setTimeout(() => reject(new Error('Timeout refresh token')), 15000))
+                    ]);
+
                     if (currentToken) {
                         setToken(currentToken);
-                        const currentTokens = profile?.fcmTokens || [];
-                        if (!currentTokens.includes(currentToken)) {
-                            try {
-                                await updateUserProfile(user.uid, {
-                                    fcmTokens: [...currentTokens, currentToken],
-                                    notificationsEnabled: true
-                                });
-                            } catch (dbError) {
-                                console.error('FCM: Firestore update FAILED:', dbError);
-                            }
-                        }
+                        await addFcmToken(user.uid, currentToken);
                     }
                 }
             } catch (e) {
