@@ -18,10 +18,23 @@ export async function POST(req: NextRequest) {
             data: {
                 url: url || '/',
             },
+            apns: {
+                payload: {
+                    aps: {
+                        sound: 'default'
+                    }
+                }
+            },
+            android: {
+                notification: {
+                    sound: 'default'
+                }
+            },
             webpush: {
                 notification: {
                     icon: '/icon.svg',
                     badge: '/icon.svg',
+                    sound: 'default',
                     data: {
                         url: url || '/',
                     }
