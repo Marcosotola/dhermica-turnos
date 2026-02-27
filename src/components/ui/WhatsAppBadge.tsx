@@ -9,7 +9,7 @@ interface WhatsAppBadgeProps {
 }
 
 export function WhatsAppBadge({
-    phoneNumber = '5493512021889',
+    phoneNumber = '5493513908626',
     message = 'Hola! Me gustaría realizar una consulta.'
 }: WhatsAppBadgeProps) {
 

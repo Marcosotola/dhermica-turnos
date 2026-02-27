@@ -8,8 +8,8 @@ import { Button } from '@/components/ui/Button';
 export default function UbicacionPage() {
     const router = useRouter();
     const address = "Pablo Buitrago 6127, Córdoba, Argentina";
-    const phone = "351 390-8626"; // From search, or 3512021889 as per user's whatsapp update
-    const displayPhone = "351 202-1889"; // Using the WhatsApp number for consistency
+    const phone = "351 390-8626"; // From search, or 3513908626 as per user's whatsapp update
+    const displayPhone = "351 390-8626"; // Using the WhatsApp number for consistency
 
     // Encoded address for Google Maps
     const mapQuery = encodeURIComponent(address);
