@@ -6,7 +6,7 @@ import { Switch } from '@/components/ui/Switch';
 import { Bell, BellOff, Loader2 } from 'lucide-react';
 
 export function NotificationToggle() {
-    const { token, permission, requestPermission, loading } = useNotifications();
+    const { token, permission, requestPermission, deactivateNotifications, loading } = useNotifications();
 
     const isEnabled = !!token;
 
@@ -14,8 +14,7 @@ export function NotificationToggle() {
         if (!isEnabled) {
             await requestPermission();
         } else {
-            // Logic to disable/remove token could be added here
-            // For now, we just indicate it's enabled
+            await deactivateNotifications();
         }
     };
 
@@ -39,7 +38,6 @@ export function NotificationToggle() {
                 <Switch
                     checked={isEnabled}
                     onChange={handleToggle}
-                    disabled={isEnabled} // For now, only allow turning ON
                 />
             )}
         </div>

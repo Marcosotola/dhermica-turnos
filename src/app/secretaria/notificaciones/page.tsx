@@ -7,7 +7,7 @@ import { Bell, Send, Users, User, History, Trash2, ArrowLeft, Search } from 'luc
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { toast } from 'sonner';
-import { getAllUsers } from '@/lib/firebase/users';
+import { getAllUsers, clearFcmTokens } from '@/lib/firebase/users';
 import { getNotificationHistory, deleteNotificationRecord, deleteMultipleNotificationRecords, NotificationRecord } from '@/lib/firebase/notifications';
 import { UserProfile } from '@/lib/types/user';
 import { useMemo } from 'react';
@@ -175,7 +175,19 @@ export default function NotificationsPage() {
 
             const data = await res.json();
             if (data.success) {
-                toast.success(`Notificación enviada con éxito (${data.successCount} dispositivos)`);
+                if (data.failureCount > 0) {
+                    const errorDetails = data.details
+                        ?.filter((d: any) => !d.success)
+                        .map((d: any) => d.error)
+                        .filter((v: any, i: any, a: any) => a.indexOf(v) === i)
+                        .join(', ');
+
+                    toast.warning(`Enviado parcialmente`, {
+                        description: `Éxito: ${data.successCount}, Error: ${data.failureCount}. Errores: ${errorDetails || 'desconocidos'}`
+                    });
+                } else {
+                    toast.success(`Notificación enviada con éxito (${data.successCount} dispositivos)`);
+                }
                 setTitle('Dhermica Estetica Unisex: ');
                 setBody('');
                 loadData(); // Refresh history
@@ -201,6 +213,22 @@ export default function NotificationsPage() {
             setSelectedHistoryIds(newSelection);
         } catch (error) {
             toast.error('Error al eliminar registro');
+        }
+    };
+
+    const handleResetTokens = async (uid: string) => {
+        if (!confirm('¿Estás seguro de que deseas limpiar los dispositivos de este usuario? Deberá volver a activarlos desde su dispositivo.')) return;
+
+        try {
+            setLoading(true);
+            await clearFcmTokens(uid);
+            toast.success('Dispositivos limpiados correctamente');
+            loadData(); // Refresh list to update count
+        } catch (error) {
+            console.error('Error clearing tokens:', error);
+            toast.error('Error al limpiar dispositivos');
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -387,13 +415,24 @@ export default function NotificationsPage() {
                                 {targetType === 'all' ? (
                                     <p>Se enviará a <strong>{allUsers.reduce((acc, c) => acc + (c.fcmTokens?.length || 0), 0)}</strong> dispositivos registrados.</p>
                                 ) : (
-                                    <p>
-                                        {selectedUserId ? (
-                                            <>El usuario seleccionado tiene <strong>{clients.find(c => c.uid === selectedUserId)?.fcmTokens?.length || 0}</strong> dispositivos registrados.</>
-                                        ) : (
-                                            "Selecciona un usuario para ver sus dispositivos."
+                                    <div className="flex items-center justify-between">
+                                        <p>
+                                            {selectedUserId ? (
+                                                <>El usuario tiene <strong>{clients.find(c => c.uid === selectedUserId)?.fcmTokens?.length || 0}</strong> dispositivos.</>
+                                            ) : (
+                                                "Selecciona un usuario."
+                                            )}
+                                        </p>
+                                        {selectedUserId && (clients.find(c => c.uid === selectedUserId)?.fcmTokens?.length || 0) > 0 && (
+                                            <button
+                                                type="button"
+                                                onClick={() => handleResetTokens(selectedUserId)}
+                                                className="text-amber-600 hover:text-amber-700 font-bold underline ml-2"
+                                            >
+                                                Limpiar
+                                            </button>
                                         )}
-                                    </p>
+                                    </div>
                                 )}
                             </div>
 

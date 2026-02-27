@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { getToken, onMessage } from 'firebase/messaging';
 import { messaging } from '@/lib/firebase/config';
 import { useAuth } from '@/lib/contexts/AuthContext';
-import { updateUserProfile, addFcmToken } from '@/lib/firebase/users';
+import { updateUserProfile, addFcmToken, removeFcmToken } from '@/lib/firebase/users';
 import { toast } from 'sonner';
 
 const waitForServiceWorkerActivation = (registration: ServiceWorkerRegistration, timeoutMs = 15000): Promise<ServiceWorker> => {
@@ -115,6 +115,22 @@ export function useNotifications() {
         }
     }, [user, profile]);
 
+    const deactivateNotifications = useCallback(async () => {
+        if (!user || !token) return;
+
+        try {
+            setLoading(true);
+            await removeFcmToken(user.uid, token);
+            setToken(null);
+            toast.success('Notificaciones desactivadas en este dispositivo.');
+        } catch (error) {
+            console.error('Error deactivating notifications:', error);
+            toast.error('Error al desactivar las notificaciones.');
+        } finally {
+            setLoading(false);
+        }
+    }, [user, token]);
+
     useEffect(() => {
         if (typeof window !== 'undefined' && 'Notification' in window) {
             setPermission(Notification.permission);
@@ -128,7 +144,13 @@ export function useNotifications() {
                 if (!msg) return;
 
                 onMessage(msg, (payload) => {
-                    // console.log('FCM: Message received', payload);
+                    toast(payload.notification?.title || 'Nuevo aviso', {
+                        description: payload.notification?.body,
+                        action: payload.data?.url ? {
+                            label: 'Ver',
+                            onClick: () => window.location.href = (payload.data as any).url
+                        } : undefined
+                    });
                 });
 
                 if (!token && process.env.NEXT_PUBLIC_VAPID_KEY) {
@@ -164,6 +186,7 @@ export function useNotifications() {
         token,
         permission,
         requestPermission,
+        deactivateNotifications,
         loading
     };
 }

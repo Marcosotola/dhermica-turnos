@@ -16,7 +16,8 @@ import {
     endAt,
     QueryDocumentSnapshot,
     DocumentData,
-    arrayUnion
+    arrayUnion,
+    arrayRemove
 } from 'firebase/firestore';
 import { db } from './config';
 import { UserProfile, UserRole } from '../types/user';
@@ -99,6 +100,21 @@ export async function addFcmToken(uid: string, token: string): Promise<void> {
     await updateDoc(doc(db, USERS_COLLECTION, uid), {
         fcmTokens: arrayUnion(token),
         notificationsEnabled: true,
+        updatedAt: Timestamp.now(),
+    });
+}
+
+export async function clearFcmTokens(uid: string): Promise<void> {
+    await updateDoc(doc(db, USERS_COLLECTION, uid), {
+        fcmTokens: [],
+        notificationsEnabled: false,
+        updatedAt: Timestamp.now(),
+    });
+}
+
+export async function removeFcmToken(uid: string, token: string): Promise<void> {
+    await updateDoc(doc(db, USERS_COLLECTION, uid), {
+        fcmTokens: arrayRemove(token),
         updatedAt: Timestamp.now(),
     });
 }

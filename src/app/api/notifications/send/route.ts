@@ -21,13 +21,21 @@ export async function POST(req: NextRequest) {
             apns: {
                 payload: {
                     aps: {
-                        sound: 'default'
+                        sound: 'default',
+                        'mutable-content': 1,
+                        'content-available': 1
                     }
+                },
+                headers: {
+                    'apns-priority': '10', // High priority for APNS
                 }
             },
             android: {
+                priority: 'high' as const, // High priority for Android
                 notification: {
-                    sound: 'default'
+                    sound: 'default',
+                    defaultSound: true,
+                    notificationCount: 1,
                 }
             },
             webpush: {
@@ -110,6 +118,10 @@ export async function POST(req: NextRequest) {
             success: true,
             successCount: response.successCount,
             failureCount: response.failureCount,
+            details: response.responses.map(resp => ({
+                success: resp.success,
+                error: resp.error ? (resp.error as any).code : null
+            }))
         });
     } catch (error: any) {
         console.error('FCM SERVER ERROR:', error);
