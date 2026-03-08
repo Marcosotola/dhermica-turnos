@@ -3,6 +3,7 @@
 import { Rental } from '@/lib/types/rental';
 import { Pencil, Trash2 } from 'lucide-react';
 import { Button } from '../ui/Button';
+import { formatCurrencyWithSymbol } from '@/lib/utils/currency';
 
 interface RentalTableProps {
     rentals: Rental[];
@@ -51,7 +52,7 @@ export function RentalTable({ rentals, onEdit, onDelete }: RentalTableProps) {
                                         </span>
                                     </td>
                                     <td className="px-6 py-4 font-bold text-gray-700">{rental.sellerName}</td>
-                                    <td className="px-6 py-4 font-black text-gray-900">${(rental.price || 0).toLocaleString('es-AR')}</td>
+                                    <td className="px-6 py-4 font-black text-gray-900">{formatCurrencyWithSymbol(rental.price || 0)}</td>
                                     <td className="px-6 py-4 text-right">
                                         <div className="flex justify-end gap-2">
                                             <button
@@ -105,7 +106,7 @@ export function RentalTable({ rentals, onEdit, onDelete }: RentalTableProps) {
                             </div>
                             <div className="p-3 bg-gray-50 rounded-xl border border-gray-100">
                                 <p className="text-[10px] text-gray-400 font-black uppercase mb-1">Precio</p>
-                                <p className="font-black text-gray-900 text-sm">${(rental.price || 0).toLocaleString('es-AR')}</p>
+                                <p className="font-black text-gray-900 text-sm">{formatCurrencyWithSymbol(rental.price || 0)}</p>
                             </div>
                         </div>
 

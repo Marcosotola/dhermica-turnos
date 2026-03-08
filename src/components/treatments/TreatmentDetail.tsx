@@ -4,6 +4,7 @@ import { Modal } from "../ui/Modal";
 import { Treatment } from "@/lib/types/treatment";
 import { Sparkles, CheckCircle2, AlertCircle, Clock, Users, ArrowRight } from "lucide-react";
 import { Button } from "../ui/Button";
+import { formatCurrencyWithSymbol } from "@/lib/utils/currency";
 
 interface TreatmentDetailProps {
     isOpen: boolean;
@@ -63,7 +64,7 @@ export function TreatmentDetail({ isOpen, onClose, treatment }: TreatmentDetailP
                                         </div>
                                     </div>
                                     <div className="text-right">
-                                        <p className="text-xl font-black text-[#34baab]">${p.price.toLocaleString()}</p>
+                                        <p className="text-xl font-black text-[#34baab]">{formatCurrencyWithSymbol(p.price)}</p>
                                         {p.duration && (
                                             <p className="text-[10px] font-bold text-gray-400 flex items-center justify-end gap-1">
                                                 <Clock className="w-3 h-3" /> {p.duration} min

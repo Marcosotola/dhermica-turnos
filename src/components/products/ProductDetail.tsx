@@ -4,6 +4,7 @@ import { Product } from '@/lib/types/product';
 import { X, ShoppingBag, DollarSign, Package, Clock, Sparkles, Edit2, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import Image from 'next/image';
+import { formatArgentineCurrency } from '@/lib/utils/currency';
 
 interface ProductDetailProps {
     isOpen: boolean;
@@ -85,7 +86,7 @@ export function ProductDetail({ isOpen, onClose, product, isAdmin, onEdit, onDel
                         <div className="flex items-center gap-4 text-2xl font-black text-[#484450]">
                             <div className="flex items-center gap-1.5 px-4 py-2 bg-gray-50 rounded-2xl">
                                 <DollarSign className="w-6 h-6 text-[#34baab]" />
-                                <span>{product.price.toLocaleString('es-AR')}</span>
+                                <span>{formatArgentineCurrency(product.price)}</span>
                             </div>
                         </div>
                     </div>

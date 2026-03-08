@@ -9,6 +9,8 @@ import { Input } from '@/components/ui/Input';
 import { toast, Toaster } from 'sonner';
 import { updateAppointment } from '@/lib/firebase/appointments';
 import { Button } from '@/components/ui/Button';
+import { CurrencyInput } from '@/components/ui/CurrencyInput';
+import { formatCurrencyWithSymbol } from '@/lib/utils/currency';
 
 export default function ProfesionalTurnosPage() {
     const { user, profile, loading: authLoading } = useAuth();
@@ -204,16 +206,10 @@ export default function ProfesionalTurnosPage() {
                                 {editingId === appointment.id ? (
                                     <div className="space-y-4 border-t border-gray-100 pt-6 animate-in slide-in-from-top-2">
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <Input
-                                                label="Precio del Servicio ($)"
-                                                type="number"
-                                                value={editData.price === 0 ? '' : editData.price}
-                                                onChange={(e) => {
-                                                    const val = e.target.value;
-                                                    setEditData({ ...editData, price: val === '' ? 0 : parseFloat(val) });
-                                                }}
-                                                min="0"
-                                                step="0.01"
+                                            <CurrencyInput
+                                                label="Precio del Servicio"
+                                                value={editData.price}
+                                                onChange={(val) => setEditData({ ...editData, price: val })}
                                                 placeholder="0.00"
                                             />
                                             <div>
@@ -251,7 +247,7 @@ export default function ProfesionalTurnosPage() {
                                             <div className="flex flex-col">
                                                 <span className="text-[10px] uppercase font-black tracking-widest text-gray-400 mb-1">Precio</span>
                                                 <span className="font-bold text-gray-900">
-                                                    ${appointment.price?.toFixed(2) || '0.00'}
+                                                    {formatCurrencyWithSymbol(appointment.price || 0)}
                                                 </span>
                                             </div>
                                             {appointment.notes && (

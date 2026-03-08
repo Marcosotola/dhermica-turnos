@@ -14,6 +14,7 @@ import {
 import Link from 'next/link';
 import { Appointment } from '@/lib/types/appointment';
 import { getAppointmentsByClientId } from '@/lib/firebase/appointments';
+import { formatArgentineCurrency } from '@/lib/utils/currency';
 import { Toaster } from 'sonner';
 
 export default function MisTurnosPage() {
@@ -110,7 +111,7 @@ export default function MisTurnosPage() {
                                         <div className="flex flex-row md:flex-col items-center md:items-end justify-between md:justify-center gap-4 border-t md:border-t-0 pt-4 md:pt-0">
                                             <div className="flex items-center gap-2 bg-green-50 px-4 py-2 rounded-2xl">
                                                 <DollarSign className="w-5 h-5 text-green-600" />
-                                                <span className="text-xl font-black text-green-700">${apt.price?.toLocaleString('es-AR') || '0'}</span>
+                                                <span className="text-xl font-black text-green-700">{formatArgentineCurrency(apt.price || 0)}</span>
                                             </div>
                                             <span className="px-3 py-1 bg-green-100 text-green-600 rounded-lg text-[10px] uppercase font-black tracking-widest h-fit">
                                                 Confirmado

@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
-import { registerWithEmail } from '@/lib/firebase/auth';
+import { registerWithEmail, loginWithGoogle } from '@/lib/firebase/auth';
 import { createUserProfile, formatPhone } from '@/lib/firebase/users';
 import { toast } from 'sonner';
 import { UserProfile } from '@/lib/types/user';
@@ -96,12 +96,50 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
         }
     };
 
+    const handleGoogleLogin = async () => {
+        setLoading(true);
+        try {
+            await loginWithGoogle();
+            toast.success('¡Bienvenido con Google!');
+        } catch (error: any) {
+            if (error.code === 'auth/cancelled-popup-request') return;
+            console.error('Google login error:', error);
+            toast.error('Error al registrarse con Google.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     return (
         <div className="space-y-6 animate-in fade-in duration-300">
             <div className="text-center">
                 <h2 className="text-2xl font-bold text-gray-900">Crear Cuenta</h2>
                 <p className="text-sm text-gray-500 mt-2">Paso {step} de 2</p>
             </div>
+
+            {step === 1 && (
+                <>
+                    <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={handleGoogleLogin}
+                        disabled={loading}
+                        className="w-full py-4 rounded-xl font-bold flex items-center justify-center gap-2 border-gray-200"
+                    >
+                        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-5 h-5" />
+                        Continuar con Google
+                    </Button>
+
+                    <div className="relative my-6">
+                        <div className="absolute inset-0 flex items-center">
+                            <span className="w-full border-t border-gray-200" />
+                        </div>
+                        <div className="relative flex justify-center text-xs uppercase">
+                            <span className="bg-white px-2 text-gray-500 font-bold">O regístrate con email</span>
+                        </div>
+                    </div>
+                </>
+            )}
 
             <form onSubmit={handleRegister} className="space-y-4">
                 {step === 1 ? (
@@ -246,15 +284,18 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
                 )}
             </form>
 
-            <p className="text-center text-sm text-gray-500">
-                ¿Ya tienes cuenta?{' '}
-                <button
-                    onClick={onToggleMode}
-                    className="font-bold text-[#34baab] hover:underline"
-                >
-                    Inicia sesión aquí
-                </button>
-            </p>
+            <div className="pt-6 border-t border-gray-100">
+                <p className="text-center text-sm text-gray-500">
+                    ¿Ya tienes cuenta?{' '}
+                    <button
+                        onClick={onToggleMode}
+                        type="button"
+                        className="font-black text-[#34baab] hover:underline p-2"
+                    >
+                        Inicia sesión aquí
+                    </button>
+                </p>
+            </div>
         </div>
     );
 }

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Modal } from '../ui/Modal';
 import { Input } from '../ui/Input';
+import { CurrencyInput } from '../ui/CurrencyInput';
 import { Button } from '../ui/Button';
 import { Rental } from '@/lib/types/rental';
 import { createRental, updateRental } from '@/lib/firebase/rentals';
@@ -22,8 +23,8 @@ export function RentalModal({ isOpen, onClose, rental }: RentalModalProps) {
         date: '',
         clientName: '',
         machine: '',
-        price: '',
-        commission: '',
+        price: 0 as number | string,
+        commission: 0 as number | string,
         sellerId: '',
         paymentMethod: 'cash' as 'cash' | 'transfer' | 'debit' | 'credit' | 'qr',
     });
@@ -37,8 +38,8 @@ export function RentalModal({ isOpen, onClose, rental }: RentalModalProps) {
                 date: rental.date,
                 clientName: rental.clientName,
                 machine: rental.machine,
-                price: (rental.price ?? 0).toString(),
-                commission: (rental.commission ?? 0).toString(),
+                price: rental.price ?? 0,
+                commission: rental.commission ?? 0,
                 sellerId: rental.sellerId ?? '',
                 paymentMethod: rental.paymentMethod ?? 'cash',
             });
@@ -47,8 +48,8 @@ export function RentalModal({ isOpen, onClose, rental }: RentalModalProps) {
                 date: '',
                 clientName: '',
                 machine: '',
-                price: '',
-                commission: '10000',
+                price: 0,
+                commission: 10000,
                 sellerId: '',
                 paymentMethod: 'cash',
             });
@@ -139,20 +140,18 @@ export function RentalModal({ isOpen, onClose, rental }: RentalModalProps) {
                 />
 
                 <div className="grid grid-cols-2 gap-4">
-                    <Input
+                    <CurrencyInput
                         label="Precio Alquiler"
-                        type="number"
                         value={formData.price}
-                        onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                        onChange={(val) => setFormData({ ...formData, price: val })}
                         placeholder="0"
                         required
                     />
-                    <Input
+                    <CurrencyInput
                         label="Comisión Vendedor"
-                        type="number"
                         value={formData.commission}
-                        onChange={(e) => setFormData({ ...formData, commission: e.target.value })}
-                        placeholder="10000"
+                        onChange={(val) => setFormData({ ...formData, commission: val })}
+                        placeholder="10.000"
                         required
                     />
                 </div>

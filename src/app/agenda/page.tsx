@@ -12,6 +12,7 @@ import { getAppointmentsByClientId, searchAppointmentsByClient } from '@/lib/fir
 import { Button } from '@/components/ui/Button';
 import { getActiveProfessionals } from '@/lib/firebase/professionals';
 import { Professional } from '@/lib/types/professional';
+import { formatArgentineCurrency } from '@/lib/utils/currency';
 import { CreateClientModal } from '@/components/dashboard/CreateClientModal';
 import { ChevronUp, DollarSign, UserPlus, History } from 'lucide-react';
 
@@ -417,7 +418,7 @@ export default function AgendaPage() {
                                                     <div className="flex-1 text-right flex flex-col items-end gap-1">
                                                         <div className="flex items-center gap-1 text-[#34baab] font-black shrink-0">
                                                             <DollarSign className="w-3 h-3" />
-                                                            <span>{apt.price?.toLocaleString('es-AR') || '0'}</span>
+                                                            <span>{formatArgentineCurrency(apt.price || 0)}</span>
                                                         </div>
                                                         {apt.notes && (
                                                             <span className="text-[11px] text-gray-400 italic block max-w-[200px] leading-tight">

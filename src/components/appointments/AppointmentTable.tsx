@@ -7,6 +7,7 @@ import { Professional } from '@/lib/types/professional';
 import { generateTimeSlots, timeToDecimal } from '@/lib/utils/time';
 import { isTimeSlotOccupied } from '@/lib/utils/validation';
 import { Button } from '../ui/Button';
+import { formatCurrencyWithSymbol } from '@/lib/utils/currency';
 
 interface AppointmentTableProps {
     appointments: Appointment[];
@@ -173,7 +174,7 @@ function AppointmentCell({
                     {appointment.price !== undefined && (
                         <div className="flex items-center gap-1.5 mt-1">
                             <p className="text-[10px] font-bold text-violet-600">
-                                ${appointment.price.toFixed(2)}
+                                {formatCurrencyWithSymbol(appointment.price)}
                             </p>
                             {appointment.isPaid && (
                                 <div className="flex items-center gap-0.5 bg-green-50 text-green-600 px-1 py-0.5 rounded text-[9px] font-black uppercase tracking-tighter border border-green-100">

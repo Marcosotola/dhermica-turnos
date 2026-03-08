@@ -3,8 +3,10 @@
 import { useState, useEffect } from 'react';
 import { Modal } from '../ui/Modal';
 import { Input } from '../ui/Input';
+import { CurrencyInput } from '../ui/CurrencyInput';
 import { Select } from '../ui/Select';
 import { Button } from '../ui/Button';
+import { formatCurrencyWithSymbol } from '@/lib/utils/currency';
 import { Sale } from '@/lib/types/sale';
 import { getSalesByDateRange, deleteSale, updateSale } from '@/lib/firebase/sales';
 import { Professional } from '@/lib/types/professional';
@@ -113,8 +115,7 @@ export function SalesHistoryModal({ isOpen, onClose, professionals, onRefresh }:
         }
     };
 
-    const formatCurrency = (n: number) =>
-        new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(n);
+    const formatCurrency = (n: number) => formatCurrencyWithSymbol(n);
 
     return (
         <Modal isOpen={isOpen} onClose={onClose} title="Historial de Ventas" size="lg">
@@ -172,11 +173,10 @@ export function SalesHistoryModal({ isOpen, onClose, professionals, onRefresh }:
                                                     value={editForm.quantity ?? ''}
                                                     onChange={e => setEditForm(f => ({ ...f, quantity: Number(e.target.value) }))}
                                                 />
-                                                <Input
+                                                <CurrencyInput
                                                     label="Comisión"
-                                                    type="number"
-                                                    value={editForm.commission ?? ''}
-                                                    onChange={e => setEditForm(f => ({ ...f, commission: Number(e.target.value) }))}
+                                                    value={editForm.commission ?? 0}
+                                                    onChange={val => setEditForm(f => ({ ...f, commission: val }))}
                                                 />
                                             </div>
                                             <div className="grid grid-cols-2 gap-3">

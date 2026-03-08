@@ -8,6 +8,7 @@ import { getAppointmentsByProfessionalId } from '@/lib/firebase/appointments';
 import { Calendar, Clock, User, Clipboard, History, X, Search, ChevronDown } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
+import { formatCurrencyWithSymbol } from '@/lib/utils/currency';
 
 interface ProfessionalHistoryModalProps {
     isOpen: boolean;
@@ -154,7 +155,7 @@ export function ProfessionalHistoryModal({ isOpen, onClose, professional }: Prof
                                                 <span className="text-xs font-black text-teal-700 uppercase">{apt.treatment}</span>
                                             </div>
                                             {apt.price && (
-                                                <span className="text-sm font-black text-blue-600">${apt.price.toLocaleString()}</span>
+                                                <span className="text-sm font-black text-blue-600">{formatCurrencyWithSymbol(apt.price)}</span>
                                             )}
                                         </div>
                                     </div>

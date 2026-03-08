@@ -5,6 +5,7 @@ import { Product } from '@/lib/types/product';
 import { X, Upload, ShoppingBag, Loader2, Camera, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { CurrencyInput } from '@/components/ui/CurrencyInput';
 import { uploadProductImage, deleteProductImage } from '@/lib/firebase/products';
 import { toast } from 'sonner';
 import Image from 'next/image';
@@ -19,7 +20,7 @@ interface ProductFormProps {
 export function ProductForm({ isOpen, onClose, onSubmit, product }: ProductFormProps) {
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
-    const [price, setPrice] = useState('');
+    const [price, setPrice] = useState<number>(0);
     const [images, setImages] = useState<string[]>([]);
     const [isUploading, setIsUploading] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -29,12 +30,12 @@ export function ProductForm({ isOpen, onClose, onSubmit, product }: ProductFormP
         if (product) {
             setName(product.name);
             setDescription(product.description);
-            setPrice(product.price.toString());
+            setPrice(product.price);
             setImages(product.images);
         } else {
             setName('');
             setDescription('');
-            setPrice('');
+            setPrice(0);
             setImages([]);
         }
     }, [product, isOpen]);
@@ -100,7 +101,7 @@ export function ProductForm({ isOpen, onClose, onSubmit, product }: ProductFormP
             await onSubmit({
                 name,
                 description,
-                price: parseFloat(price),
+                price,
                 images: images // For now, passing the array. In the real page we'll handle the upload logic.
             });
             onClose();
@@ -144,12 +145,11 @@ export function ProductForm({ isOpen, onClose, onSubmit, product }: ProductFormP
                                 className="font-bold text-gray-900"
                             />
 
-                            <Input
-                                label="Precio ($)"
-                                type="number"
-                                placeholder="0.00"
+                            <CurrencyInput
+                                label="Precio"
+                                placeholder="0,00"
                                 value={price}
-                                onChange={(e) => setPrice(e.target.value)}
+                                onChange={(val) => setPrice(val)}
                                 required
                                 className="font-bold text-gray-900"
                             />

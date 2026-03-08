@@ -3,8 +3,10 @@
 import { useState } from 'react';
 import { Modal } from '../ui/Modal';
 import { Input } from '../ui/Input';
+import { CurrencyInput } from '../ui/CurrencyInput';
 import { Select } from '../ui/Select';
 import { Button } from '../ui/Button';
+import { formatCurrencyWithSymbol } from '@/lib/utils/currency';
 import { Product } from '@/lib/types/product';
 import { Professional } from '@/lib/types/professional';
 import { Sale } from '@/lib/types/sale';
@@ -29,7 +31,7 @@ export function ProductSaleModal({
     onSuccess,
 }: ProductSaleModalProps) {
     const [quantity, setQuantity] = useState<number | string>(1);
-    const [commission, setCommission] = useState<string>('3000');
+    const [commission, setCommission] = useState<number>(3000);
     const [paymentMethod, setPaymentMethod] = useState<'cash' | 'transfer' | 'debit' | 'credit' | 'qr'>('cash');
     const [soldById, setSoldById] = useState('');
     const [saleDate, setSaleDate] = useState(getTodayDate());
@@ -68,7 +70,7 @@ export function ProductSaleModal({
             onClose();
             // Reset state
             setQuantity(1);
-            setCommission('');
+            setCommission(3000);
             setSoldById('');
             setSaleDate(getTodayDate());
             setPaymentMethod('cash');
@@ -94,7 +96,7 @@ export function ProductSaleModal({
                     </div>
                     <div>
                         <h4 className="font-black text-gray-900 leading-tight">{product.name}</h4>
-                        <p className="text-sm font-bold text-[#34baab]">${product.price.toLocaleString('es-AR')}</p>
+                        <p className="text-sm font-bold text-[#34baab]">{formatCurrencyWithSymbol(product.price)}</p>
                     </div>
                 </div>
 
@@ -110,15 +112,14 @@ export function ProductSaleModal({
                     />
                     <div className="flex flex-col justify-end pb-1">
                         <span className="text-[10px] text-gray-400 font-black uppercase tracking-widest mb-1">Total a cobrar</span>
-                        <span className="text-xl font-black text-gray-900">{(product.price * (Number(quantity) || 0)).toLocaleString('es-AR', { style: 'currency', currency: 'ARS' })}</span>
+                        <span className="text-xl font-black text-gray-900">{formatCurrencyWithSymbol(product.price * (Number(quantity) || 0))}</span>
                     </div>
                 </div>
 
-                <Input
+                <CurrencyInput
                     label="Comisión Vendedor"
-                    type="number"
                     value={commission}
-                    onChange={(e) => setCommission(e.target.value)}
+                    onChange={(val) => setCommission(val)}
                     placeholder="0"
                 />
 

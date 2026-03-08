@@ -10,7 +10,7 @@ import { Toaster } from 'sonner';
 export default function Home() {
   const { user, loading } = useAuth();
   const router = useRouter();
-  const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
+  const [authMode, setAuthMode] = useState<'login' | 'register'>('register');
 
   useEffect(() => {
     if (!loading && user) {

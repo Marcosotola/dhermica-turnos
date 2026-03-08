@@ -4,6 +4,7 @@ import { Product } from '@/lib/types/product';
 import { ShoppingBag, Edit2, Trash2, ChevronLeft, ChevronRight, DollarSign } from 'lucide-react';
 import { useState } from 'react';
 import Image from 'next/image';
+import { formatCurrencyWithSymbol } from '@/lib/utils/currency';
 
 interface ProductCardProps {
     product: Product;
@@ -120,7 +121,7 @@ export function ProductCard({ product, isAdmin, onEdit, onDelete, onSell, onClic
                     <div className="flex flex-col">
                         <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Precio</span>
                         <span className="text-xl font-black text-[#484450]">
-                            ${product.price.toLocaleString('es-AR')}
+                            {formatCurrencyWithSymbol(product.price)}
                         </span>
                     </div>
                     <div className="flex gap-2">

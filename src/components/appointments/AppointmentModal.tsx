@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Modal } from '../ui/Modal';
 import { Input } from '../ui/Input';
+import { CurrencyInput } from '../ui/CurrencyInput';
 import { Select } from '../ui/Select';
 import { Button } from '../ui/Button';
 import { Appointment, DURATION_OPTIONS } from '@/lib/types/appointment';
@@ -207,17 +208,10 @@ export function AppointmentModal({
             );
 
             if (appointment) {
-                // Round price to 2 decimal places to avoid floating point issues
-                if (cleanData.price !== undefined) {
-                    cleanData.price = Math.round(Number(cleanData.price) * 100) / 100;
-                }
                 await updateAppointment(appointment.id, cleanData);
                 toast.success('Turno actualizado exitosamente');
             } else {
                 const finalData = { ...cleanData };
-                if (finalData.price !== undefined) {
-                    finalData.price = Math.round(Number(finalData.price) * 100) / 100;
-                }
                 await createAppointment(finalData as Omit<Appointment, 'id' | 'createdAt' | 'updatedAt'>);
                 toast.success('Turno creado exitosamente');
             }
@@ -419,17 +413,11 @@ export function AppointmentModal({
                     options={professionalOptions}
                 />
 
-                <Input
+                <CurrencyInput
                     label="Precio (opcional)"
-                    type="number"
-                    value={formData.price === 0 ? '' : formData.price}
-                    onChange={(e) => {
-                        const val = e.target.value;
-                        setFormData({ ...formData, price: val === '' ? 0 : parseFloat(val) });
-                    }}
-                    placeholder="0.00"
-                    min="0"
-                    step="0.01"
+                    value={formData.price}
+                    onChange={(val) => setFormData({ ...formData, price: val })}
+                    placeholder="0,00"
                 />
 
                 <div className="bg-gray-50 p-4 rounded-xl space-y-4">
