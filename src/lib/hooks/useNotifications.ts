@@ -7,6 +7,8 @@ import { useAuth } from '@/lib/contexts/AuthContext';
 import { updateUserProfile, addFcmToken, removeFcmToken } from '@/lib/firebase/users';
 import { toast } from 'sonner';
 
+const STORAGE_KEY = 'notifications_deactivated';
+
 const waitForServiceWorkerActivation = (registration: ServiceWorkerRegistration, timeoutMs = 15000): Promise<ServiceWorker> => {
     return new Promise((resolve, reject) => {
         const timeout = setTimeout(() => {
@@ -87,6 +89,7 @@ export function useNotifications() {
 
                     if (currentToken) {
                         setToken(currentToken);
+                        localStorage.removeItem(STORAGE_KEY);
                         if (user) {
                             await addFcmToken(user.uid, currentToken);
                         }
@@ -122,6 +125,7 @@ export function useNotifications() {
             setLoading(true);
             await removeFcmToken(user.uid, token);
             setToken(null);
+            localStorage.setItem(STORAGE_KEY, 'true');
             toast.success('Notificaciones desactivadas en este dispositivo.');
         } catch (error) {
             console.error('Error deactivating notifications:', error);
@@ -137,7 +141,8 @@ export function useNotifications() {
         }
 
         const initMessaging = async () => {
-            if (!user || permission !== 'granted') return;
+            const isManuallyDisabled = localStorage.getItem(STORAGE_KEY) === 'true';
+            if (!user || permission !== 'granted' || isManuallyDisabled) return;
 
             try {
                 const msg = await messaging();
