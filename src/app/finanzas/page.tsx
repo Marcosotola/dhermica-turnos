@@ -211,10 +211,14 @@ export default function FinanzasPage() {
                             <h3 className="text-gray-400 font-black uppercase tracking-[0.2em] text-xs mb-4">Ingresos Totales</h3>
                             <p className="text-5xl font-black tracking-tighter mb-4">{formatCurrency(overview?.totalIncome || 0)}</p>
 
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 opacity-80 border-t border-white/10 pt-6">
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 opacity-80 border-t border-white/10 pt-6">
                                 <div className="space-y-1">
                                     <span className="text-[10px] font-black uppercase text-gray-500 tracking-widest">Servicios</span>
                                     <p className="text-lg font-black">{formatCurrency(overview?.totalServiceIncome || 0)}</p>
+                                </div>
+                                <div className="space-y-1">
+                                    <span className="text-[10px] font-black uppercase text-gray-500 tracking-widest">Pagos Parciales</span>
+                                    <p className="text-lg font-black">{formatCurrency(overview?.totalPartialIncome || 0)}</p>
                                 </div>
                                 <div className="space-y-1">
                                     <span className="text-[10px] font-black uppercase text-gray-500 tracking-widest">Productos</span>
@@ -277,7 +281,8 @@ export default function FinanzasPage() {
                                             <div className="flex justify-between items-start mb-6">
                                                 <div>
                                                     <h4 className="font-black text-gray-900 text-lg group-hover:text-[#34baab] transition-colors">{data.name}</h4>
-                                                    <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Actividad del período</span>
+                                                    <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest block">Actividad del período</span>
+                                                    <span className="text-[9px] font-bold text-[#34baab] italic uppercase tracking-tighter">Solo turnos realizados</span>
                                                 </div>
                                             </div>
                                             <div className="space-y-3">
@@ -365,7 +370,7 @@ export default function FinanzasPage() {
                                         </div>
                                         <div>
                                             <h4 className="text-xl font-black text-[#34baab]">Producción Total</h4>
-                                            <p className="text-xs text-gray-500 uppercase tracking-widest font-bold">Base para el cálculo de comisiones</p>
+                                            <p className="text-xs text-gray-500 uppercase tracking-widest font-bold italic">Solo turnos marcados como "Realizado"</p>
                                         </div>
                                     </div>
 

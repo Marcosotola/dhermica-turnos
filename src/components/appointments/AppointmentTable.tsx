@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Pencil, Trash2, Plus, MoreVertical, X, DollarSign, CheckCircle2 } from 'lucide-react';
+import { Pencil, Trash2, Plus, MoreVertical, X, DollarSign, CheckCircle2, Clock, XCircle } from 'lucide-react';
 import { Appointment } from '@/lib/types/appointment';
 import { Professional } from '@/lib/types/professional';
 import { generateTimeSlots, timeToDecimal } from '@/lib/utils/time';
@@ -15,6 +15,7 @@ interface AppointmentTableProps {
     onCreateClick: (time: string, professionalId?: string) => void;
     onEditClick: (appointment: Appointment) => void;
     onDeleteClick: (appointment: Appointment) => void;
+    onDetailClick: (appointment: Appointment) => void;
 }
 
 export function AppointmentTable({
@@ -23,6 +24,7 @@ export function AppointmentTable({
     onCreateClick,
     onEditClick,
     onDeleteClick,
+    onDetailClick,
 }: AppointmentTableProps) {
     const timeSlots = generateTimeSlots();
 
@@ -31,14 +33,20 @@ export function AppointmentTable({
         return appointments.find(
             (apt) =>
                 apt.professionalId === professionalId &&
-                isTimeSlotOccupied(time, apt)
+                isTimeSlotOccupied(time, apt) &&
+                (apt.status as any) !== 'cancelled' &&
+                (apt.status as any) !== 'cancelado'
         );
     };
 
     // Turnos sin profesional asignado (legacy)
     const getLegacyAppointmentForSlot = (time: string) => {
         return appointments.find(
-            (apt) => !apt.professionalId && isTimeSlotOccupied(time, apt)
+            (apt) =>
+                !apt.professionalId &&
+                isTimeSlotOccupied(time, apt) &&
+                (apt.status as any) !== 'cancelled' &&
+                (apt.status as any) !== 'cancelado'
         );
     };
 
@@ -111,6 +119,7 @@ export function AppointmentTable({
                                                     professionalColor={prof.color}
                                                     onEdit={() => onEditClick(apt)}
                                                     onDelete={() => onDeleteClick(apt)}
+                                                    onDetail={() => onDetailClick(apt)}
                                                     isLastRows={index >= timeSlots.length - 3}
                                                 />
                                             ) : (
@@ -141,6 +150,7 @@ interface AppointmentCellProps {
     professionalColor?: string;
     onEdit: () => void;
     onDelete: () => void;
+    onDetail: () => void;
     isLastRows?: boolean;
 }
 
@@ -149,19 +159,22 @@ function AppointmentCell({
     professionalColor,
     onEdit,
     onDelete,
+    onDetail,
     isLastRows,
 }: AppointmentCellProps) {
     const [menuOpen, setMenuOpen] = useState(false);
 
-    const handleAction = (action: () => void) => {
+    const handleAction = (e: React.MouseEvent, action: () => void) => {
+        e.stopPropagation();
         setMenuOpen(false);
         action();
     };
 
     return (
         <div
-            className="p-2 pb-2.5 px-1.5 rounded-lg border-l-4 bg-gradient-to-r from-white to-gray-50/30 relative group transition-all hover:shadow-md border border-gray-100/50"
+            className="p-2 pb-2.5 px-1.5 rounded-lg border-l-4 bg-gradient-to-r from-white to-gray-50/30 relative group transition-all hover:shadow-md border border-gray-100/50 cursor-pointer active:scale-[0.98]"
             style={{ borderLeftColor: professionalColor || '#6B7280' }}
+            onClick={onDetail}
         >
             <div className="flex items-center justify-start gap-1">
                 <div className="min-w-0 flex-1">
@@ -172,23 +185,64 @@ function AppointmentCell({
                         {appointment.treatment}
                     </p>
                     {appointment.price !== undefined && (
-                        <div className="flex items-center gap-1.5 mt-1">
-                            <p className="text-[10px] font-bold text-violet-600">
-                                {formatCurrencyWithSymbol(appointment.price)}
-                            </p>
-                            {appointment.isPaid && (
-                                <div className="flex items-center gap-0.5 bg-green-50 text-green-600 px-1 py-0.5 rounded text-[9px] font-black uppercase tracking-tighter border border-green-100">
-                                    <CheckCircle2 className="w-2 h-2" />
-                                    <span>Pagado</span>
-                                </div>
-                            )}
+                        <div className="flex flex-col gap-1 mt-1">
+                            <div className="flex items-center gap-1.5">
+                                <p className="text-[10px] font-bold text-violet-600">
+                                    {formatCurrencyWithSymbol(appointment.price)}
+                                </p>
+                                {(() => {
+                                    const totalPaid = (appointment.payments || []).reduce((sum, p) => sum + p.amount, 0);
+                                    const balance = (appointment.price || 0) - totalPaid;
+                                    const status = appointment.status || 'pending';
+
+                                    return (
+                                        <div className="flex flex-col gap-1 mt-1">
+                                            {/* Balance / Paid Badge */}
+                                            {balance > 0 ? (
+                                                <div className="flex items-center gap-0.5 bg-red-50 text-red-500 px-1 py-0.5 rounded text-[8px] font-black uppercase tracking-tighter border border-red-100 animate-pulse w-fit">
+                                                    <span>Saldo: {formatCurrencyWithSymbol(balance)}</span>
+                                                </div>
+                                            ) : (appointment.price || 0) > 0 && (
+                                                <div className="flex items-center gap-0.5 bg-green-50 text-green-600 px-1 py-0.5 rounded text-[8px] font-black uppercase tracking-tighter border border-green-100 w-fit">
+                                                    <span>Saldado</span>
+                                                </div>
+                                            )}
+
+                                            {/* Status Badge - Smalls and at the bottom */}
+                                            <div className="flex flex-wrap gap-1">
+                                                {status === 'completed' && (
+                                                    <div className="bg-green-50 text-green-600 px-1 py-0.5 rounded text-[7px] font-black uppercase tracking-tighter border border-green-100 flex items-center gap-0.5">
+                                                        <div className="w-1 h-1 rounded-full bg-green-500" />
+                                                        <span>Realizado</span>
+                                                    </div>
+                                                )}
+                                                {status === 'pending' && (
+                                                    <div className="bg-amber-50 text-amber-600 px-1 py-0.5 rounded text-[7px] font-black uppercase tracking-tighter border border-amber-100 flex items-center gap-0.5">
+                                                        <div className="w-1 h-1 rounded-full bg-amber-500" />
+                                                        <span>Pendiente</span>
+                                                    </div>
+                                                )}
+                                                {status === 'cancelled' && (
+                                                    <div className="bg-gray-50 text-gray-500 px-1 py-0.5 rounded text-[7px] font-black uppercase tracking-tighter border border-gray-100 flex items-center gap-0.5">
+                                                        <div className="w-1 h-1 rounded-full bg-gray-400" />
+                                                        <span>Cancelado</span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
+                            </div>
                         </div>
                     )}
                 </div>
 
                 <div className="relative flex-shrink-0">
                     <button
-                        onClick={() => setMenuOpen(!menuOpen)}
+                        onClick={(e) => {
+                            e.stopPropagation(); // Evitar abrir el modal de detalle
+                            setMenuOpen(!menuOpen);
+                        }}
                         className={`p-2 rounded-full transition-colors ${menuOpen ? 'bg-white shadow-sm text-gray-900 border border-gray-200' : 'text-gray-400 hover:bg-white hover:shadow-md'
                             }`}
                         title="Opciones"
@@ -213,7 +267,7 @@ function AppointmentCell({
                                     </button>
                                 </div>
                                 <button
-                                    onClick={() => handleAction(onEdit)}
+                                    onClick={(e) => handleAction(e, onEdit)}
                                     className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors text-left"
                                 >
                                     <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
@@ -222,7 +276,7 @@ function AppointmentCell({
                                     <span className="font-semibold">Editar Turno</span>
                                 </button>
                                 <button
-                                    onClick={() => handleAction(onDelete)}
+                                    onClick={(e) => handleAction(e, onDelete)}
                                     className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors text-left"
                                 >
                                     <div className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center">

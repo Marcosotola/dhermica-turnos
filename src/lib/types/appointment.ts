@@ -1,3 +1,14 @@
+export type AppointmentStatus = 'pending' | 'completed' | 'cancelled';
+
+export interface Payment {
+    id: string;
+    amount: number;
+    method: 'cash' | 'transfer' | 'debit' | 'credit' | 'qr';
+    date: string; // YYYY-MM-DD
+    label: string; // e.g., "Seña", "Saldo", "Pago Parcial"
+    createdAt: Date;
+}
+
 export interface Appointment {
     id: string;
     clientName: string;
@@ -8,11 +19,13 @@ export interface Appointment {
     duration: number; // En horas (0.5, 1, 1.5, etc.)
     professionalId?: string; // Opcional para turnos legacy
     notes?: string;
-    price?: number; // Precio del turno
+    price?: number; // Precio total del turno
+    status: AppointmentStatus;
+    payments: Payment[];
     createdAt: Date;
     updatedAt: Date;
-    paymentMethod?: 'cash' | 'transfer' | 'debit' | 'credit' | 'qr';
-    isPaid?: boolean;
+    paymentMethod?: 'cash' | 'transfer' | 'debit' | 'credit' | 'qr'; // Legacy/Shortcut for single payment
+    isPaid?: boolean; // Legacy/Calculated value
 
     // Legacy fields (from original app)
     nombre?: string;

@@ -31,7 +31,8 @@ async function sendAutomatedNotification(title: string, body: string, uid: strin
             return;
         }
 
-        await fetch('/api/notifications/send', {
+        console.log(`[Notification] Triggering for user ${uid}: ${title}`);
+        const response = await fetch('/api/notifications/send', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -45,6 +46,9 @@ async function sendAutomatedNotification(title: string, body: string, uid: strin
                 url
             }),
         });
+
+        const result = await response.json();
+        console.log(`[Notification] API Response for ${uid}:`, result);
     } catch (error) {
         console.error('Error sending automated notification:', error);
     }
@@ -54,20 +58,47 @@ async function sendAutomatedNotification(title: string, body: string, uid: strin
  * Mapea datos de Firebase (pueden ser legacy en español) al tipo Appointment
  */
 function mapLegacyAppointment(docId: string, data: any, professionalId?: string): Appointment {
+    const appointmentDate = data.date || data.fecha || '';
+    const today = new Date().toISOString().split('T')[0];
+
+    // Auto-complete past appointments if no status is set
+    let status = data.status;
+    if (!status) {
+        if (data.realizado) {
+            status = 'completed';
+        } else if (appointmentDate && appointmentDate < today) {
+            status = 'completed';
+        } else {
+            status = 'pending';
+        }
+    }
+
+    // Compatibilidad con múltiples nombres de campo para pagos
+    const paymentsData = data.payments || data.pagos || data.paymentList || [];
+    let payments: any[] = [];
+    if (Array.isArray(paymentsData)) {
+        payments = paymentsData;
+    } else if (typeof paymentsData === 'object' && paymentsData !== null) {
+        // En caso de que sea un objeto de Firebase o algo no esperado
+        payments = Object.values(paymentsData);
+    }
+
     return {
         id: docId,
         clientName: data.clientName || data.nombre || '',
         treatment: data.treatment || data.servicio || '',
-        date: data.date || data.fecha || '',
+        date: appointmentDate,
         time: data.time || data.hora || '',
         duration: data.duration || data.duracion || 1,
         professionalId: professionalId || data.professionalId,
         notes: data.notes || data.observaciones || '',
         price: data.price !== undefined ? data.price : data.precio,
+        status: status,
+        payments: Array.isArray(payments) ? payments : [],
         isPaid: data.isPaid || false,
         paymentMethod: data.paymentMethod || undefined,
-        createdAt: data.createdAt?.toDate() || new Date(),
-        updatedAt: data.updatedAt?.toDate() || new Date(),
+        createdAt: data.createdAt?.toDate?.() || data.createdAt || new Date(),
+        updatedAt: data.updatedAt?.toDate?.() || data.updatedAt || new Date(),
     } as Appointment;
 }
 
@@ -83,8 +114,18 @@ function mapToLegacy(data: any) {
     if (data.duration !== undefined) legacy.duracion = data.duration;
     if (data.notes !== undefined) legacy.observaciones = data.notes;
     if (data.price !== undefined) legacy.precio = data.price;
+    if (data.status !== undefined) legacy.status = data.status;
+
+    // Guardar en múltiples campos para asegurar que cualquier versión de la app lo lea
+    if (data.payments !== undefined) {
+        legacy.payments = data.payments;
+        legacy.pagos = data.payments;
+        legacy.paymentList = data.payments;
+    }
+
     if (data.isPaid !== undefined) legacy.isPaid = data.isPaid;
     if (data.paymentMethod !== undefined) legacy.paymentMethod = data.paymentMethod;
+    if (data.notes !== undefined) legacy.notes = data.notes;
     return legacy;
 }
 
@@ -183,16 +224,40 @@ export async function updateAppointment(
 
     if (snap.exists()) {
         // Documento existe en appointments - actualización normal
-        let professionalId = data.professionalId;
-        if (!professionalId) {
-            professionalId = snap.data().professionalId;
-        }
+        const oldData = snap.data();
+        const dateChanged = data.date && data.date !== oldData.date;
+        const timeChanged = data.time && data.time !== oldData.time;
 
-        await updateDoc(docRef, {
+        const updateData: any = {
             ...data,
             updatedAt: Timestamp.now(),
-        });
+        };
 
+        // Reset reminder flags if date or time changes
+        if (dateChanged || timeChanged) {
+            updateData.notified1h = false;
+            updateData.notified24h = false;
+            updateData.notified48h = false;
+        }
+
+        await updateDoc(docRef, updateData);
+
+        // Notificar al cliente si cambió fecha u hora
+        if (oldData.clientId && (dateChanged || timeChanged)) {
+            const newDate = data.date || oldData.date;
+            const newTime = data.time || oldData.time;
+            const [year, month, day] = newDate.split('-');
+            const formattedDate = `${day}-${month}-${year}`;
+
+            sendAutomatedNotification(
+                'Dhermica: Turno Actualizado 🔄',
+                `Tu cita para ${oldData.treatment || 'el servicio'} ha sido reprogramada para el ${formattedDate} a las ${newTime}.`,
+                oldData.clientId,
+                '/mis-turnos'
+            );
+        }
+
+        const professionalId = data.professionalId || oldData.professionalId;
         // Sincronizar con legacy
         if (professionalId) {
             await syncWithLegacy(professionalId as string, id, 'update', data);

@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { getAllUsers } from '@/lib/firebase/users';
 import { UserProfile } from '@/lib/types/user';
 import { Toaster } from 'sonner';
-import { BookOpen, Search, User as UserIcon, Phone, Calendar, Heart, AlertCircle, Info, CalendarCheck, ChevronDown, Loader2, ArrowLeft } from 'lucide-react';
+import { BookOpen, Search, User as UserIcon, Phone, Calendar, Heart, AlertCircle, Info, CalendarCheck, ChevronDown, Loader2, ArrowLeft, CheckCircle2, Clock, XCircle } from 'lucide-react';
 import { Appointment } from '@/lib/types/appointment';
 import { getAppointmentsByClientId, searchAppointmentsByClient } from '@/lib/firebase/appointments';
 import { Button } from '@/components/ui/Button';
@@ -14,7 +14,11 @@ import { getActiveProfessionals } from '@/lib/firebase/professionals';
 import { Professional } from '@/lib/types/professional';
 import { formatArgentineCurrency } from '@/lib/utils/currency';
 import { CreateClientModal } from '@/components/dashboard/CreateClientModal';
-import { ChevronUp, DollarSign, UserPlus, History } from 'lucide-react';
+import { AppointmentModal } from '@/components/appointments/AppointmentModal';
+import { DeleteConfirmDialog } from '@/components/appointments/DeleteConfirmDialog';
+import { deleteAppointment } from '@/lib/firebase/appointments';
+import { ChevronUp, DollarSign, UserPlus, History, Pencil, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 export default function AgendaPage() {
     const { user, profile, loading: authLoading } = useAuth();
@@ -33,6 +37,10 @@ export default function AgendaPage() {
     const [isInfoOpen, setIsInfoOpen] = useState(false);
     const [professionals, setProfessionals] = useState<Professional[]>([]);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+    const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const normalize = (s: string) =>
@@ -143,23 +151,49 @@ export default function AgendaPage() {
 
 
 
-    useEffect(() => {
-        const fetchHistory = async () => {
-            if (!selectedUser) return;
+    const fetchHistory = useCallback(async () => {
+        if (!selectedUser) return;
 
-            setHistoryLoading(true);
-            try {
-                const data = await getAppointmentsByClientId(selectedUser.uid, selectedUser.fullName);
-                setAppointments(data);
-            } catch (error) {
-                console.error('Error fetching history:', error);
-            } finally {
-                setHistoryLoading(false);
-            }
-        };
-
-        fetchHistory();
+        setHistoryLoading(true);
+        try {
+            const data = await getAppointmentsByClientId(selectedUser.uid, selectedUser.fullName);
+            setAppointments(data);
+        } catch (error) {
+            console.error('Error fetching history:', error);
+        } finally {
+            setHistoryLoading(false);
+        }
     }, [selectedUser]);
+
+    useEffect(() => {
+        fetchHistory();
+    }, [selectedUser, fetchHistory]);
+
+    const handleEditClick = (apt: Appointment) => {
+        setSelectedAppointment(apt);
+        setIsEditModalOpen(true);
+    };
+
+    const handleDeleteClick = (apt: Appointment) => {
+        setSelectedAppointment(apt);
+        setIsDeleteDialogOpen(true);
+    };
+
+    const handleConfirmDelete = async () => {
+        if (!selectedAppointment) return;
+        setIsDeleting(true);
+        try {
+            await deleteAppointment(selectedAppointment.id);
+            toast.success('Turno eliminado');
+            setIsDeleteDialogOpen(false);
+            fetchHistory(); // Refrescar historial
+        } catch (error) {
+            console.error('Error deleting appointment:', error);
+            toast.error('Error al eliminar turno');
+        } finally {
+            setIsDeleting(false);
+        }
+    };
 
     if (authLoading || (loading && users.length === 0)) {
         return (
@@ -394,40 +428,101 @@ export default function AgendaPage() {
                                         </div>
                                     ) : appointments.length > 0 ? (
                                         <div className="space-y-3">
-                                            {appointments.map((apt) => (
-                                                <div key={apt.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-100">
-                                                    <div className="flex items-center gap-4">
-                                                        <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm">
-                                                            <CalendarCheck className="w-5 h-5 text-[#34baab]" />
+                                            {appointments.map((apt) => {
+                                                const totalPaid = (apt.payments || []).reduce((sum, p) => sum + p.amount, 0);
+                                                const balance = (apt.price || 0) - totalPaid;
+                                                const status = apt.status || 'pending';
+
+                                                return (
+                                                    <div key={apt.id} className="flex flex-col p-4 bg-gray-50 rounded-3xl border border-gray-100 hover:border-[#34baab]/30 transition-all">
+                                                        <div className="flex items-center justify-between mb-3">
+                                                            <div className="flex items-center gap-4">
+                                                                <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm">
+                                                                    <CalendarCheck className="w-5 h-5 text-[#34baab]" />
+                                                                </div>
+                                                                <div>
+                                                                    <div className="flex items-center gap-2">
+                                                                        <h4 className="font-bold text-gray-900 text-sm">{apt.treatment}</h4>
+                                                                        {((status as any) === 'completed' || (status as any) === 'realizado') && <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />}
+                                                                        {((status as any) === 'pending') && <Clock className="w-3.5 h-3.5 text-orange-500" />}
+                                                                        {((status as any) === 'cancelled' || (status as any) === 'cancelado') && <XCircle className="w-3.5 h-3.5 text-red-500" />}
+                                                                    </div>
+                                                                    <p className="text-xs text-gray-500">
+                                                                        {(() => {
+                                                                            const parts = apt.date.split('-');
+                                                                            return parts.length === 3 ? `${parts[2]}-${parts[1]}-${parts[0]}` : apt.date;
+                                                                        })()} - {apt.time}
+                                                                    </p>
+                                                                </div>
+                                                            </div>
+                                                            <div className="text-right flex flex-col items-end gap-2">
+                                                                <div>
+                                                                    <div className="flex items-center gap-1 text-[#34baab] font-black justify-end">
+                                                                        <DollarSign className="w-3 h-3" />
+                                                                        <span>{formatArgentineCurrency(apt.price || 0)}</span>
+                                                                    </div>
+                                                                    {((status as any) === 'completed' || (status as any) === 'realizado') ? (
+                                                                        <span className="text-[8px] font-black bg-green-100 text-green-600 px-1.5 py-0.5 rounded uppercase tracking-widest">Realizado</span>
+                                                                    ) : ((status as any) === 'cancelled' || (status as any) === 'cancelado') ? (
+                                                                        <span className="text-[8px] font-black bg-red-100 text-red-600 px-1.5 py-0.5 rounded uppercase tracking-widest">Cancelado</span>
+                                                                    ) : (
+                                                                        <span className="text-[8px] font-black bg-amber-100 text-amber-600 px-1.5 py-0.5 rounded uppercase tracking-widest">Pendiente</span>
+                                                                    )}
+                                                                </div>
+                                                                <div className="flex gap-1">
+                                                                    <button
+                                                                        onClick={() => handleEditClick(apt)}
+                                                                        className="p-1.5 bg-white border border-gray-100 rounded-lg text-gray-400 hover:text-[#34baab] hover:border-[#34baab]/30 transition-all shadow-sm"
+                                                                        title="Editar Turno"
+                                                                    >
+                                                                        <Pencil className="w-3.5 h-3.5" />
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={() => handleDeleteClick(apt)}
+                                                                        className="p-1.5 bg-white border border-gray-100 rounded-lg text-gray-400 hover:text-red-500 hover:border-red-100 transition-all shadow-sm"
+                                                                        title="Eliminar Turno"
+                                                                    >
+                                                                        <Trash2 className="w-3.5 h-3.5" />
+                                                                    </button>
+                                                                </div>
+                                                            </div>
                                                         </div>
-                                                        <div>
-                                                            <h4 className="font-bold text-gray-900 text-sm">{apt.treatment}</h4>
-                                                            <p className="text-xs text-gray-500">
-                                                                {(() => {
-                                                                    const [year, month, day] = apt.date.split('-');
-                                                                    return `${day}/${month}/${year}`;
-                                                                })()} - {apt.time}
-                                                            </p>
-                                                            {apt.professionalId && (
-                                                                <p className="text-[10px] text-violet-600 font-bold uppercase mt-1">
-                                                                    Prof: {professionals.find(p => p.id === apt.professionalId)?.name || 'General'}
-                                                                </p>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex-1 text-right flex flex-col items-end gap-1">
-                                                        <div className="flex items-center gap-1 text-[#34baab] font-black shrink-0">
-                                                            <DollarSign className="w-3 h-3" />
-                                                            <span>{formatArgentineCurrency(apt.price || 0)}</span>
-                                                        </div>
+
+                                                        {/* Payments Breakdown */}
+                                                        {(apt.payments || []).length > 0 && (
+                                                            <div className="mt-2 pt-2 border-t border-gray-100">
+                                                                <div className="flex justify-between items-center mb-1">
+                                                                    <span className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Pagos Realizados</span>
+                                                                    <span className={`text-[12px] font-black ${balance > 0 ? 'text-red-500' : 'text-[#34baab]'} uppercase`}>
+                                                                        {balance > 0 ? `Deuda: $${formatArgentineCurrency(balance)}` : 'Saldado'}
+                                                                    </span>
+                                                                </div>
+                                                                <div className="flex flex-wrap gap-1">
+                                                                    {(apt.payments || []).length > 0 ? (
+                                                                        (apt.payments || []).map((p, i) => (
+                                                                            <span key={i} className="text-[10px] bg-white text-gray-600 px-3 py-2 rounded-xl border border-gray-100 font-bold flex flex-col shadow-sm">
+                                                                                <span className="text-gray-400 uppercase text-[8px] mb-0.5">{(() => {
+                                                                                    const parts = (p.date || '').split('-');
+                                                                                    return parts.length === 3 ? `${parts[2]}-${parts[1]}-${parts[0]}` : p.date;
+                                                                                })()} • {p.method === 'cash' ? 'Efectivo' : p.method === 'transfer' ? 'Transferencia' : p.method === 'debit' ? 'Débito' : p.method === 'credit' ? 'Crédito' : p.method}</span>
+                                                                                <span className="text-gray-900">{p.label}: ${formatArgentineCurrency(p.amount)}</span>
+                                                                            </span>
+                                                                        ))
+                                                                    ) : (
+                                                                        <span className="text-[8px] text-gray-400 italic">No hay pagos registrados</span>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        )}
+
                                                         {apt.notes && (
-                                                            <span className="text-[11px] text-gray-400 italic block max-w-[200px] leading-tight">
-                                                                {apt.notes}
-                                                            </span>
+                                                            <div className="mt-2 text-[10px] text-gray-500 bg-white p-2 rounded-xl border border-gray-50 italic leading-tight">
+                                                                "{apt.notes}"
+                                                            </div>
                                                         )}
                                                     </div>
-                                                </div>
-                                            ))}
+                                                );
+                                            })}
                                         </div>
                                     ) : (
                                         <div className="bg-gray-50 rounded-2xl p-8 text-center border-2 border-dashed border-gray-200">
@@ -458,6 +553,31 @@ export default function AgendaPage() {
                     setSearchTerm('');
                     loadRegisteredClients();
                 }}
+            />
+
+            {selectedAppointment && (
+                <AppointmentModal
+                    isOpen={isEditModalOpen}
+                    onClose={() => {
+                        setIsEditModalOpen(false);
+                        setSelectedAppointment(null);
+                    }}
+                    appointment={selectedAppointment}
+                    date={selectedAppointment.date}
+                    professionals={professionals}
+                    existingAppointments={[]} // No validamos superposición aquí por simplicidad y porque es edición
+                />
+            )}
+
+            <DeleteConfirmDialog
+                isOpen={isDeleteDialogOpen}
+                onClose={() => setIsDeleteDialogOpen(false)}
+                onConfirm={handleConfirmDelete}
+                title="Eliminar Turno"
+                description="¿Estás seguro de que deseas eliminar este turno? Esta acción no se puede deshacer."
+                itemName={selectedAppointment?.treatment}
+                itemDetail={`${selectedAppointment?.date} • ${selectedAppointment?.time}`}
+                loading={isDeleting}
             />
         </div>
     );

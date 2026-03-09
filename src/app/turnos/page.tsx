@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { AppointmentTable } from '@/components/appointments/AppointmentTable';
 import { AppointmentModal } from '@/components/appointments/AppointmentModal';
+import { AppointmentDetailModal } from '@/components/appointments/AppointmentDetailModal';
 import { DeleteConfirmDialog } from '@/components/appointments/DeleteConfirmDialog';
 import { DatePicker } from '@/components/appointments/DatePicker';
 import { AppointmentSearch } from '@/components/appointments/AppointmentSearch';
@@ -37,6 +38,7 @@ function TurnosContent() {
     }, [user, profile, authLoading, router]);
     const [mounted, setMounted] = useState(false);
     const [modalOpen, setModalOpen] = useState(false);
+    const [detailModalOpen, setDetailModalOpen] = useState(false);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
     const [defaultTime, setDefaultTime] = useState<string | undefined>();
@@ -94,7 +96,7 @@ function TurnosContent() {
     const handleSearchSelect = (appointment: Appointment) => {
         setSelectedDate(appointment.date);
         setIsSearchOpen(false);
-        handleEditClick(appointment); // Open the modal directly
+        handleDetailClick(appointment); // Abrir el detalle directamente
         toast.info(`Cargando turno de ${appointment.clientName}`);
     };
 
@@ -110,6 +112,12 @@ function TurnosContent() {
         setDefaultTime(undefined);
         setDefaultProfessionalId(undefined);
         setModalOpen(true);
+        setDetailModalOpen(false); // Cerrar detalle si estaba abierto
+    };
+
+    const handleDetailClick = (appointment: Appointment) => {
+        setSelectedAppointment(appointment);
+        setDetailModalOpen(true);
     };
 
     const handleDeleteClick = (appointment: Appointment) => {
@@ -136,6 +144,7 @@ function TurnosContent() {
 
     const handleModalClose = () => {
         setModalOpen(false);
+        setDetailModalOpen(false);
         setSelectedAppointment(null);
         setDefaultTime(undefined);
         setDefaultProfessionalId(undefined);
@@ -255,6 +264,7 @@ function TurnosContent() {
                                         onCreateClick={handleCreateClick}
                                         onEditClick={handleEditClick}
                                         onDeleteClick={handleDeleteClick}
+                                        onDetailClick={handleDetailClick}
                                     />
                                 </>
                             ))}
@@ -298,6 +308,15 @@ function TurnosContent() {
                 defaultTime={defaultTime}
                 defaultProfessionalId={defaultProfessionalId}
                 date={selectedDate}
+            />
+
+            <AppointmentDetailModal
+                isOpen={detailModalOpen}
+                onClose={() => setDetailModalOpen(false)}
+                appointment={selectedAppointment}
+                professionals={professionals}
+                onEdit={handleEditClick}
+                onDelete={handleDeleteClick}
             />
 
             <DeleteConfirmDialog

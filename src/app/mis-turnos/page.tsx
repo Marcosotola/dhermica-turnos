@@ -9,7 +9,9 @@ import {
     DollarSign,
     ClipboardList,
     ChevronLeft,
-    Loader2
+    Loader2,
+    CheckCircle2,
+    XCircle
 } from 'lucide-react';
 import Link from 'next/link';
 import { Appointment } from '@/lib/types/appointment';
@@ -85,50 +87,131 @@ export default function MisTurnosPage() {
                         </div>
                     ) : appointments.length > 0 ? (
                         <div className="space-y-4">
-                            {appointments.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((apt) => (
-                                <div key={apt.id} className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:border-[#34baab]/30 transition-all group">
-                                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                                        <div className="flex items-start gap-4">
-                                            <div className="w-12 h-12 bg-gray-50 rounded-2xl flex items-center justify-center shadow-sm group-hover:bg-[#34baab]/10 transition-colors">
-                                                <CalendarCheck className="w-6 h-6 text-[#34baab]" />
-                                            </div>
-                                            <div>
-                                                <h3 className="text-xl font-black text-gray-900 mb-1">{apt.treatment}</h3>
-                                                <div className="flex flex-wrap gap-4 text-sm font-medium text-gray-500">
-                                                    <span className="flex items-center gap-1.5 bg-gray-50 px-3 py-1 rounded-lg">
-                                                        <Clock className="w-4 h-4 text-[#34baab]" /> {(() => {
-                                                            const [year, month, day] = apt.date.split('-');
-                                                            return `${day}/${month}/${year}`;
-                                                        })()} - {apt.time}hs
-                                                    </span>
-                                                    <span className="flex items-center gap-1.5 bg-gray-50 px-3 py-1 rounded-lg">
-                                                        <ClipboardList className="w-4 h-4 text-[#34baab]" /> {apt.duration} {apt.duration === 1 ? 'hora' : 'horas'}
-                                                    </span>
+                            {appointments
+                                .sort((a, b) => {
+                                    const dateA = a.date || '';
+                                    const dateB = b.date || '';
+                                    return dateB.localeCompare(dateA); // Lexicographical sort for YYYY-MM-DD
+                                })
+                                .map((apt) => (
+                                    <div key={apt.id} className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:border-[#34baab]/30 transition-all group relative overflow-hidden">
+                                        <div className="absolute top-0 right-0 w-24 h-24 bg-[#34baab]/5 rounded-full -mr-12 -mt-12" />
+                                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                                            <div className="flex items-start gap-4">
+                                                <div className="w-12 h-12 bg-gray-50 rounded-2xl flex items-center justify-center shadow-sm group-hover:bg-[#34baab]/10 transition-colors">
+                                                    <CalendarCheck className="w-6 h-6 text-[#34baab]" />
+                                                </div>
+                                                <div>
+                                                    <h3 className="text-xl font-black text-gray-900 mb-1">{apt.treatment}</h3>
+                                                    <div className="flex flex-wrap gap-4 text-sm font-medium text-gray-500">
+                                                        <span className="flex items-center gap-1.5 bg-gray-50 px-3 py-1 rounded-lg">
+                                                            <Clock className="w-4 h-4 text-[#34baab]" /> {(() => {
+                                                                const parts = apt.date.split('-');
+                                                                if (parts.length === 3) {
+                                                                    const [year, month, day] = parts;
+                                                                    return `${day}-${month}-${year}`;
+                                                                }
+                                                                return apt.date;
+                                                            })()} - {apt.time}hs
+                                                        </span>
+                                                        <span className="flex items-center gap-1.5 bg-gray-50 px-3 py-1 rounded-lg">
+                                                            <ClipboardList className="w-4 h-4 text-[#34baab]" /> {apt.duration} {apt.duration === 1 ? 'hora' : 'horas'}
+                                                        </span>
+                                                    </div>
                                                 </div>
                                             </div>
+
+                                            <div className="flex flex-row md:flex-col items-center md:items-end justify-between md:justify-center gap-4 border-t md:border-t-0 pt-4 md:pt-0">
+                                                <div className="flex items-center gap-2 bg-[#34baab]/10 px-4 py-2 rounded-2xl border border-[#34baab]/20">
+                                                    <DollarSign className="w-5 h-5 text-[#34baab]" />
+                                                    <span className="text-xl font-black text-[#34baab]">$ {formatArgentineCurrency(apt.price || 0)}</span>
+                                                </div>
+                                                {(() => {
+                                                    const totalPaid = (apt.payments || []).reduce((sum, p) => sum + p.amount, 0);
+                                                    const balance = (apt.price || 0) - totalPaid;
+                                                    const status = apt.status || 'pending';
+
+                                                    return (
+                                                        <div className="flex flex-col items-end gap-1.5">
+                                                            {/* Status Badge */}
+                                                            {((status as any) === 'completed' || (status as any) === 'realizado') ? (
+                                                                <span className="px-2.5 py-1 bg-green-100 text-green-600 rounded-full text-[9px] uppercase font-black tracking-widest flex items-center gap-1 border border-green-200">
+                                                                    <CheckCircle2 className="w-3 h-3" /> Realizado
+                                                                </span>
+                                                            ) : ((status as any) === 'cancelled' || (status as any) === 'cancelado') ? (
+                                                                <span className="px-2.5 py-1 bg-red-100 text-red-600 rounded-full text-[9px] uppercase font-black tracking-widest flex items-center gap-1 border border-red-200">
+                                                                    <XCircle className="w-3 h-3" /> Cancelado
+                                                                </span>
+                                                            ) : (
+                                                                <span className="px-2.5 py-1 bg-amber-100 text-amber-600 rounded-full text-[9px] uppercase font-black tracking-widest flex items-center gap-1 border border-amber-200">
+                                                                    <Clock className="w-3 h-3" /> Pendiente
+                                                                </span>
+                                                            )}
+
+                                                            {/* Balance / Fully Paid Info */}
+                                                            {(apt.payments || []).length > 0 && (
+                                                                <div className="mt-1 flex flex-col items-end w-full">
+                                                                    {balance > 0 ? (
+                                                                        <div className="flex flex-col items-end w-full">
+                                                                            <span className="text-[12px] font-black text-red-500 uppercase tracking-tighter">
+                                                                                Saldo Pendiente: $ {formatArgentineCurrency(balance)}
+                                                                            </span>
+                                                                            {apt.payments && apt.payments.length > 0 && (
+                                                                                <div className="flex flex-col gap-1 mt-2 w-full">
+                                                                                    {apt.payments.map((p, i) => (
+                                                                                        <div key={i} className="text-[10px] bg-gray-50 text-gray-600 p-3 rounded-2xl border border-gray-100 flex flex-col shadow-sm">
+                                                                                            <span className="text-gray-400 uppercase text-[8px] mb-1">
+                                                                                                {(() => {
+                                                                                                    const parts = (p.date || '').split('-');
+                                                                                                    return parts.length === 3 ? `${parts[2]}-${parts[1]}-${parts[0]}` : p.date;
+                                                                                                })()} • {p.method === 'cash' ? 'Efectivo' : p.method === 'transfer' ? 'Transferencia' : p.method === 'debit' ? 'Débito' : p.method === 'credit' ? 'Crédito' : p.method}
+                                                                                            </span>
+                                                                                            <span className="font-bold text-gray-900">{p.label}: $ {formatArgentineCurrency(p.amount)}</span>
+                                                                                        </div>
+                                                                                    ))}
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                    ) : (
+                                                                        <div className="flex flex-col items-end w-full">
+                                                                            <span className="px-2.5 py-1 bg-[#34baab]/10 text-[#34baab] rounded-full text-[9px] uppercase font-black tracking-widest flex items-center gap-1 border border-[#34baab]/20">
+                                                                                Totalmente Saldado
+                                                                            </span>
+                                                                            {apt.payments && apt.payments.length > 0 && (
+                                                                                <div className="flex flex-col gap-1 mt-2 w-full">
+                                                                                    {apt.payments.map((p, i) => (
+                                                                                        <div key={i} className="text-[10px] bg-gray-50 text-gray-600 p-3 rounded-2xl border border-gray-100 flex flex-col shadow-sm">
+                                                                                            <span className="text-gray-400 uppercase text-[8px] mb-1">
+                                                                                                {(() => {
+                                                                                                    const parts = (p.date || '').split('-');
+                                                                                                    return parts.length === 3 ? `${parts[2]}-${parts[1]}-${parts[0]}` : p.date;
+                                                                                                })()} • {p.method === 'cash' ? 'Efectivo' : p.method === 'transfer' ? 'Transferencia' : p.method === 'debit' ? 'Débito' : p.method === 'credit' ? 'Crédito' : p.method}
+                                                                                            </span>
+                                                                                            <span className="font-bold text-gray-900">{p.label}: $ {formatArgentineCurrency(p.amount)}</span>
+                                                                                        </div>
+                                                                                    ))}
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })()}
+                                            </div>
                                         </div>
 
-                                        <div className="flex flex-row md:flex-col items-center md:items-end justify-between md:justify-center gap-4 border-t md:border-t-0 pt-4 md:pt-0">
-                                            <div className="flex items-center gap-2 bg-green-50 px-4 py-2 rounded-2xl">
-                                                <DollarSign className="w-5 h-5 text-green-600" />
-                                                <span className="text-xl font-black text-green-700">{formatArgentineCurrency(apt.price || 0)}</span>
+                                        {apt.notes && (
+                                            <div className="mt-6 pt-6 border-t border-gray-50">
+                                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Observaciones</p>
+                                                <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 italic text-gray-600 text-sm">
+                                                    "{apt.notes}"
+                                                </div>
                                             </div>
-                                            <span className="px-3 py-1 bg-green-100 text-green-600 rounded-lg text-[10px] uppercase font-black tracking-widest h-fit">
-                                                Confirmado
-                                            </span>
-                                        </div>
+                                        )}
                                     </div>
-
-                                    {apt.notes && (
-                                        <div className="mt-6 pt-6 border-t border-gray-50">
-                                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Observaciones</p>
-                                            <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 italic text-gray-600 text-sm">
-                                                "{apt.notes}"
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            ))}
+                                ))}
                         </div>
                     ) : (
                         <div className="bg-white rounded-[40px] p-16 text-center border-2 border-dashed border-gray-200">

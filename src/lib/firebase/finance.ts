@@ -14,6 +14,7 @@ import { Professional } from '../types/professional';
 export interface FinanceOverview {
     totalIncome: number;
     totalServiceIncome: number;
+    totalPartialIncome: number;
     totalProductIncome: number;
     totalRentalIncome: number;
     totalAparatoIncome: number;
@@ -64,6 +65,7 @@ export async function getFinanceOverview(startDate: string, endDate: string): Pr
     const overview: FinanceOverview = {
         totalIncome: 0,
         totalServiceIncome: 0,
+        totalPartialIncome: 0,
         totalProductIncome: 0,
         totalRentalIncome: 0,
         totalAparatoIncome: 0,
@@ -130,14 +132,14 @@ export async function getFinanceOverview(startDate: string, endDate: string): Pr
     // Procesar Turnos
     appointments.forEach((apt: Appointment) => {
         const appointmentPrice = Number(apt.price) || 0;
-        if (appointmentPrice > 0) {
-            overview.totalIncome += appointmentPrice;
-            overview.totalServiceIncome += appointmentPrice;
-            if (apt.paymentMethod) {
-                overview.byMethod[apt.paymentMethod] = (overview.byMethod[apt.paymentMethod] || 0) + appointmentPrice;
-            }
+        const aptDate = apt.date; // formato YYYY-MM-DD
+        const isAptInRange = aptDate >= startDate && aptDate <= endDate;
 
-            // Mapear ID de profesional a UID para el desglose
+        // 1. Calcular COMISIONES (Solo si el turno está realizado)
+        // Se considera realizado si el status es 'completed' o 'realizado'
+        const isCompleted = (apt.status as any) === 'completed' || (apt.status as any) === 'realizado';
+
+        if (isAptInRange && appointmentPrice > 0 && isCompleted) {
             const targetUid = apt.professionalId ? (profIdToUid[apt.professionalId] || apt.professionalId) : null;
             if (targetUid && overview.byProfessional[targetUid]) {
                 const prof = professionals.find((p: Professional) => p.id === apt.professionalId);
@@ -145,11 +147,41 @@ export async function getFinanceOverview(startDate: string, endDate: string): Pr
                 profData.serviceIncome += appointmentPrice;
 
                 // Solo calcular comisión si el profesional NO tiene sesión de aparato ese día
-                const aptDate = apt.date; // formato YYYY-MM-DD
                 const hasAparato = aparatoDays.has(`${apt.professionalId}|${aptDate}`);
                 if (!hasAparato && prof?.serviceCommissionPercentage) {
                     profData.serviceCommission += (appointmentPrice * prof.serviceCommissionPercentage) / 100;
                 }
+            }
+        }
+
+        // 2. Calcular INGRESOS (Basado en la fecha de cada pago, incluso si está cancelado)
+        if (apt.payments && apt.payments.length > 0) {
+            apt.payments.forEach(p => {
+                if (p.date >= startDate && p.date <= endDate) {
+                    overview.totalIncome += p.amount;
+
+                    // Lógica refinada de categorización:
+                    // SOLO es "Servicio" si el turno está realizado Y la etiqueta es Pago/Saldo.
+                    // Todo lo demás (señas, abonos, pagos en turnos pendientes/cancelados) es "Pago Parcial".
+                    const isLabelService = p.label === 'Pago' || p.label === 'Saldo';
+
+                    if (isCompleted && isLabelService) {
+                        overview.totalServiceIncome += p.amount;
+                    } else {
+                        overview.totalPartialIncome += p.amount;
+                    }
+
+                    if (p.method) {
+                        overview.byMethod[p.method] = (overview.byMethod[p.method] || 0) + p.amount;
+                    }
+                }
+            });
+        } else if (isAptInRange && appointmentPrice > 0 && apt.isPaid) {
+            // Fallback para turnos legacy pagados sin desglose
+            overview.totalIncome += appointmentPrice;
+            overview.totalServiceIncome += appointmentPrice;
+            if (apt.paymentMethod) {
+                overview.byMethod[apt.paymentMethod] = (overview.byMethod[apt.paymentMethod] || 0) + appointmentPrice;
             }
         }
     });

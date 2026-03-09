@@ -6,7 +6,8 @@ import { Input } from '../ui/Input';
 import { CurrencyInput } from '../ui/CurrencyInput';
 import { Select } from '../ui/Select';
 import { Button } from '../ui/Button';
-import { Appointment, DURATION_OPTIONS } from '@/lib/types/appointment';
+import { Appointment, DURATION_OPTIONS, AppointmentStatus, Payment } from '@/lib/types/appointment';
+import { Plus, Trash2, CreditCard, CheckCircle2, Clock, XCircle, ChevronDown } from 'lucide-react';
 import { Professional } from '@/lib/types/professional';
 import { UserProfile } from '@/lib/types/user';
 import { getAllUsers } from '@/lib/firebase/users';
@@ -46,9 +47,16 @@ export function AppointmentModal({
         professionalId: defaultProfessionalId || '',
         notes: '',
         price: 0,
-        isPaid: false,
-        paymentMethod: 'cash' as 'cash' | 'transfer' | 'debit' | 'credit' | 'qr',
+        status: 'pending' as AppointmentStatus,
+        payments: [] as Payment[],
     });
+    const [newPayment, setNewPayment] = useState({
+        amount: 0,
+        method: 'cash' as Payment['method'],
+        label: 'Pago',
+        date: new Date().toISOString().split('T')[0] // Default to today
+    });
+    const [showPaymentForm, setShowPaymentForm] = useState(false);
     const [loading, setLoading] = useState(false);
     const [clients, setClients] = useState<UserProfile[]>([]);
     const [clientsLoading, setClientsLoading] = useState(false);
@@ -103,8 +111,8 @@ export function AppointmentModal({
                 professionalId: appointment.professionalId || '',
                 notes: appointment.notes || '',
                 price: appointment.price || 0,
-                isPaid: appointment.isPaid || false,
-                paymentMethod: appointment.paymentMethod || 'cash',
+                status: appointment.status || 'pending',
+                payments: appointment.payments || [],
             });
             if (appointment.clientId) {
                 setClientMode('registered');
@@ -121,14 +129,21 @@ export function AppointmentModal({
                 professionalId: defaultProfessionalId || (professionals.length > 0 ? professionals[0].id : ''),
                 notes: '',
                 price: 0,
-                isPaid: false,
-                paymentMethod: 'cash',
+                status: 'pending',
+                payments: [],
             });
             setClientMode('registered');
         }
         setErrors([]);
         setSearchQuery('');
         setShowSuggestions(false);
+        setNewPayment({
+            amount: 0,
+            method: 'cash',
+            label: 'Pago',
+            date: new Date().toISOString().split('T')[0]
+        });
+        setShowPaymentForm(false);
     }, [appointment, defaultTime, defaultProfessionalId, isOpen]);
 
     const handleClientSearch = (value: string) => {
@@ -146,16 +161,75 @@ export function AppointmentModal({
         setShowSuggestions(false);
     };
 
+    const handleAddPayment = () => {
+        if (newPayment.amount <= 0) {
+            toast.error('El monto debe ser mayor a 0');
+            return;
+        }
+
+        const payment: Payment = {
+            id: Math.random().toString(36).substring(2, 9),
+            amount: newPayment.amount,
+            method: newPayment.method,
+            label: newPayment.label,
+            date: newPayment.date,
+            createdAt: new Date().toISOString() as any // Use string for better serialization in arrays
+        };
+
+        setFormData(prev => ({
+            ...prev,
+            payments: [...prev.payments, payment]
+        }));
+        setNewPayment({
+            amount: 0,
+            method: 'cash',
+            label: 'Pago',
+            date: new Date().toISOString().split('T')[0]
+        });
+        setShowPaymentForm(false);
+        toast.success('Pago registrado');
+    };
+
+    const removePayment = (id: string) => {
+        setFormData(prev => ({
+            ...prev,
+            payments: prev.payments.filter(p => p.id !== id)
+        }));
+    };
+
+    const totalPaid = formData.payments.reduce((sum, p) => sum + p.amount, 0);
+    const balance = (formData.price || 0) - totalPaid;
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setErrors([]);
 
+        // Si hay un pago en el formulario que no se ha "agregado" con el (+), lo agregamos automáticamente
+        let finalPayments = [...formData.payments];
+        if (showPaymentForm && newPayment.amount > 0) {
+            const autoPayment: Payment = {
+                id: Math.random().toString(36).substring(2, 9),
+                amount: newPayment.amount,
+                method: newPayment.method,
+                label: newPayment.label,
+                date: newPayment.date,
+                createdAt: new Date().toISOString() as any
+            };
+            finalPayments.push(autoPayment);
+        }
+
         const appointmentData = {
-            ...formData,
-            clientId: clientMode === 'registered' ? formData.clientId : undefined,
             clientName: capitalizeName(formData.clientName),
+            clientId: clientMode === 'registered' ? formData.clientId : undefined,
+            treatment: formData.treatment,
             date,
+            time: formData.time,
+            duration: formData.duration,
             professionalId: formData.professionalId || undefined,
+            notes: formData.notes,
+            price: formData.price,
+            status: formData.status,
+            payments: finalPayments,
         };
 
         // Validar datos
@@ -202,7 +276,7 @@ export function AppointmentModal({
         setLoading(true);
 
         try {
-            // Filtrar campos undefined para Firebase
+            // Eliminar campos undefined manualmente para ser precisos
             const cleanData = Object.fromEntries(
                 Object.entries(appointmentData).filter(([_, v]) => v !== undefined)
             );
@@ -211,8 +285,7 @@ export function AppointmentModal({
                 await updateAppointment(appointment.id, cleanData);
                 toast.success('Turno actualizado exitosamente');
             } else {
-                const finalData = { ...cleanData };
-                await createAppointment(finalData as Omit<Appointment, 'id' | 'createdAt' | 'updatedAt'>);
+                await createAppointment(cleanData as any);
                 toast.success('Turno creado exitosamente');
             }
             onClose();
@@ -413,47 +486,159 @@ export function AppointmentModal({
                     options={professionalOptions}
                 />
 
-                <CurrencyInput
-                    label="Precio (opcional)"
-                    value={formData.price}
-                    onChange={(val) => setFormData({ ...formData, price: val })}
-                    placeholder="0,00"
-                />
+                {/* Status and Price Section */}
+                <div className="space-y-6 border-t border-gray-100 pt-4">
+                    <div className="space-y-3">
+                        <label className="block text-sm font-bold text-gray-700 uppercase tracking-widest text-[10px]">Estado del Turno</label>
+                        <div className="grid grid-cols-3 gap-2">
+                            {[
+                                { id: 'pending', label: 'Pendiente', icon: Clock, color: 'text-orange-600', bg: 'bg-orange-50', border: 'border-orange-200' },
+                                { id: 'completed', label: 'Realizado', icon: CheckCircle2, color: 'text-green-600', bg: 'bg-green-50', border: 'border-green-200' },
+                                { id: 'cancelled', label: 'Cancelado', icon: XCircle, color: 'text-red-600', bg: 'bg-red-50', border: 'border-red-200' }
+                            ].map((s) => (
+                                <button
+                                    key={s.id}
+                                    type="button"
+                                    onClick={() => setFormData({ ...formData, status: s.id as AppointmentStatus })}
+                                    className={`flex flex-col items-center justify-center p-3 rounded-2xl border-2 transition-all min-h-[70px] ${formData.status === s.id
+                                        ? `${s.bg} ${s.border} ${s.color} shadow-sm scale-105`
+                                        : 'bg-white border-gray-100 text-gray-400 hover:border-gray-200'
+                                        }`}
+                                >
+                                    <s.icon className={`w-5 h-5 mb-1.5 ${formData.status === s.id ? s.color : 'text-gray-300'}`} />
+                                    <span className="text-[9px] font-black uppercase tracking-tight text-center leading-tight">{s.label}</span>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
 
-                <div className="bg-gray-50 p-4 rounded-xl space-y-4">
+                    <CurrencyInput
+                        label="Precio Total del Servicio"
+                        value={formData.price}
+                        onChange={(val) => setFormData({ ...formData, price: val })}
+                        placeholder="0,00"
+                    />
+                </div>
+
+                <div className="bg-gray-50 rounded-2xl p-4 space-y-4 border border-gray-100">
                     <div className="flex items-center justify-between">
-                        <label className="text-sm font-bold text-gray-700 flex items-center gap-2">
-                            <input
-                                type="checkbox"
-                                checked={formData.isPaid}
-                                onChange={(e) => setFormData({ ...formData, isPaid: e.target.checked })}
-                                className="w-5 h-5 rounded border-gray-300 text-[#34baab] focus:ring-[#34baab]"
-                            />
-                            ¿Está pagado?
-                        </label>
-                        {formData.isPaid && (
-                            <span className="text-[10px] font-black uppercase tracking-widest bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
-                                Pago Efectuado
+                        <div className="flex items-center gap-2">
+                            <CreditCard className="w-5 h-5 text-gray-400" />
+                            <h3 className="text-sm font-bold text-gray-700">Gestión de Pagos</h3>
+                        </div>
+                        {balance > 0 && (
+                            <span className="text-[10px] font-black uppercase tracking-widest bg-orange-100 text-orange-700 px-2 py-1 rounded-full animate-pulse">
+                                Saldo: $ {balance.toLocaleString('es-AR')}
+                            </span>
+                        )}
+                        {balance <= 0 && formData.price > 0 && (
+                            <span className="text-[10px] font-black uppercase tracking-widest bg-green-100 text-green-700 px-2 py-1 rounded-full">
+                                Saldado
                             </span>
                         )}
                     </div>
 
-                    {formData.isPaid && (
-                        <div className="animate-in fade-in slide-in-from-top-2 duration-300">
-                            <Select
-                                label="Método de Pago"
-                                value={formData.paymentMethod}
-                                onChange={(e) => setFormData({ ...formData, paymentMethod: e.target.value as any })}
-                                options={[
-                                    { value: 'cash', label: 'Efectivo' },
-                                    { value: 'transfer', label: 'Transferencia' },
-                                    { value: 'debit', label: 'Débito' },
-                                    { value: 'credit', label: 'Crédito' },
-                                    { value: 'qr', label: 'QR' },
-                                ]}
-                                required={formData.isPaid}
-                            />
+                    {/* Payment List */}
+                    <div className="space-y-2">
+                        {formData.payments.map((p) => (
+                            <div key={p.id} className="bg-white p-3 rounded-xl border border-gray-100 flex items-center justify-between shadow-sm group">
+                                <div className="flex flex-col">
+                                    <span className="text-xs font-black text-gray-900 uppercase tracking-tighter">{p.label}</span>
+                                    <span className="text-[10px] text-gray-500">
+                                        {p.method === 'cash' ? 'EFECTIVO' : p.method === 'transfer' ? 'TRANSFERENCIA' : p.method === 'debit' ? 'DÉBITO' : p.method === 'credit' ? 'CRÉDITO' : p.method.toUpperCase()} • {(() => {
+                                            const parts = p.date.split('-');
+                                            return parts.length === 3 ? `${parts[2]}-${parts[1]}-${parts[0]}` : p.date;
+                                        })()}
+                                    </span>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <span className="text-sm font-bold text-gray-900">$ {p.amount.toLocaleString('es-AR')}</span>
+                                    <button
+                                        type="button"
+                                        onClick={() => removePayment(p.id)}
+                                        className="text-gray-300 hover:text-red-500 transition-colors"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    {showPaymentForm ? (
+                        <div className="bg-white p-4 rounded-xl border-2 border-[#34baab]/20 space-y-3 animate-in fade-in slide-in-from-top-2">
+                            <div className="grid grid-cols-2 gap-3">
+                                <CurrencyInput
+                                    label="Monto"
+                                    value={newPayment.amount}
+                                    onChange={(val) => setNewPayment({ ...newPayment, amount: val })}
+                                />
+                                <div className="space-y-1">
+                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">Fecha</label>
+                                    <input
+                                        type="date"
+                                        value={newPayment.date}
+                                        onChange={(e) => setNewPayment({ ...newPayment, date: e.target.value })}
+                                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#34baab]"
+                                    />
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <Select
+                                    label="Método"
+                                    value={newPayment.method}
+                                    onChange={(e) => setNewPayment({ ...newPayment, method: e.target.value as any })}
+                                    options={[
+                                        { value: 'cash', label: 'Efectivo' },
+                                        { value: 'transfer', label: 'Transferencia' },
+                                        { value: 'debit', label: 'Débito' },
+                                        { value: 'credit', label: 'Crédito' },
+                                        { value: 'qr', label: 'QR' },
+                                    ]}
+                                />
+                                <div className="space-y-1">
+                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">Etiqueta</label>
+                                    <select
+                                        value={newPayment.label}
+                                        onChange={(e) => setNewPayment({ ...newPayment, label: e.target.value })}
+                                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#34baab]"
+                                    >
+                                        <option value="Pago">Pago</option>
+                                        <option value="Seña">Seña</option>
+                                        <option value="Saldo">Saldo</option>
+                                        <option value="Abono">Abono</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div className="flex gap-2 pt-2 border-t border-gray-100">
+                                <Button
+                                    type="button"
+                                    onClick={handleAddPayment}
+                                    className="flex-1 bg-[#34baab] hover:bg-[#2da699] text-white text-[10px] font-black uppercase tracking-widest"
+                                >
+                                    Confirmar Pago
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="secondary"
+                                    onClick={() => setShowPaymentForm(false)}
+                                    className="px-4"
+                                >
+                                    Cancelar
+                                </Button>
+                            </div>
                         </div>
+                    ) : (
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setNewPayment({ ...newPayment, amount: balance > 0 ? balance : 0 });
+                                setShowPaymentForm(true);
+                            }}
+                            className="w-full py-4 border-2 border-dashed border-gray-200 rounded-2xl text-gray-400 hover:border-[#34baab] hover:text-[#34baab] hover:bg-[#34baab]/5 transition-all text-[10px] font-black uppercase tracking-[0.2em] flex items-center justify-center gap-2"
+                        >
+                            <Plus className="w-5 h-5" /> Registrar Pago
+                        </button>
                     )}
                 </div>
 
