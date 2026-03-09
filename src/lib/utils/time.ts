@@ -56,3 +56,13 @@ export function formatDate(date: Date): string {
 export function getTodayDate(): string {
     return formatDate(new Date());
 }
+
+/**
+ * Formatea un número como moneda argentina
+ */
+export function formatArgentineCurrency(amount: number): string {
+    return new Intl.NumberFormat('es-AR', {
+        style: 'currency',
+        currency: 'ARS',
+    }).format(amount);
+}

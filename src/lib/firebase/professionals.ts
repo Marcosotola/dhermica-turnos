@@ -56,6 +56,23 @@ export async function deleteProfessional(id: string): Promise<void> {
 }
 
 /**
+ * Obtiene un profesional por su ID
+ */
+export async function getProfessionalById(id: string): Promise<Professional | null> {
+    const docRef = doc(db, PROFESSIONALS_COLLECTION, id);
+    const docSnap = await getDocs(query(collection(db, PROFESSIONALS_COLLECTION), where('__name__', '==', id)));
+
+    if (docSnap.empty) return null;
+
+    const docData = docSnap.docs[0].data();
+    return {
+        id: docSnap.docs[0].id,
+        ...docData,
+        createdAt: docData.createdAt?.toDate() || new Date(),
+    } as Professional;
+}
+
+/**
  * Obtiene todos los profesionales ordenados por order
  */
 export async function getProfessionals(): Promise<Professional[]> {

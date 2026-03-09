@@ -9,6 +9,23 @@ export interface Professional {
     legacyCollectionName?: string; // Nombre de la colección antigua (ej: turnosLuciana)
     serviceCommissionPercentage?: number;
     productCommissionPercentage?: number;
+    services?: string[]; // IDs o nombres de tratamientos que realiza
+    workingHours?: {
+        [key: string]: { // key is day index 0-6 or name
+            start: string;
+            end: string;
+            lunchStart?: string;
+            lunchEnd?: string;
+            enabled: boolean;
+        }
+    };
+    exceptions?: {
+        date: string; // YYYY-MM-DD
+        type: 'absence' | 'extra';
+        start?: string;
+        end?: string;
+        note?: string;
+    }[];
 }
 
 export const DEFAULT_PROFESSIONALS: Omit<Professional, 'id' | 'createdAt'>[] = [

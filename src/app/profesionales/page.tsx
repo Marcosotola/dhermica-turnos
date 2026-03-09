@@ -204,12 +204,15 @@ export default function ProfesionalesPage() {
                                     <tr key={prof.id} className="border-b hover:bg-gray-50 transition-colors">
                                         <td className="px-6 py-4 text-gray-600 font-medium">#{prof.order}</td>
                                         <td className="px-6 py-4">
-                                            <div className="flex items-center gap-3">
+                                            <div
+                                                className="flex items-center gap-3 cursor-pointer group/name"
+                                                onClick={() => router.push(`/profesionales/${prof.id}`)}
+                                            >
                                                 <div
-                                                    className="w-4 h-4 rounded-full shadow-sm"
+                                                    className="w-4 h-4 rounded-full shadow-sm group-hover/name:scale-110 transition-transform"
                                                     style={{ backgroundColor: prof.color }}
                                                 />
-                                                <span className="font-semibold text-gray-900">{prof.name}</span>
+                                                <span className="font-semibold text-gray-900 group-hover/name:text-[#34baab] transition-colors">{prof.name}</span>
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 text-sm text-gray-500 font-mono">
