@@ -7,12 +7,12 @@ import { CurrencyInput } from '../ui/CurrencyInput';
 import { Select } from '../ui/Select';
 import { Button } from '../ui/Button';
 import { Appointment, DURATION_OPTIONS, AppointmentStatus, Payment } from '@/lib/types/appointment';
-import { Plus, Trash2, CreditCard, CheckCircle2, Clock, XCircle, ChevronDown } from 'lucide-react';
+import { Plus, Trash2, CreditCard, CheckCircle2, Clock, XCircle, ChevronDown, Save } from 'lucide-react';
 import { Professional } from '@/lib/types/professional';
 import { UserProfile } from '@/lib/types/user';
 import { getAllUsers } from '@/lib/firebase/users';
 import { capitalizeName } from '@/lib/utils/time';
-import { Search, UserPlus, User } from 'lucide-react';
+import { Search, UserPlus, User, BadgeDollarSign } from 'lucide-react';
 import { validateAppointment, checkOverlap } from '@/lib/utils/validation';
 import { createAppointment, updateAppointment } from '@/lib/firebase/appointments';
 import { toast } from 'sonner';
@@ -51,7 +51,9 @@ export function AppointmentModal({
         price: 0,
         status: 'pending' as AppointmentStatus,
         payments: [] as Payment[],
+        commissionPercentageOverride: undefined as number | undefined,
     });
+    const [useCustomCommission, setUseCustomCommission] = useState(false);
     const [newPayment, setNewPayment] = useState({
         amount: 0,
         method: 'cash' as Payment['method'],
@@ -117,7 +119,9 @@ export function AppointmentModal({
                 price: appointment.price || 0,
                 status: appointment.status || 'pending',
                 payments: appointment.payments || [],
+                commissionPercentageOverride: appointment.commissionPercentageOverride,
             });
+            setUseCustomCommission(appointment.commissionPercentageOverride !== undefined);
             if (appointment.clientId) {
                 setClientMode('registered');
             } else {
@@ -137,8 +141,10 @@ export function AppointmentModal({
                 price: 0,
                 status: 'pending',
                 payments: [],
+                commissionPercentageOverride: undefined,
             });
             setClientMode('registered');
+            setUseCustomCommission(false);
         }
         setErrors([]);
         setSearchQuery('');
@@ -244,6 +250,7 @@ export function AppointmentModal({
             price: formData.price,
             status: formData.status,
             payments: finalPayments,
+            commissionPercentageOverride: useCustomCommission ? formData.commissionPercentageOverride : undefined,
         };
 
         // Validar datos
@@ -320,6 +327,44 @@ export function AppointmentModal({
             onClose={onClose}
             title={appointment ? 'Editar Turno' : 'Nuevo Turno'}
             size="md"
+            headerAction={
+                <Button
+                    type="submit"
+                    onClick={(e) => {
+                        e.preventDefault();
+                        handleSubmit(e as any);
+                    }}
+                    disabled={loading}
+                    className="bg-[#34baab] hover:bg-[#2da699] text-white p-2 rounded-xl md:hidden shadow-lg"
+                    title="Guardar"
+                >
+                    <Save className="w-6 h-6" />
+                </Button>
+            }
+            footer={
+                <div className="flex gap-3 w-full">
+                    <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={onClose}
+                        disabled={loading}
+                        className="flex-1 py-4 font-bold border-gray-200"
+                    >
+                        Cancelar
+                    </Button>
+                    <Button
+                        type="submit"
+                        onClick={(e) => {
+                            e.preventDefault();
+                            handleSubmit(e as any);
+                        }}
+                        disabled={loading}
+                        className="flex-1 py-4 bg-[#34baab] hover:bg-[#2da699] text-white font-black uppercase tracking-widest shadow-lg shadow-[#34baab]/20"
+                    >
+                        {loading ? 'Guardando...' : appointment ? 'Actualizar' : 'Crear Turno'}
+                    </Button>
+                </div>
+            }
         >
             <form onSubmit={handleSubmit} className="space-y-4">
                 {errors.length > 0 && (
@@ -667,6 +712,56 @@ export function AppointmentModal({
                     )}
                 </div>
 
+                {/* Commission Override Section */}
+                <div className="bg-blue-50/50 p-4 rounded-2xl border border-blue-100/50 space-y-3">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <BadgeDollarSign className="w-5 h-5 text-blue-500" />
+                            <h3 className="text-sm font-bold text-gray-700">Comisión Especial</h3>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                const newValue = !useCustomCommission;
+                                setUseCustomCommission(newValue);
+                                if (newValue && formData.commissionPercentageOverride === undefined) {
+                                    setFormData({ ...formData, commissionPercentageOverride: 100 });
+                                }
+                            }}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${useCustomCommission ? 'bg-blue-600' : 'bg-gray-200'
+                                }`}
+                        >
+                            <span
+                                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${useCustomCommission ? 'translate-x-6' : 'translate-x-1'
+                                    }`}
+                            />
+                        </button>
+                    </div>
+
+                    {useCustomCommission && (
+                        <div className="animate-in fade-in slide-in-from-top-2">
+                            <div className="flex items-center gap-4">
+                                <div className="flex-1">
+                                    <Input
+                                        label="Porcentaje de Comisión (%)"
+                                        type="number"
+                                        min="0"
+                                        max="100"
+                                        value={formData.commissionPercentageOverride || 0}
+                                        onChange={(e) => setFormData({ ...formData, commissionPercentageOverride: Number(e.target.value) })}
+                                        placeholder="Ej: 100"
+                                    />
+                                </div>
+                                <div className="pt-6">
+                                    <span className="text-xs text-gray-400 font-bold uppercase italic">
+                                        * Solo para este turno
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                         Notas (opcional)
@@ -681,20 +776,6 @@ export function AppointmentModal({
 
                 </div>
 
-                <div className="flex gap-3 pt-4">
-                    <Button
-                        type="button"
-                        variant="secondary"
-                        onClick={onClose}
-                        disabled={loading}
-                        className="flex-1"
-                    >
-                        Cancelar
-                    </Button>
-                    <Button type="submit" disabled={loading} className="flex-1">
-                        {loading ? 'Guardando...' : appointment ? 'Actualizar' : 'Crear Turno'}
-                    </Button>
-                </div>
             </form>
         </Modal>
     );

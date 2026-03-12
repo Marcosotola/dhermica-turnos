@@ -173,9 +173,12 @@ function AppointmentCell({
 
     return (
         <div
-            className="p-2 pb-2.5 px-1.5 rounded-lg border-l-4 bg-gradient-to-r from-white to-gray-50/30 relative group transition-all hover:shadow-md border border-gray-100/50 cursor-pointer active:scale-[0.98]"
+            className={`p-2 pb-2.5 px-1.5 rounded-lg border-l-4 bg-gradient-to-r from-white to-gray-50/30 relative group transition-all hover:shadow-md border border-gray-100/50 cursor-pointer active:scale-[0.98] ${menuOpen ? 'z-40 shadow-lg ring-2 ring-[#34baab]/20' : 'z-10'
+                }`}
             style={{ borderLeftColor: professionalColor || '#6B7280' }}
-            onClick={onDetail}
+            onClick={(e) => {
+                if (!menuOpen) onDetail();
+            }}
         >
             <div className="flex items-center justify-start gap-1">
                 <div className="min-w-0 flex-1">
@@ -253,14 +256,17 @@ function AppointmentCell({
 
                     {menuOpen && (
                         <>
-                            {/* Backdrop to close menu */}
+                            {/* Backdrop to close menu - Using a higher z than other table elements */}
                             <div
-                                className="fixed inset-0 z-20"
-                                onClick={() => setMenuOpen(false)}
+                                className="fixed inset-0 z-30 bg-black/5"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setMenuOpen(false);
+                                }}
                             />
 
-                            {/* Dropdown Menu */}
-                            <div className={`absolute right-0 ${isLastRows ? 'bottom-full mb-1' : 'top-full mt-1'} w-44 bg-white rounded-xl shadow-xl border border-gray-100 z-30 py-2 overflow-hidden animate-in fade-in zoom-in duration-150`}>
+                            {/* Dropdown Menu - z-40 to be above backdrop */}
+                            <div className={`absolute right-0 ${isLastRows ? 'bottom-full mb-1' : 'top-full mt-1'} w-44 bg-white rounded-xl shadow-2xl border border-gray-100 z-40 py-2 overflow-hidden animate-in fade-in zoom-in duration-150`}>
                                 <div className="px-3 py-1 mb-1 border-b border-gray-50 flex items-center justify-between">
                                     <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Acciones</span>
                                     <button onClick={() => setMenuOpen(false)} className="p-1 hover:bg-gray-100 rounded-full">

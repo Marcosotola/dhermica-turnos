@@ -66,6 +66,29 @@ export function AppointmentDetailModal({
             onClose={onClose}
             title="Detalles del Turno"
             size="md"
+            footer={
+                <div className="flex gap-3 w-full">
+                    <Button
+                        onClick={() => {
+                            onClose();
+                            onEdit(appointment);
+                        }}
+                        variant="secondary"
+                        className="flex-1 py-4 font-bold flex items-center justify-center gap-2 border-gray-200"
+                    >
+                        <Pencil className="w-5 h-5" /> Editar
+                    </Button>
+                    <Button
+                        onClick={() => {
+                            onClose();
+                            onDelete(appointment);
+                        }}
+                        className="flex-1 py-4 bg-red-500 hover:bg-red-600 font-bold flex items-center justify-center gap-2 text-white shadow-lg shadow-red-500/10"
+                    >
+                        <Trash2 className="w-5 h-5" /> Eliminar
+                    </Button>
+                </div>
+            }
         >
             <div className="space-y-6">
                 {/* Header Status */}
@@ -130,6 +153,24 @@ export function AppointmentDetailModal({
                         </div>
                         <p className="font-bold text-gray-900">{professional?.name || 'No asignado'}</p>
                     </div>
+
+                    {appointment.commissionPercentageOverride !== undefined && (
+                        <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100 md:col-span-2 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <BadgeDollarSign className="w-6 h-6 text-blue-500" />
+                                <div>
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-blue-400 leading-none mb-1">Comisión Especial</p>
+                                    <p className="font-black text-blue-600">Este turno paga el {appointment.commissionPercentageOverride}%</p>
+                                </div>
+                            </div>
+                            <div className="text-right">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-blue-400 leading-none mb-1">Monto para el Prof.</p>
+                                <p className="font-black text-blue-700 text-lg">
+                                    {formatCurrencyWithSymbol((appointment.price || 0) * (appointment.commissionPercentageOverride / 100))}
+                                </p>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Financial Details */}
@@ -180,28 +221,6 @@ export function AppointmentDetailModal({
                     </div>
                 )}
 
-                {/* Actions */}
-                <div className="flex gap-3 pt-4">
-                    <Button
-                        onClick={() => {
-                            onClose();
-                            onEdit(appointment);
-                        }}
-                        variant="secondary"
-                        className="flex-1 py-6 rounded-2xl font-bold flex items-center justify-center gap-2"
-                    >
-                        <Pencil className="w-5 h-5" /> Editar
-                    </Button>
-                    <Button
-                        onClick={() => {
-                            onClose();
-                            onDelete(appointment);
-                        }}
-                        className="flex-1 py-6 rounded-2xl bg-red-500 hover:bg-red-600 font-bold flex items-center justify-center gap-2"
-                    >
-                        <Trash2 className="w-5 h-5" /> Eliminar
-                    </Button>
-                </div>
             </div>
         </Modal>
     );

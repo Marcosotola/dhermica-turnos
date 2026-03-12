@@ -146,10 +146,16 @@ export async function getFinanceOverview(startDate: string, endDate: string): Pr
                 const profData = overview.byProfessional[targetUid];
                 profData.serviceIncome += appointmentPrice;
 
-                // Solo calcular comisión si el profesional NO tiene sesión de aparato ese día
+                // Calcular comisión: Prioridad 1: Override en el turno, Prioridad 2: Porcentaje del profesional
                 const hasAparato = aparatoDays.has(`${apt.professionalId}|${aptDate}`);
-                if (!hasAparato && prof?.serviceCommissionPercentage) {
-                    profData.serviceCommission += (appointmentPrice * prof.serviceCommissionPercentage) / 100;
+                if (!hasAparato) {
+                    const commissionPct = apt.commissionPercentageOverride !== undefined
+                        ? apt.commissionPercentageOverride
+                        : (prof?.serviceCommissionPercentage || 0);
+
+                    if (commissionPct > 0) {
+                        profData.serviceCommission += (appointmentPrice * commissionPct) / 100;
+                    }
                 }
             }
         }
