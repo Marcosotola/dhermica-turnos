@@ -24,7 +24,7 @@ export interface Appointment {
     price?: number; // Precio total del turno
     status: AppointmentStatus;
     payments: Payment[];
-    commissionPercentageOverride?: number; // Override for professional commission (e.g., 100 for total)
+    commissionPercentageOverride?: number | null; // Override for professional commission (e.g., 100 for total)
     createdAt: Date;
     updatedAt: Date;
     paymentMethod?: 'cash' | 'transfer' | 'debit' | 'credit' | 'qr'; // Legacy/Shortcut for single payment

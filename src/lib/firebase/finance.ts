@@ -149,7 +149,7 @@ export async function getFinanceOverview(startDate: string, endDate: string): Pr
                 // Calcular comisión: Prioridad 1: Override en el turno, Prioridad 2: Porcentaje del profesional
                 const hasAparato = aparatoDays.has(`${apt.professionalId}|${aptDate}`);
                 if (!hasAparato) {
-                    const commissionPct = apt.commissionPercentageOverride !== undefined
+                    const commissionPct = (apt.commissionPercentageOverride !== undefined && apt.commissionPercentageOverride !== null)
                         ? apt.commissionPercentageOverride
                         : (prof?.serviceCommissionPercentage || 0);
 

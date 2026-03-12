@@ -121,7 +121,10 @@ export function AppointmentModal({
                 payments: appointment.payments || [],
                 commissionPercentageOverride: appointment.commissionPercentageOverride,
             });
-            setUseCustomCommission(appointment.commissionPercentageOverride !== undefined);
+            setUseCustomCommission(
+                appointment.commissionPercentageOverride !== undefined &&
+                appointment.commissionPercentageOverride !== null
+            );
             if (appointment.clientId) {
                 setClientMode('registered');
             } else {
@@ -250,7 +253,7 @@ export function AppointmentModal({
             price: formData.price,
             status: formData.status,
             payments: finalPayments,
-            commissionPercentageOverride: useCustomCommission ? formData.commissionPercentageOverride : undefined,
+            commissionPercentageOverride: useCustomCommission ? formData.commissionPercentageOverride : null,
         };
 
         // Validar datos

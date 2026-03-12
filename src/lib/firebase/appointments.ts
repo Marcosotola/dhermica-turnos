@@ -105,6 +105,7 @@ function mapLegacyAppointment(docId: string, data: any, professionalId?: string)
         paymentMethod: data.paymentMethod || undefined,
         createdAt: data.createdAt?.toDate?.() || data.createdAt || new Date(),
         updatedAt: data.updatedAt?.toDate?.() || data.updatedAt || new Date(),
+        commissionPercentageOverride: data.commissionPercentageOverride,
     } as Appointment;
 }
 
