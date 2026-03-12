@@ -31,6 +31,7 @@ export function ProfessionalAppointments({ professional }: ProfessionalAppointme
     const [appointments, setAppointments] = useState<Appointment[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'completed' | 'cancelled'>('all');
+    const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'week' | 'month'>('all');
 
     // Modal state
     const [selectedApt, setSelectedApt] = useState<Appointment | null>(null);
@@ -76,7 +77,29 @@ export function ProfessionalAppointments({ professional }: ProfessionalAppointme
         const matchesSearch = apt.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
             apt.treatment.toLowerCase().includes(searchTerm.toLowerCase());
         const matchesStatus = statusFilter === 'all' || apt.status === statusFilter;
-        return matchesSearch && matchesStatus;
+
+        // Date filter logic
+        let matchesDate = true;
+        if (dateFilter !== 'all') {
+            const aptDate = new Date(apt.date + 'T00:00:00');
+            const now = new Date();
+            now.setHours(0, 0, 0, 0);
+
+            if (dateFilter === 'today') {
+                const todayStr = now.toISOString().split('T')[0];
+                matchesDate = apt.date === todayStr;
+            } else if (dateFilter === 'week') {
+                const sevenDaysAgo = new Date(now);
+                sevenDaysAgo.setDate(now.getDate() - 7);
+                matchesDate = aptDate >= sevenDaysAgo && aptDate <= now;
+            } else if (dateFilter === 'month') {
+                const thirtyDaysAgo = new Date(now);
+                thirtyDaysAgo.setDate(now.getDate() - 30);
+                matchesDate = aptDate >= thirtyDaysAgo && aptDate <= now;
+            }
+        }
+
+        return matchesSearch && matchesStatus && matchesDate;
     });
 
     if (loading) {
@@ -116,6 +139,25 @@ export function ProfessionalAppointments({ professional }: ProfessionalAppointme
                 </div>
             </div>
 
+            {/* Date Filters */}
+            <div className="flex gap-2 overflow-x-auto pb-2 -mt-2 no-scrollbar">
+                {(['all', 'today', 'week', 'month'] as const).map(filter => (
+                    <button
+                        key={filter}
+                        onClick={() => setDateFilter(filter)}
+                        className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all border ${dateFilter === filter
+                            ? 'bg-[#34baab] text-white border-[#34baab] shadow-sm'
+                            : 'bg-white text-gray-400 border-gray-100 hover:border-gray-300'
+                            }`}
+                    >
+                        {filter === 'all' ? 'Historial Completo' :
+                            filter === 'today' ? 'Hoy' :
+                                filter === 'week' ? 'Últimos 7 días' :
+                                    'Últimos 30 días'}
+                    </button>
+                ))}
+            </div>
+
             {/* List */}
             <div className="space-y-3">
                 {filteredAppointments.length > 0 ? (
@@ -146,14 +188,14 @@ export function ProfessionalAppointments({ professional }: ProfessionalAppointme
                                     </div>
                                 </div>
 
-                                <div className="flex items-center gap-8 text-right flex-shrink-0">
-                                    <div className="hidden sm:block">
+                                <div className="flex items-center gap-3 sm:gap-8 text-right flex-shrink-0">
+                                    <div className="flex flex-col justify-center">
                                         <div className="flex items-center justify-end gap-1.5 text-gray-400">
                                             <Clock className="w-3 h-3" />
                                             <span className="text-[10px] font-black">{apt.time} hs</span>
                                         </div>
                                         <div className="flex items-center justify-end gap-1.5 text-[#34baab] mt-1">
-                                            <DollarSign className="w-3 h-3" />
+                                            <DollarSign className="w-3" style={{ height: '12px' }} />
                                             <span className="text-xs font-black">{formatArgentineCurrency(apt.price || 0)}</span>
                                         </div>
                                     </div>
