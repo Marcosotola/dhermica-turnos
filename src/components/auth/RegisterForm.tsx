@@ -25,6 +25,8 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
         password: '',
         confirmPassword: '',
         fullName: '',
+        firstName: '',
+        lastName: '',
         birthDate: '',
         phone: '',
         hasTattoos: false,
@@ -64,10 +66,14 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
             // 2. Create user profile in Firestore
             const finalPhone = formatPhone(`${countryCode}${formData.phone}`);
 
+            const fullName = `${formData.firstName} ${formData.lastName}`.trim();
+
             await createUserProfile({
                 uid: user.uid,
                 email: formData.email,
-                fullName: formData.fullName,
+                fullName: fullName,
+                firstName: formData.firstName,
+                lastName: formData.lastName,
                 birthDate: formData.birthDate,
                 phone: finalPhone,
                 hasTattoos: formData.hasTattoos,
@@ -174,13 +180,22 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
                     </div>
                 ) : (
                     <div className="space-y-4 animate-in slide-in-from-right-4 duration-300">
-                        <Input
-                            label="Nombre Completo"
-                            value={formData.fullName}
-                            onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                            placeholder="Ej: Juan Pérez"
-                            required
-                        />
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <Input
+                                label="Nombre"
+                                value={formData.firstName}
+                                onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                                placeholder="Ej: Juan"
+                                required
+                            />
+                            <Input
+                                label="Apellido"
+                                value={formData.lastName}
+                                onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                                placeholder="Ej: Pérez"
+                                required
+                            />
+                        </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <Input
                                 label="Fecha de Nacimiento"

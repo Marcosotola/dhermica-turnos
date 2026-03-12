@@ -39,8 +39,16 @@ export function ProfileSection({ profile, onEditClick, className = '' }: Profile
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         <div className="bg-gray-50 p-3 rounded-xl border border-gray-100/50">
-                            <p className="text-[9px] text-gray-500 font-black uppercase mb-0.5 tracking-wider">Nombre Completo</p>
-                            <p className="font-extrabold text-gray-900 text-sm">{profile.fullName}</p>
+                            <p className="text-[9px] text-gray-500 font-black uppercase mb-0.5 tracking-wider">Nombre</p>
+                            <p className="font-extrabold text-gray-900 text-sm">
+                                {profile.firstName || profile.fullName?.split(' ')[0] || '-'}
+                            </p>
+                        </div>
+                        <div className="bg-gray-50 p-3 rounded-xl border border-gray-100/50">
+                            <p className="text-[9px] text-gray-500 font-black uppercase mb-0.5 tracking-wider">Apellido</p>
+                            <p className="font-extrabold text-gray-900 text-sm">
+                                {profile.lastName || profile.fullName?.split(' ').slice(1).join(' ') || '-'}
+                            </p>
                         </div>
                         <div className="bg-gray-50 p-3 rounded-xl border border-gray-100/50">
                             <p className="text-[9px] text-gray-500 font-black uppercase mb-0.5 tracking-wider">Email</p>

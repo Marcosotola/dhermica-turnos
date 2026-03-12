@@ -81,8 +81,15 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
 
 export async function createUserProfile(profile: Omit<UserProfile, 'createdAt' | 'updatedAt'>): Promise<void> {
     const now = Timestamp.now();
+    // Split fullName if firstName or lastName are missing for legacy compatibility
+    const firstName = profile.firstName || profile.fullName.split(' ')[0] || '';
+    const lastName = profile.lastName || profile.fullName.split(' ').slice(1).join(' ') || '';
+
     await setDoc(doc(db, USERS_COLLECTION, profile.uid), {
         ...profile,
+        firstName,
+        lastName,
+        fullName: profile.fullName || `${firstName} ${lastName}`.trim(),
         phone: formatPhone(profile.phone),
         createdAt: now,
         updatedAt: now,
@@ -90,10 +97,28 @@ export async function createUserProfile(profile: Omit<UserProfile, 'createdAt' |
 }
 
 export async function updateUserProfile(uid: string, data: Partial<UserProfile>): Promise<void> {
-    await updateDoc(doc(db, USERS_COLLECTION, uid), {
+    const updateData: any = {
         ...data,
         updatedAt: Timestamp.now(),
-    });
+    };
+
+    // If fullName is provided but firstName/lastName aren't, split it
+    if (data.fullName && !data.firstName && !data.lastName) {
+        updateData.firstName = data.fullName.split(' ')[0] || '';
+        updateData.lastName = data.fullName.split(' ').slice(1).join(' ') || '';
+    }
+    // If firstName/lastName are provided, ensure fullName is updated
+    else if (data.firstName || data.lastName) {
+        // We might need the existing profile to get the other part if only one is provided
+        const existing = await getUserProfile(uid);
+        const fName = data.firstName ?? existing?.firstName ?? existing?.fullName?.split(' ')[0] ?? '';
+        const lName = data.lastName ?? existing?.lastName ?? existing?.fullName?.split(' ').slice(1).join(' ') ?? '';
+        updateData.fullName = `${fName} ${lName}`.trim();
+        updateData.firstName = fName;
+        updateData.lastName = lName;
+    }
+
+    await updateDoc(doc(db, USERS_COLLECTION, uid), updateData);
 }
 
 export async function addFcmToken(uid: string, token: string): Promise<void> {

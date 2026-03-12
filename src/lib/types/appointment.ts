@@ -12,6 +12,8 @@ export interface Payment {
 export interface Appointment {
     id: string;
     clientName: string;
+    clientFirstName?: string;
+    clientLastName?: string;
     clientId?: string;
     treatment: string;
     date: string; // YYYY-MM-DD

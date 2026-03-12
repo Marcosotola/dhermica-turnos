@@ -38,6 +38,8 @@ export function EditProfileModal({ isOpen, onClose, user, onUpdate, isNewUser = 
         }
         return {
             fullName: user.fullName || '',
+            firstName: user.firstName || (user.fullName ? user.fullName.split(' ')[0] : ''),
+            lastName: user.lastName || (user.fullName ? user.fullName.split(' ').slice(1).join(' ') : ''),
             phone: phoneDisplay,
             birthDate: user.birthDate || '',
             hasTattoos: user.hasTattoos || false,
@@ -67,6 +69,8 @@ export function EditProfileModal({ isOpen, onClose, user, onUpdate, isNewUser = 
             setCountryCode(extractedCountryCode);
             setFormData({
                 fullName: user.fullName || '',
+                firstName: user.firstName || (user.fullName ? user.fullName.split(' ')[0] : ''),
+                lastName: user.lastName || (user.fullName ? user.fullName.split(' ').slice(1).join(' ') : ''),
                 phone: phoneDisplay,
                 birthDate: user.birthDate || '',
                 hasTattoos: user.hasTattoos || false,
@@ -105,8 +109,10 @@ export function EditProfileModal({ isOpen, onClose, user, onUpdate, isNewUser = 
                 toast.success('¡Registro completado! Bienvenido.');
             } else {
                 // Update existing
+                const fullName = `${formData.firstName} ${formData.lastName}`.trim();
                 await updateUserProfile(user.uid, {
                     ...formData,
+                    fullName,
                     phone: finalPhone,
                     notificationsEnabled: formData.wantNotifications,
                 });
@@ -147,12 +153,20 @@ export function EditProfileModal({ isOpen, onClose, user, onUpdate, isNewUser = 
 
                 <form onSubmit={handleSubmit} className="p-6 space-y-6 overflow-y-auto flex-1">
                     <div className="space-y-4">
-                        <Input
-                            label="Nombre Completo"
-                            value={formData.fullName}
-                            onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                            required
-                        />
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <Input
+                                label="Nombre"
+                                value={formData.firstName}
+                                onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                                required
+                            />
+                            <Input
+                                label="Apellido"
+                                value={formData.lastName}
+                                onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                                required
+                            />
+                        </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <PhoneInput
                                 label="WhatsApp"

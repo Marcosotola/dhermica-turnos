@@ -4,6 +4,8 @@ export interface UserProfile {
     uid: string;
     email: string;
     fullName: string;
+    firstName?: string;
+    lastName?: string;
     birthDate: string; // ISO format YYYY-MM-DD
     phone: string; // Format: (3523908198)
     hasTattoos: boolean;

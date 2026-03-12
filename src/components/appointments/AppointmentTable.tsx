@@ -126,7 +126,8 @@ export function AppointmentTable({
                                                 <div className="flex justify-center py-1">
                                                     <button
                                                         onClick={() => onCreateClick(time, prof.id)}
-                                                        className="w-10 h-10 bg-[#45a049] hover:bg-[#3d8b40] text-white rounded-md shadow-md transition-all flex items-center justify-center transform active:scale-95"
+                                                        className="w-10 h-10 text-white rounded-md shadow-md transition-all flex items-center justify-center transform active:scale-95 hover:brightness-110"
+                                                        style={{ backgroundColor: prof.color || '#45a049' }}
                                                         title={`Nuevo Turno con ${prof.name}`}
                                                     >
                                                         <Plus className="w-6 h-6" />

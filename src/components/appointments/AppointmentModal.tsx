@@ -40,6 +40,8 @@ export function AppointmentModal({
 }: AppointmentModalProps) {
     const [formData, setFormData] = useState({
         clientName: '',
+        clientFirstName: '',
+        clientLastName: '',
         clientId: '',
         treatment: '',
         time: defaultTime || '',
@@ -104,6 +106,8 @@ export function AppointmentModal({
         if (appointment) {
             setFormData({
                 clientName: appointment.clientName,
+                clientFirstName: appointment.clientFirstName || '',
+                clientLastName: appointment.clientLastName || '',
                 clientId: appointment.clientId || '',
                 treatment: appointment.treatment,
                 time: appointment.time,
@@ -122,6 +126,8 @@ export function AppointmentModal({
         } else {
             setFormData({
                 clientName: '',
+                clientFirstName: '',
+                clientLastName: '',
                 clientId: '',
                 treatment: '',
                 time: defaultTime || '',
@@ -155,7 +161,9 @@ export function AppointmentModal({
         setFormData(prev => ({
             ...prev,
             clientId: client.uid,
-            clientName: client.fullName
+            clientName: client.fullName,
+            clientFirstName: client.firstName || client.fullName.split(' ')[0],
+            clientLastName: client.lastName || client.fullName.split(' ').slice(1).join(' ')
         }));
         setSearchQuery(client.fullName);
         setShowSuggestions(false);
@@ -218,8 +226,14 @@ export function AppointmentModal({
             finalPayments.push(autoPayment);
         }
 
+        const clientName = clientMode === 'manual'
+            ? `${formData.clientFirstName} ${formData.clientLastName}`.trim()
+            : formData.clientName;
+
         const appointmentData = {
-            clientName: capitalizeName(formData.clientName),
+            clientName: capitalizeName(clientName),
+            clientFirstName: capitalizeName(clientMode === 'manual' ? formData.clientFirstName : (formData.clientFirstName || clientName.split(' ')[0])),
+            clientLastName: capitalizeName(clientMode === 'manual' ? formData.clientLastName : (formData.clientLastName || clientName.split(' ').slice(1).join(' '))),
             clientId: clientMode === 'registered' ? formData.clientId : undefined,
             treatment: formData.treatment,
             date,
@@ -436,15 +450,26 @@ export function AppointmentModal({
                         )}
                     </div>
                 ) : (
-                    <Input
-                        label="Nombre del Cliente"
-                        value={formData.clientName}
-                        onChange={(e) =>
-                            setFormData({ ...formData, clientName: capitalizeName(e.target.value) })
-                        }
-                        placeholder="Ej: María González"
-                        required
-                    />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <Input
+                            label="Nombre"
+                            value={formData.clientFirstName}
+                            onChange={(e) =>
+                                setFormData({ ...formData, clientFirstName: capitalizeName(e.target.value) })
+                            }
+                            placeholder="Ej: María"
+                            required
+                        />
+                        <Input
+                            label="Apellido"
+                            value={formData.clientLastName}
+                            onChange={(e) =>
+                                setFormData({ ...formData, clientLastName: capitalizeName(e.target.value) })
+                            }
+                            placeholder="Ej: González"
+                            required
+                        />
+                    </div>
                 )}
 
 

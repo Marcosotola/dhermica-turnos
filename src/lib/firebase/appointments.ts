@@ -83,9 +83,15 @@ function mapLegacyAppointment(docId: string, data: any, professionalId?: string)
         payments = Object.values(paymentsData);
     }
 
+    const clientName = data.clientName || data.nombre || '';
+    const clientFirstName = data.clientFirstName || (clientName ? clientName.split(' ')[0] : '');
+    const clientLastName = data.clientLastName || (clientName ? clientName.split(' ').slice(1).join(' ') : '');
+
     return {
         id: docId,
-        clientName: data.clientName || data.nombre || '',
+        clientName,
+        clientFirstName,
+        clientLastName,
         treatment: data.treatment || data.servicio || '',
         date: appointmentDate,
         time: data.time || data.hora || '',

@@ -100,6 +100,8 @@ export default function UsuariosPage() {
 
     const filteredUsers = users.filter(u =>
         (u.fullName?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+        (u.firstName?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+        (u.lastName?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
         (u.email?.toLowerCase() || '').includes(searchTerm.toLowerCase())
     );
 
@@ -174,7 +176,9 @@ export default function UsuariosPage() {
                                                     <UserIcon className="w-6 h-6 text-[#484450]" />
                                                 </div>
                                                 <div>
-                                                    <p className="font-bold text-gray-900">{user.fullName}</p>
+                                                    <p className="font-bold text-gray-900">
+                                                        {user.firstName ? `${user.firstName} ${user.lastName}` : user.fullName}
+                                                    </p>
                                                     <p className="text-xs text-gray-400">{user.uid}</p>
                                                 </div>
                                             </div>
