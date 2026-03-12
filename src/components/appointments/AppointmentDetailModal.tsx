@@ -154,7 +154,7 @@ export function AppointmentDetailModal({
                         <p className="font-bold text-gray-900">{professional?.name || 'No asignado'}</p>
                     </div>
 
-                    {appointment.commissionPercentageOverride !== undefined && (
+                    {(appointment.commissionPercentageOverride !== undefined && appointment.commissionPercentageOverride !== null) && (
                         <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100 md:col-span-2 flex items-center justify-between">
                             <div className="flex items-center gap-3">
                                 <BadgeDollarSign className="w-6 h-6 text-blue-500" />
@@ -166,7 +166,7 @@ export function AppointmentDetailModal({
                             <div className="text-right">
                                 <p className="text-[10px] font-black uppercase tracking-widest text-blue-400 leading-none mb-1">Monto para el Prof.</p>
                                 <p className="font-black text-blue-700 text-lg">
-                                    {formatCurrencyWithSymbol((appointment.price || 0) * (appointment.commissionPercentageOverride / 100))}
+                                    {formatCurrencyWithSymbol((appointment.price || 0) * ((appointment.commissionPercentageOverride || 0) / 100))}
                                 </p>
                             </div>
                         </div>
