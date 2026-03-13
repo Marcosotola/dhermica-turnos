@@ -119,7 +119,7 @@ export function AppointmentModal({
                 price: appointment.price || 0,
                 status: appointment.status || 'pending',
                 payments: appointment.payments || [],
-                commissionPercentageOverride: appointment.commissionPercentageOverride,
+                commissionPercentageOverride: appointment.commissionPercentageOverride ?? undefined,
             });
             setUseCustomCommission(
                 appointment.commissionPercentageOverride !== undefined &&
