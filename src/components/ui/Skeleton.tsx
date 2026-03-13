@@ -35,18 +35,13 @@ export function CardSkeleton() {
 
 export function PromoCardSkeleton() {
     return (
-        <div className="bg-white rounded-[2.5rem] border-2 border-gray-50 overflow-hidden shadow-sm h-full flex flex-col">
-            <Skeleton className="aspect-[16/10] w-full" />
-            <div className="p-6 space-y-4">
-                <div className="flex gap-2">
-                    <Skeleton className="w-8 h-8 rounded-lg" />
-                    <Skeleton className="h-4 w-24 self-center" />
-                </div>
-                <Skeleton className="h-8 w-3/4" />
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-full" />
-                <div className="pt-4 border-t border-gray-50">
-                    <Skeleton className="h-12 w-full rounded-2xl" />
+        <div className="bg-white rounded-[2.5rem] border-2 border-gray-50 overflow-hidden shadow-sm flex flex-col h-full">
+            <Skeleton className="aspect-[9/12] w-full" />
+            <div className="p-5 space-y-4">
+                <Skeleton className="h-6 w-3/4" />
+                <div className="flex justify-between items-center pt-2">
+                    <Skeleton className="h-8 w-24 rounded-xl" />
+                    <Skeleton className="w-10 h-10 rounded-xl" />
                 </div>
             </div>
         </div>

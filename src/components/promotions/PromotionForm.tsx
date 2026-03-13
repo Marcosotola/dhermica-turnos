@@ -2,10 +2,8 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { Promotion } from '@/lib/types/promotion';
-import { X, Upload, DollarSign, Tag, Image as ImageIcon, Loader2 } from 'lucide-react';
+import { X, Upload, DollarSign, Type, AlignLeft, Loader2, ImageIcon } from 'lucide-react';
 import Image from 'next/image';
-import { Button } from '../ui/Button';
-import { Input } from '../ui/Input';
 import { toast } from 'sonner';
 
 interface PromotionFormProps {
@@ -16,20 +14,21 @@ interface PromotionFormProps {
 }
 
 export function PromotionForm({ isOpen, onClose, onSubmit, initialData }: PromotionFormProps) {
-    const [title, setTitle] = useState('');
-    const [description, setDescription] = useState('');
-    const [price, setPrice] = useState('');
-    const [imageFile, setImageFile] = useState<File | null>(null);
-    const [imagePreview, setImagePreview] = useState<string | null>(null);
-    const [loading, setLoading] = useState(false);
+    const [title, setTitle]               = useState('');
+    const [description, setDescription]  = useState('');
+    const [price, setPrice]              = useState('');
+    const [imageFile, setImageFile]      = useState<File | null>(null);
+    const [imagePreview, setImagePreview]= useState<string | null>(null);
+    const [loading, setLoading]          = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         if (initialData) {
-            setTitle(initialData.title);
-            setDescription(initialData.description);
-            setPrice(initialData.price);
-            setImagePreview(initialData.imageUrl);
+            setTitle(initialData.title || '');
+            setDescription(initialData.description || '');
+            setPrice(initialData.price || '');
+            setImagePreview(initialData.imageUrl || null);
+            setImageFile(null);
         } else {
             setTitle('');
             setDescription('');
@@ -41,33 +40,27 @@ export function PromotionForm({ isOpen, onClose, onSubmit, initialData }: Promot
 
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
-        if (file) {
-            if (file.size > 5 * 1024 * 1024) {
-                toast.error('La imagen no debe superar los 5MB');
-                return;
-            }
-            setImageFile(file);
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setImagePreview(reader.result as string);
-            };
-            reader.readAsDataURL(file);
-        }
-    };
-
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!title || !description || !price || (!imagePreview && !imageFile)) {
-            toast.error('Por favor completa todos los campos obligatorios');
+        if (!file) return;
+        if (file.size > 5 * 1024 * 1024) {
+            toast.error('La imagen no debe superar los 5 MB');
             return;
         }
+        setImageFile(file);
+        const reader = new FileReader();
+        reader.onloadend = () => setImagePreview(reader.result as string);
+        reader.readAsDataURL(file);
+    };
 
+    const handleSubmit = async () => {
+        if (!imagePreview && !imageFile) {
+            toast.error('Seleccioná una imagen para la promoción');
+            return;
+        }
         setLoading(true);
         try {
-            await onSubmit({ title, description, price }, imageFile || undefined);
+            await onSubmit({ title, description, price }, imageFile ?? undefined);
             onClose();
-        } catch (error) {
-            console.error('Error submitting promotion:', error);
+        } catch {
             toast.error('Error al guardar la promoción');
         } finally {
             setLoading(false);
@@ -77,131 +70,138 @@ export function PromotionForm({ isOpen, onClose, onSubmit, initialData }: Promot
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+        /* Dark backdrop */
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4" style={{ paddingBottom: '96px' }}>
+            <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
 
-            <div className="relative w-full max-w-2xl bg-white rounded-[3rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+            {/* Modal card — compact, scrollable internally */}
+            <div className="relative w-full max-w-md bg-white rounded-[2rem] shadow-2xl flex flex-col overflow-hidden" style={{ maxHeight: 'calc(100dvh - 120px)' }}>
+
                 {/* Header */}
-                <div className="bg-[#484450] p-8 text-white flex justify-between items-center">
-                    <div>
-                        <h2 className="text-3xl font-black tracking-tight flex items-center gap-3">
-                            <Tag className="w-8 h-8 text-[#34baab]" />
-                            {initialData ? 'Editar Promoción' : 'Nueva Promoción'}
-                        </h2>
-                        <p className="text-gray-300 font-medium mt-1">Completa los datos de la oferta.</p>
-                    </div>
-                    <button onClick={onClose} className="p-3 hover:bg-white/10 rounded-2xl transition-all">
-                        <X className="w-6 h-6" />
+                <div className="flex-none flex items-center justify-between px-6 py-5 border-b border-gray-100">
+                    <h2 className="text-lg font-black text-[#484450]">
+                        {initialData ? 'Editar Promoción' : 'Nueva Promoción'}
+                    </h2>
+                    <button
+                        onClick={onClose}
+                        className="w-9 h-9 rounded-xl bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-all active:scale-90"
+                    >
+                        <X className="w-4 h-4 text-gray-500" />
                     </button>
                 </div>
 
-                <form onSubmit={handleSubmit} className="p-8 max-h-[70vh] overflow-y-auto custom-scrollbar">
-                    <div className="space-y-8">
-                        {/* Image Upload */}
-                        <div>
-                            <label className="text-[10px] font-black uppercase tracking-widest text-[#484450] mb-4 block ml-1">
-                                Imagen de la Promoción
-                            </label>
-                            <div
-                                onClick={() => fileInputRef.current?.click()}
-                                className={`relative aspect-video rounded-[2.5rem] border-4 border-dashed transition-all cursor-pointer overflow-hidden group
-                                    ${imagePreview ? 'border-transparent' : 'border-gray-100 hover:border-[#34baab] bg-gray-50'}`}
-                            >
-                                {imagePreview ? (
-                                    <>
-                                        <Image src={imagePreview} alt="Preview" fill className="object-cover" />
-                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                            <div className="bg-white text-[#484450] p-4 rounded-2xl font-black flex items-center gap-2">
-                                                <ImageIcon className="w-5 h-5" /> Cambiar Imagen
-                                            </div>
-                                        </div>
-                                    </>
-                                ) : (
-                                    <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400 group-hover:text-[#34baab]">
-                                        <div className="w-20 h-20 bg-white shadow-xl rounded-3xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110">
-                                            <Upload className="w-10 h-10" />
-                                        </div>
-                                        <p className="font-black text-sm">Hacer clic para subir</p>
-                                        <p className="text-xs font-medium">Recomendado: 1200x675 (16:9)</p>
-                                    </div>
-                                )}
+                {/* Scrollable body */}
+                <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+
+                    {/* IMAGE AREA */}
+                    <div className="space-y-2">
+                        {imagePreview ? (
+                            /* Preview + change button */
+                            <div className="space-y-2">
+                                <div className="relative w-full rounded-2xl overflow-hidden bg-gray-100" style={{ aspectRatio: '4/5' }}>
+                                    <Image
+                                        src={imagePreview}
+                                        alt="Vista previa"
+                                        fill
+                                        className="object-cover"
+                                        unoptimized
+                                    />
+                                </div>
+                                {/* Explicit "change image" button — always visible on mobile */}
+                                <button
+                                    type="button"
+                                    onClick={() => fileInputRef.current?.click()}
+                                    className="w-full py-3 rounded-2xl border-2 border-dashed border-gray-200 hover:border-[#34baab] text-gray-400 hover:text-[#34baab] font-black text-sm flex items-center justify-center gap-2 transition-colors active:scale-95"
+                                >
+                                    <ImageIcon className="w-4 h-4" />
+                                    Cambiar imagen
+                                </button>
                             </div>
+                        ) : (
+                            /* Upload area */
+                            <button
+                                type="button"
+                                onClick={() => fileInputRef.current?.click()}
+                                className="w-full py-14 rounded-2xl border-2 border-dashed border-gray-200 hover:border-[#34baab] bg-gray-50 hover:bg-[#34baab]/5 text-gray-400 hover:text-[#34baab] flex flex-col items-center justify-center gap-3 transition-colors active:scale-95"
+                            >
+                                <div className="w-16 h-16 bg-white rounded-2xl shadow-md flex items-center justify-center border border-gray-100">
+                                    <Upload className="w-8 h-8" />
+                                </div>
+                                <div className="text-center">
+                                    <p className="font-black text-base">Subir imagen</p>
+                                    <p className="text-xs font-medium opacity-60 mt-0.5">Formato vertical · Máx 5 MB</p>
+                                </div>
+                            </button>
+                        )}
+                        <input
+                            type="file"
+                            ref={fileInputRef}
+                            onChange={handleImageChange}
+                            className="hidden"
+                            accept="image/*"
+                        />
+                    </div>
+
+                    {/* FIELDS */}
+                    <div className="space-y-3">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Información opcional</p>
+
+                        <div className="relative">
+                            <Type className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-300 pointer-events-none" />
                             <input
-                                type="file"
-                                ref={fileInputRef}
-                                onChange={handleImageChange}
-                                className="hidden"
-                                accept="image/*"
+                                type="text"
+                                value={title}
+                                onChange={(e) => setTitle(e.target.value)}
+                                placeholder="Título (ej: Pack Facial)"
+                                className="w-full pl-10 pr-4 py-3.5 rounded-2xl border border-gray-100 bg-gray-50 text-[#484450] font-medium placeholder:text-gray-300 focus:outline-none focus:ring-2 focus:ring-[#34baab]/30 focus:border-[#34baab] transition-all text-[16px]"
                             />
                         </div>
 
-                        {/* Title & Price */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-[#484450] ml-1">
-                                    Título de la Promo
-                                </label>
-                                <Input
-                                    value={title}
-                                    onChange={(e) => setTitle(e.target.value)}
-                                    placeholder="Ej: Pack Facial Deluxe"
-                                    className="rounded-2xl border-gray-100 focus:border-[#34baab]"
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-[#484450] ml-1">
-                                    Precio / Oferta
-                                </label>
-                                <div className="relative">
-                                    <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                                    <Input
-                                        value={price}
-                                        onChange={(e) => setPrice(e.target.value)}
-                                        placeholder="Ej: 15.000 o 2x1"
-                                        className="pl-12 rounded-2xl border-gray-100 focus:border-[#34baab]"
-                                    />
-                                </div>
-                            </div>
+                        <div className="relative">
+                            <DollarSign className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-300 pointer-events-none" />
+                            <input
+                                type="text"
+                                inputMode="numeric"
+                                value={price}
+                                onChange={(e) => setPrice(e.target.value)}
+                                placeholder="Precio (ej: 15.000)"
+                                className="w-full pl-10 pr-4 py-3.5 rounded-2xl border border-gray-100 bg-gray-50 text-[#484450] font-medium placeholder:text-gray-300 focus:outline-none focus:ring-2 focus:ring-[#34baab]/30 focus:border-[#34baab] transition-all text-[16px]"
+                            />
                         </div>
 
-                        {/* Description */}
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-[#484450] ml-1">
-                                Descripción Detallada
-                            </label>
+                        <div className="relative">
+                            <AlignLeft className="absolute left-3.5 top-3.5 w-4 h-4 text-gray-300 pointer-events-none" />
                             <textarea
                                 value={description}
                                 onChange={(e) => setDescription(e.target.value)}
-                                placeholder="Describe qué incluye esta promoción..."
-                                rows={4}
-                                className="w-full p-4 bg-gray-50 border border-gray-100 rounded-[2rem] focus:outline-none focus:ring-2 focus:ring-[#34baab]/20 focus:border-[#34baab] transition-all font-medium text-gray-700 resize-none"
+                                placeholder="Descripción corta..."
+                                rows={2}
+                                className="w-full pl-10 pr-4 py-3.5 rounded-2xl border border-gray-100 bg-gray-50 text-[#484450] font-medium placeholder:text-gray-300 resize-none focus:outline-none focus:ring-2 focus:ring-[#34baab]/30 focus:border-[#34baab] transition-all text-[16px]"
                             />
                         </div>
                     </div>
-                </form>
+                </div>
 
                 {/* Footer */}
-                <div className="p-8 bg-gray-50 flex gap-4">
-                    <Button
-                        variant="secondary"
+                <div className="flex-none px-6 py-4 border-t border-gray-100 bg-white flex gap-3">
+                    <button
+                        type="button"
                         onClick={onClose}
-                        className="flex-1 rounded-2xl font-black uppercase tracking-widest py-6 border-gray-200"
+                        className="flex-1 py-3.5 rounded-2xl border-2 border-gray-100 font-black text-sm text-gray-500 hover:bg-gray-50 transition-all active:scale-95"
                     >
                         Cancelar
-                    </Button>
-                    <Button
+                    </button>
+                    <button
+                        type="button"
                         onClick={handleSubmit}
                         disabled={loading}
-                        className="flex-[2] bg-[#34baab] hover:bg-[#2da698] text-white rounded-2xl font-black uppercase tracking-widest py-6 shadow-xl shadow-teal-500/20 active:scale-95 transition-all"
+                        className="flex-[2] py-3.5 rounded-2xl bg-[#34baab] hover:bg-[#2da698] disabled:opacity-60 text-white font-black text-sm uppercase tracking-widest shadow-lg shadow-teal-500/20 transition-all active:scale-95 flex items-center justify-center gap-2"
                     >
-                        {loading ? (
-                            <div className="flex items-center gap-2">
-                                <Loader2 className="w-5 h-5 animate-spin" /> Guardando...
-                            </div>
-                        ) : (
-                            initialData ? 'Guardar Cambios' : 'Crear Promoción'
-                        )}
-                    </Button>
+                        {loading
+                            ? <><Loader2 className="w-4 h-4 animate-spin" /> Guardando…</>
+                            : initialData ? 'Guardar' : 'Crear'
+                        }
+                    </button>
                 </div>
             </div>
         </div>
