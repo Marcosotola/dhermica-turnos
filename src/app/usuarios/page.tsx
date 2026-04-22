@@ -50,6 +50,10 @@ export default function UsuariosPage() {
     };
 
     const handleRoleChange = async (uid: string, newRole: UserRole) => {
+        if (profile?.role !== 'admin') {
+            toast.error('Solo el administrador puede gestionar roles.');
+            return;
+        }
         try {
             // Actualizar rol en users
             await updateUserProfile(uid, { role: newRole });
@@ -82,6 +86,10 @@ export default function UsuariosPage() {
     };
 
     const handleDelete = async (user: UserProfile) => {
+        if (profile?.role !== 'admin') {
+            toast.error('Solo el administrador puede eliminar usuarios.');
+            return;
+        }
         if (!window.confirm(`¿Estás seguro de que quieres eliminar al usuario ${user.fullName}? Esta acción no se puede deshacer.`)) {
             return;
         }
@@ -214,18 +222,20 @@ export default function UsuariosPage() {
                                         </td>
                                         <td className="px-6 py-4">
                                             <div className="flex items-center justify-center gap-2">
-                                                <Select
-                                                    value={user.role}
-                                                    onChange={(e) => handleRoleChange(user.uid, e.target.value as UserRole)}
-                                                    options={[
-                                                        { value: 'client', label: 'Cliente' },
-                                                        { value: 'promotor', label: 'Promotor' },
-                                                        { value: 'professional', label: 'Profesional' },
-                                                        { value: 'secretary', label: 'Secretaria' },
-                                                        { value: 'admin', label: 'Administrador' }
-                                                    ]}
-                                                    className="w-32"
-                                                />
+                                                {profile?.role === 'admin' && (
+                                                    <Select
+                                                        value={user.role}
+                                                        onChange={(e) => handleRoleChange(user.uid, e.target.value as UserRole)}
+                                                        options={[
+                                                            { value: 'client', label: 'Cliente' },
+                                                            { value: 'promotor', label: 'Promotor' },
+                                                            { value: 'professional', label: 'Profesional' },
+                                                            { value: 'secretary', label: 'Secretaria' },
+                                                            { value: 'admin', label: 'Administrador' }
+                                                        ]}
+                                                        className="w-32"
+                                                    />
+                                                )}
                                                 <button
                                                     onClick={() => handleEdit(user)}
                                                     className="p-2 text-gray-400 hover:text-[#34baab] hover:bg-[#34baab]/10 rounded-lg transition-colors"
@@ -233,13 +243,15 @@ export default function UsuariosPage() {
                                                 >
                                                     <Pencil className="w-4 h-4" />
                                                 </button>
-                                                <button
-                                                    onClick={() => handleDelete(user)}
-                                                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                                    title="Eliminar usuario"
-                                                >
-                                                    <Trash className="w-4 h-4" />
-                                                </button>
+                                                {profile?.role === 'admin' && (
+                                                    <button
+                                                        onClick={() => handleDelete(user)}
+                                                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                        title="Eliminar usuario"
+                                                    >
+                                                        <Trash className="w-4 h-4" />
+                                                    </button>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>
