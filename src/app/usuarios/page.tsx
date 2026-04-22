@@ -11,6 +11,8 @@ import { Users, Shield, User as UserIcon, Search, Mail, Phone, Pencil, Trash, Ar
 import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
 import { EditProfileModal } from '@/components/dashboard/EditProfileModal';
+import { CreateManualClientModal } from '@/components/dashboard/CreateManualClientModal';
+import { Plus } from 'lucide-react';
 
 export default function UsuariosPage() {
     const { user, profile, loading: authLoading } = useAuth();
@@ -20,6 +22,7 @@ export default function UsuariosPage() {
     const [searchTerm, setSearchTerm] = useState('');
     const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
     useEffect(() => {
         if (!authLoading && !user) {
@@ -137,6 +140,13 @@ export default function UsuariosPage() {
                             </h1>
                             <p className="text-gray-300 font-medium">Asigna roles, edita datos y gestiona permisos de la plataforma.</p>
                         </div>
+                        <Button
+                            onClick={() => setIsCreateModalOpen(true)}
+                            className="bg-[#34baab] hover:bg-[#2da698] text-white px-8 py-4 rounded-2xl shadow-lg shadow-[#34baab]/20 flex items-center gap-2 group"
+                        >
+                            <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform" />
+                            <span className="font-bold">Nuevo Cliente</span>
+                        </Button>
                     </div>
                 </div>
             </div>
@@ -248,6 +258,12 @@ export default function UsuariosPage() {
                     onUpdate={fetchUsers}
                 />
             )}
+
+            <CreateManualClientModal
+                isOpen={isCreateModalOpen}
+                onClose={() => setIsCreateModalOpen(false)}
+                onCreated={fetchUsers}
+            />
         </div>
     );
 }

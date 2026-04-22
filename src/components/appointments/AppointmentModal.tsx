@@ -7,7 +7,7 @@ import { CurrencyInput } from '../ui/CurrencyInput';
 import { Select } from '../ui/Select';
 import { Button } from '../ui/Button';
 import { Appointment, DURATION_OPTIONS, AppointmentStatus, Payment } from '@/lib/types/appointment';
-import { Plus, Trash2, CreditCard, CheckCircle2, Clock, XCircle, ChevronDown, Save } from 'lucide-react';
+import { Plus, Trash2, CreditCard, CheckCircle2, Clock, XCircle, ChevronDown, Save, Phone } from 'lucide-react';
 import { Professional } from '@/lib/types/professional';
 import { UserProfile } from '@/lib/types/user';
 import { getAllUsers } from '@/lib/firebase/users';
@@ -16,6 +16,7 @@ import { Search, UserPlus, User, BadgeDollarSign } from 'lucide-react';
 import { validateAppointment, checkOverlap } from '@/lib/utils/validation';
 import { createAppointment, updateAppointment } from '@/lib/firebase/appointments';
 import { toast } from 'sonner';
+import { PhoneInput } from '../ui/PhoneInput';
 
 interface AppointmentModalProps {
     isOpen: boolean;
@@ -43,6 +44,8 @@ export function AppointmentModal({
         clientFirstName: '',
         clientLastName: '',
         clientId: '',
+        clientPhone: '',
+        clientEmail: '',
         treatment: '',
         time: defaultTime || '',
         duration: 1,
@@ -69,6 +72,7 @@ export function AppointmentModal({
     const [searchQuery, setSearchQuery] = useState('');
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [filteredClients, setFilteredClients] = useState<UserProfile[]>([]);
+    const [countryCode, setCountryCode] = useState('+54');
 
     useEffect(() => {
         const fetchClients = async () => {
@@ -111,6 +115,8 @@ export function AppointmentModal({
                 clientFirstName: appointment.clientFirstName || '',
                 clientLastName: appointment.clientLastName || '',
                 clientId: appointment.clientId || '',
+                clientPhone: appointment.clientPhone || '',
+                clientEmail: appointment.clientEmail || '',
                 treatment: appointment.treatment,
                 time: appointment.time,
                 duration: appointment.duration,
@@ -136,6 +142,8 @@ export function AppointmentModal({
                 clientFirstName: '',
                 clientLastName: '',
                 clientId: '',
+                clientPhone: '',
+                clientEmail: '',
                 treatment: '',
                 time: defaultTime || '',
                 duration: 1,
@@ -167,12 +175,23 @@ export function AppointmentModal({
     };
 
     const selectClient = (client: UserProfile) => {
+        // Detect country code from client phone
+        let detectedCode = '+54';
+        if (client.phone?.startsWith('+')) {
+            const countryCodes = ['+598', '+54', '+56', '+55', '+34', '+1'];
+            const foundCode = countryCodes.find(code => client.phone.startsWith(code));
+            if (foundCode) detectedCode = foundCode;
+        }
+        setCountryCode(detectedCode);
+
         setFormData(prev => ({
             ...prev,
             clientId: client.uid,
             clientName: client.fullName,
             clientFirstName: client.firstName || client.fullName.split(' ')[0],
-            clientLastName: client.lastName || client.fullName.split(' ').slice(1).join(' ')
+            clientLastName: client.lastName || client.fullName.split(' ').slice(1).join(' '),
+            clientPhone: client.phone || '',
+            clientEmail: client.email || ''
         }));
         setSearchQuery(client.fullName);
         setShowSuggestions(false);
@@ -244,6 +263,8 @@ export function AppointmentModal({
             clientFirstName: capitalizeName(clientMode === 'manual' ? formData.clientFirstName : (formData.clientFirstName || clientName.split(' ')[0])),
             clientLastName: capitalizeName(clientMode === 'manual' ? formData.clientLastName : (formData.clientLastName || clientName.split(' ').slice(1).join(' '))),
             clientId: clientMode === 'registered' ? formData.clientId : undefined,
+            clientPhone: formData.clientPhone,
+            clientEmail: formData.clientEmail || undefined,
             treatment: formData.treatment,
             date,
             time: formData.time,
@@ -380,18 +401,18 @@ export function AppointmentModal({
                     </div>
                 )}
 
-                <div className="bg-gray-50 p-1 rounded-xl flex mb-4">
+                <div className="flex items-center gap-2 mb-4">
+                    <User className="w-5 h-5 text-gray-400" />
+                    <h3 className="text-sm font-bold text-gray-700 uppercase tracking-widest">Información del Cliente</h3>
+                </div>
+
+                <div className="bg-gray-50 p-1 rounded-xl flex mb-6">
                     <button
                         type="button"
-                        onClick={() => {
-                            setClientMode('registered');
-                            setFormData(prev => ({ ...prev, clientName: '', clientId: '' }));
-                            setSearchQuery('');
-                            setShowSuggestions(false);
-                        }}
-                        className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2 ${clientMode === 'registered'
+                        onClick={() => setClientMode('registered')}
+                        className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-bold transition-all ${clientMode === 'registered'
                             ? 'bg-white text-[#34baab] shadow-sm'
-                            : 'text-gray-400 hover:text-gray-600'
+                            : 'text-gray-500 hover:text-gray-700'
                             }`}
                     >
                         <User className="w-4 h-4" /> Cliente Registrado
@@ -402,63 +423,48 @@ export function AppointmentModal({
                             setClientMode('manual');
                             setFormData(prev => ({ ...prev, clientId: '' }));
                         }}
-                        className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2 ${clientMode === 'manual'
+                        className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-bold transition-all ${clientMode === 'manual'
                             ? 'bg-white text-[#34baab] shadow-sm'
-                            : 'text-gray-400 hover:text-gray-600'
+                            : 'text-gray-500 hover:text-gray-700'
                             }`}
                     >
-                        <UserPlus className="w-4 h-4" /> Nuevo / Manual
+                        <UserPlus className="w-4 h-4" /> Nuevo Manual
                     </button>
                 </div>
 
                 {clientMode === 'registered' ? (
-                    <div className="space-y-1 relative">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Buscar Cliente
-                        </label>
+                    <div className={`relative mb-6 ${showSuggestions ? 'z-[70]' : 'z-[50]'}`}>
                         <div className="relative">
-                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <Search className="h-5 w-5 text-gray-400" />
-                            </div>
+                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 z-10" />
                             <input
                                 type="text"
                                 value={searchQuery}
                                 onChange={(e) => handleClientSearch(e.target.value)}
                                 onFocus={() => setShowSuggestions(true)}
-                                placeholder={clientsLoading ? 'Cargando clientes...' : 'Buscar por nombre o email...'}
-                                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#34baab] focus:border-transparent"
-                                required={clientMode === 'registered'}
-                                disabled={clientsLoading}
+                                placeholder={clientsLoading ? 'Cargando clientes...' : 'Buscar por nombre o apellido...'}
+                                className="w-full pl-14 pr-4 py-4 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#34baab]/20 focus:border-[#34baab] transition-all font-medium text-gray-900"
                             />
-                            {formData.clientId && (
-                                <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
-                                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                                </div>
-                            )}
                         </div>
 
-                        {/* Suggestions Dropdown */}
                         {showSuggestions && searchQuery && (
-                            <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                            <div className="absolute z-[100] w-full mt-2 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden max-h-[300px] overflow-y-auto animate-in fade-in slide-in-from-top-2 duration-200">
                                 {filteredClients.length > 0 ? (
                                     <>
-                                        {filteredClients.slice(0, 10).map((client) => (
+                                        {filteredClients.map((client) => (
                                             <button
                                                 key={client.uid}
                                                 type="button"
                                                 onClick={() => selectClient(client)}
-                                                className={`w-full text-left px-4 py-3 hover:bg-[#34baab]/10 transition-colors border-b border-gray-100 last:border-b-0 ${formData.clientId === client.uid ? 'bg-[#34baab]/5' : ''
-                                                    }`}
+                                                className={`w-full flex items-center gap-4 px-4 py-4 hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-0 text-left ${formData.clientId === client.uid ? 'bg-[#34baab]/5' : ''}`}
                                             >
-                                                <div className="font-medium text-gray-900">{client.fullName || 'Sin Nombre'}</div>
-                                                <div className="text-sm text-gray-500">{client.email || 'Sin Email'}</div>
+                                                <div className="w-10 h-10 bg-[#34baab]/10 rounded-full flex items-center justify-center shrink-0">
+                                                    <User className="w-5 h-5 text-[#34baab]" />
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <p className="font-bold text-gray-900 truncate">{client.fullName}</p>
+                                                </div>
                                             </button>
                                         ))}
-                                        {filteredClients.length > 10 && (
-                                            <div className="px-4 py-2 text-xs text-gray-500 bg-gray-50 text-center">
-                                                +{filteredClients.length - 10} más resultados. Refina tu búsqueda.
-                                            </div>
-                                        )}
                                     </>
                                 ) : (
                                     <div className="px-4 py-8 text-center text-gray-500">
@@ -470,7 +476,7 @@ export function AppointmentModal({
                         )}
 
                         {/* Client Health Info Alert */}
-                        {clientMode === 'registered' && formData.clientId && (
+                        {formData.clientId && (
                             <div className="mt-2 p-3 bg-red-50 border border-red-100 rounded-xl space-y-1 animate-in fade-in duration-300">
                                 <div className="flex items-center gap-2 text-red-600">
                                     <User className="w-4 h-4" />
@@ -498,7 +504,7 @@ export function AppointmentModal({
                         )}
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                         <Input
                             label="Nombre"
                             value={formData.clientFirstName}
@@ -520,14 +526,41 @@ export function AppointmentModal({
                     </div>
                 )}
 
+                <div className="bg-[#34baab]/5 p-5 rounded-3xl border border-[#34baab]/10 space-y-5 mb-8">
+                    <div className="flex items-center gap-2 mb-1">
+                        <Phone className="w-4 h-4 text-[#34baab]" />
+                        <h3 className="text-[10px] font-black text-[#34baab] uppercase tracking-[0.2em]">Contacto para Automatización</h3>
+                    </div>
 
-                <Input
-                    label="Tratamiento"
-                    value={formData.treatment}
-                    onChange={(e) => setFormData({ ...formData, treatment: e.target.value })}
-                    placeholder="Ej: Limpieza facial"
-                    required
-                />
+                    <div className="space-y-5">
+                        <PhoneInput
+                            label="WhatsApp"
+                            countryCode={countryCode}
+                            onCountryCodeChange={setCountryCode}
+                            phoneNumber={formData.clientPhone.replace(countryCode, '').replace('+', '')}
+                            onPhoneNumberChange={(num) => setFormData({ ...formData, clientPhone: `${countryCode}${num}` })}
+                            required
+                        />
+
+                        <Input
+                            label="Email (Opcional)"
+                            type="email"
+                            value={formData.clientEmail}
+                            onChange={(e) => setFormData({ ...formData, clientEmail: e.target.value })}
+                            placeholder="ejemplo@correo.com"
+                        />
+                    </div>
+                </div>
+
+                <div className="pt-4">
+                    <Input
+                        label="Tratamiento"
+                        value={formData.treatment}
+                        onChange={(e) => setFormData({ ...formData, treatment: e.target.value })}
+                        placeholder="Ej: Limpieza facial"
+                        required
+                    />
+                </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <Input

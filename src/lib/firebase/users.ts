@@ -96,6 +96,34 @@ export async function createUserProfile(profile: Omit<UserProfile, 'createdAt' |
     });
 }
 
+
+/**
+ * Creates a user profile for a manual client (not using Firebase Auth).
+ * Generates a unique ID in Firestore.
+ */
+export async function createManualUserProfile(profile: Omit<UserProfile, 'uid' | 'createdAt' | 'updatedAt'>): Promise<string> {
+    const now = Timestamp.now();
+    const userRef = doc(collection(db, USERS_COLLECTION));
+    const uid = userRef.id;
+
+    const firstName = profile.firstName || profile.fullName.split(' ')[0] || '';
+    const lastName = profile.lastName || profile.fullName.split(' ').slice(1).join(' ') || '';
+
+    await setDoc(userRef, {
+        ...profile,
+        uid: uid,
+        firstName,
+        lastName,
+        fullName: profile.fullName || `${firstName} ${lastName}`.trim(),
+        isManual: true,
+        createdAt: now,
+        updatedAt: now,
+        phone: formatPhone(profile.phone),
+    });
+
+    return uid;
+}
+
 export async function updateUserProfile(uid: string, data: Partial<UserProfile>): Promise<void> {
     const updateData: any = {
         ...data,

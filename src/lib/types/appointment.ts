@@ -15,6 +15,8 @@ export interface Appointment {
     clientFirstName?: string;
     clientLastName?: string;
     clientId?: string;
+    clientPhone?: string; // Standard format (+549...)
+    clientEmail?: string;
     treatment: string;
     date: string; // YYYY-MM-DD
     time: string; // HH:mm

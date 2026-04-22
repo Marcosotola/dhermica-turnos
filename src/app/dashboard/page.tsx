@@ -33,7 +33,7 @@ import {
 import Link from 'next/link';
 import { Appointment } from '@/lib/types/appointment';
 import { EditProfileModal } from '@/components/dashboard/EditProfileModal';
-import { Toaster } from 'sonner';
+import { Toaster, toast } from 'sonner';
 import { getAppointmentsByClientId, getAppointmentsByProfessionalId } from '@/lib/firebase/appointments';
 import { useNotifications } from '@/lib/hooks/useNotifications';
 import { ProfileSection } from '@/components/dashboard/ProfileSection';
@@ -128,6 +128,7 @@ export default function DashboardPage() {
     }
 
     const role: import('@/lib/types/user').UserRole = profile?.role ?? 'client';
+
 
     const calculateAge = (birthDate: string) => {
         if (!birthDate) return 'N/A';

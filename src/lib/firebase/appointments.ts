@@ -12,12 +12,13 @@ import {
     getDoc,
     setDoc,
     orderBy,
+    serverTimestamp,
 } from 'firebase/firestore';
 import { db } from './config';
 import { Professional } from '../types/professional';
 import { Appointment } from '../types/appointment';
 import { getActiveProfessionals } from './professionals';
-import { getUserProfile } from './users';
+import { getUserProfile, formatPhone } from './users';
 
 const APPOINTMENTS_COLLECTION = 'appointments';
 
@@ -92,6 +93,8 @@ function mapLegacyAppointment(docId: string, data: any, professionalId?: string)
         clientName,
         clientFirstName,
         clientLastName,
+        clientPhone: data.clientPhone || data.telefono || '',
+        clientEmail: data.clientEmail || data.email || '',
         treatment: data.treatment || data.servicio || '',
         date: appointmentDate,
         time: data.time || data.hora || '',
@@ -190,6 +193,7 @@ export async function createAppointment(
     const now = Timestamp.now();
     const docRef = await addDoc(collection(db, APPOINTMENTS_COLLECTION), {
         ...data,
+        clientPhone: formatPhone(data.clientPhone || ''),
         notified1h: false,
         notified24h: false,
         notified48h: false,
@@ -239,6 +243,10 @@ export async function updateAppointment(
             ...data,
             updatedAt: Timestamp.now(),
         };
+
+        if (data.clientPhone) {
+            updateData.clientPhone = formatPhone(data.clientPhone);
+        }
 
         // Reset reminder flags if date or time changes
         if (dateChanged || timeChanged) {
@@ -689,5 +697,64 @@ export async function getAppointmentsByProfessional(
     } catch (error) {
         console.error('Error fetching appointments by professional:', error);
         return [];
+    }
+}
+
+/**
+ * Backfills contact information for future appointments that are missing it.
+ * Only targets appointments from a specific date onwards for registered clients.
+ */
+export async function backfillFutureAppointments(startDate: string): Promise<{ updated: number, errors: number }> {
+    let updatedCount = 0;
+    let errorCount = 0;
+
+    try {
+        console.log(`[Backfill] Iniciando actualización de turnos desde: ${startDate}`);
+        const q = query(
+            collection(db, APPOINTMENTS_COLLECTION),
+            where('date', '>=', startDate)
+        );
+
+        const querySnapshot = await getDocs(q);
+        console.log(`[Backfill] Se encontraron ${querySnapshot.docs.length} turnos futuros en total.`);
+        
+        const userCache: Record<string, any> = {};
+
+        for (const docSnap of querySnapshot.docs) {
+            const data = docSnap.data();
+            
+            // Si tiene clientId pero no tiene clientPhone
+            if (data.clientId && !data.clientPhone) {
+                try {
+                    let userData = userCache[data.clientId];
+                    
+                    if (!userData) {
+                        const userDoc = await getDoc(doc(db, 'users', data.clientId));
+                        if (userDoc.exists()) {
+                            userData = userDoc.data();
+                            userCache[data.clientId] = userData;
+                        }
+                    }
+
+                    if (userData && userData.phone) {
+                        await updateDoc(docSnap.ref, {
+                            clientPhone: userData.phone,
+                            clientEmail: userData.email || '',
+                            updatedAt: serverTimestamp()
+                        });
+                        updatedCount++;
+                    }
+                } catch (e) {
+                    console.error(`[Backfill] Error actualizando turno ${docSnap.id}:`, e);
+                    errorCount++;
+                }
+            }
+        }
+
+        console.log(`[Backfill] Finalizado. Actualizados: ${updatedCount}, Errores: ${errorCount}`);
+        return { updated: updatedCount, errors: errorCount };
+    } catch (error) {
+        console.error('[Backfill] Error fatal en proceso:', error);
+        throw error;
     }
 }

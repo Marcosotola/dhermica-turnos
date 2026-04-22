@@ -16,7 +16,9 @@ import {
     CheckCircle2,
     XCircle,
     BadgeDollarSign,
-    UserCircle2
+    UserCircle2,
+    Phone,
+    Mail
 } from 'lucide-react';
 
 interface AppointmentDetailModalProps {
@@ -128,6 +130,33 @@ export function AppointmentDetailModal({
                             <span className="text-[10px] font-black uppercase tracking-widest">Servicio</span>
                         </div>
                         <p className="font-bold text-gray-900 text-lg leading-tight">{appointment.treatment}</p>
+                    </div>
+
+                    <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                        <div className="flex items-center gap-2 text-gray-400 mb-2">
+                            <Phone className="w-4 h-4 text-[#34baab]" />
+                            <span className="text-[10px] font-black uppercase tracking-widest">Teléfono / WhatsApp</span>
+                        </div>
+                        {appointment.clientPhone ? (
+                            <a 
+                                href={`https://wa.me/${appointment.clientPhone.replace(/\+/g, '')}`} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="font-bold text-[#34baab] hover:underline flex items-center gap-2"
+                            >
+                                {appointment.clientPhone}
+                            </a>
+                        ) : (
+                            <p className="text-gray-400 italic">No registrado</p>
+                        )}
+                    </div>
+
+                    <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                        <div className="flex items-center gap-2 text-gray-400 mb-2">
+                            <Mail className="w-4 h-4" />
+                            <span className="text-[10px] font-black uppercase tracking-widest">Email</span>
+                        </div>
+                        <p className="font-bold text-gray-900 truncate">{appointment.clientEmail || 'No registrado'}</p>
                     </div>
 
                     <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">

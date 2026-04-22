@@ -44,6 +44,10 @@ export function validateAppointment(data: Partial<Appointment>): string[] {
         errors.push('El tratamiento es requerido');
     }
 
+    if (!data.clientPhone || data.clientPhone.trim().length === 0) {
+        errors.push('El teléfono de contacto es requerido (WhatsApp)');
+    }
+
     if (!data.date) {
         errors.push('La fecha es requerida');
     }
