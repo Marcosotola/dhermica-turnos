@@ -90,7 +90,6 @@ export function TopNavbar() {
             { href: '/ubicacion', label: 'Ubicación', icon: MapPin },
             { href: '/comunidad', label: 'Comunidad', icon: Users },
             { href: '/alquileres', label: 'Alquiler', icon: Truck },
-            { href: '/usuarios', label: 'Usuarios', icon: Settings },
         ] : []),
         // Client and Promotor
         ...(role === 'client' || role === 'promotor' ? [

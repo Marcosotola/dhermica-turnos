@@ -19,7 +19,8 @@ interface CreateClientModalProps {
 export function CreateClientModal({ isOpen, onClose, onCreated }: CreateClientModalProps) {
     const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState({
-        fullName: '',
+        firstName: '',
+        lastName: '',
         phone: '',
         birthDate: '',
         sex: 'female' as 'male' | 'female',
@@ -34,6 +35,12 @@ export function CreateClientModal({ isOpen, onClose, onCreated }: CreateClientMo
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        if (!formData.firstName || !formData.lastName || !formData.phone) {
+            toast.error('Nombre, Apellido y Teléfono son obligatorios');
+            return;
+        }
+
         setLoading(true);
 
         try {
@@ -44,10 +51,14 @@ export function CreateClientModal({ isOpen, onClose, onCreated }: CreateClientMo
             // Use provided email or generate a placeholder
             const finalEmail = formData.email.trim() || `manual_${timestamp}@dhermica.internal`;
 
+            const fullName = `${formData.firstName.trim()} ${formData.lastName.trim()}`;
+
             const newProfile: Omit<UserProfile, 'createdAt' | 'updatedAt'> = {
                 uid: manualId,
                 email: finalEmail,
-                fullName: formData.fullName.trim(),
+                firstName: formData.firstName.trim(),
+                lastName: formData.lastName.trim(),
+                fullName: fullName,
                 phone: formatPhone(`${countryCode}${formData.phone}`),
                 birthDate: formData.birthDate,
                 sex: formData.sex,
@@ -58,7 +69,7 @@ export function CreateClientModal({ isOpen, onClose, onCreated }: CreateClientMo
             };
 
             await createUserProfile(newProfile);
-            toast.success('Cliente creado manualmente con éxito');
+            toast.success('Cliente creado correctamente');
             onCreated();
             onClose();
         } catch (error) {
@@ -77,7 +88,7 @@ export function CreateClientModal({ isOpen, onClose, onCreated }: CreateClientMo
                         <div className="w-10 h-10 bg-[#34baab]/10 rounded-xl flex items-center justify-center">
                             <UserPlus className="w-5 h-5 text-[#34baab]" />
                         </div>
-                        <h2 className="text-xl font-black text-gray-900">Nuevo Registro Manual</h2>
+                        <h2 className="text-xl font-black text-gray-900 uppercase tracking-widest">Nuevo Registro</h2>
                     </div>
                     <button
                         onClick={onClose}
@@ -87,15 +98,25 @@ export function CreateClientModal({ isOpen, onClose, onCreated }: CreateClientMo
                     </button>
                 </div>
 
-                <form onSubmit={handleSubmit} className="p-6 space-y-6 overflow-y-auto flex-1">
+                <form onSubmit={handleSubmit} className="p-6 space-y-6 overflow-y-auto flex-1 custom-scrollbar">
                     <div className="space-y-4">
-                        <Input
-                            label="Nombre Completo"
-                            placeholder="Ej: Juan Pérez"
-                            value={formData.fullName}
-                            onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                            required
-                        />
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <Input
+                                label="Nombre"
+                                placeholder="Ej: Juan"
+                                value={formData.firstName}
+                                onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                                required
+                            />
+                            <Input
+                                label="Apellido"
+                                placeholder="Ej: Pérez"
+                                value={formData.lastName}
+                                onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                                required
+                            />
+                        </div>
+
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <PhoneInput
                                 label="WhatsApp"
@@ -110,7 +131,6 @@ export function CreateClientModal({ isOpen, onClose, onCreated }: CreateClientMo
                                 label="Fecha de Nacimiento"
                                 value={formData.birthDate}
                                 onChange={(e) => setFormData({ ...formData, birthDate: e.target.value })}
-                                required
                             />
                         </div>
 
@@ -143,7 +163,7 @@ export function CreateClientModal({ isOpen, onClose, onCreated }: CreateClientMo
                                         type="checkbox"
                                         checked={formData.hasTattoos}
                                         onChange={(e) => setFormData({ ...formData, hasTattoos: e.target.checked })}
-                                        className="w-5 h-5 rounded border-gray-300 text-violet-600 focus:ring-violet-500"
+                                        className="w-5 h-5 rounded border-gray-300 text-teal-600 focus:ring-teal-500"
                                     />
                                     <span className="text-sm font-medium text-gray-700">Tiene tatuajes</span>
                                 </label>
@@ -171,7 +191,7 @@ export function CreateClientModal({ isOpen, onClose, onCreated }: CreateClientMo
                         <textarea
                             value={formData.relevantMedicalInfo}
                             onChange={(e) => setFormData({ ...formData, relevantMedicalInfo: e.target.value })}
-                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent min-h-[100px] resize-none"
+                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent min-h-[100px] resize-none text-sm"
                             placeholder="Alergias, enfermedades crónicas, medicación..."
                         />
                     </div>
@@ -188,7 +208,7 @@ export function CreateClientModal({ isOpen, onClose, onCreated }: CreateClientMo
                         </Button>
                         <Button
                             type="submit"
-                            className="flex-1 bg-[#34baab] hover:bg-[#2aa89a]"
+                            className="flex-1 bg-[#34baab] hover:bg-[#2aa89a] text-white"
                             disabled={loading}
                         >
                             {loading ? 'Creando...' : 'Crear Cliente'}

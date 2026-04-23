@@ -10,7 +10,7 @@ import { Appointment, DURATION_OPTIONS, AppointmentStatus, Payment } from '@/lib
 import { Plus, Trash2, CreditCard, CheckCircle2, Clock, XCircle, ChevronDown, Save, Phone } from 'lucide-react';
 import { Professional } from '@/lib/types/professional';
 import { UserProfile } from '@/lib/types/user';
-import { getAllUsers } from '@/lib/firebase/users';
+import { getAllUsers, createManualUserProfile } from '@/lib/firebase/users';
 import { capitalizeName } from '@/lib/utils/time';
 import { Search, UserPlus, User, BadgeDollarSign } from 'lucide-react';
 import { validateAppointment, checkOverlap } from '@/lib/utils/validation';
@@ -46,6 +46,11 @@ export function AppointmentModal({
         clientId: '',
         clientPhone: '',
         clientEmail: '',
+        clientBirthDate: '',
+        hasTattoos: false,
+        isPregnant: false,
+        relevantMedicalInfo: '',
+        sex: 'female' as 'male' | 'female',
         treatment: '',
         time: defaultTime || '',
         duration: 1,
@@ -117,6 +122,11 @@ export function AppointmentModal({
                 clientId: appointment.clientId || '',
                 clientPhone: appointment.clientPhone || '',
                 clientEmail: appointment.clientEmail || '',
+                clientBirthDate: '',
+                hasTattoos: false,
+                isPregnant: false,
+                relevantMedicalInfo: '',
+                sex: 'female',
                 treatment: appointment.treatment,
                 time: appointment.time,
                 duration: appointment.duration,
@@ -144,6 +154,11 @@ export function AppointmentModal({
                 clientId: '',
                 clientPhone: '',
                 clientEmail: '',
+                clientBirthDate: '',
+                hasTattoos: false,
+                isPregnant: false,
+                relevantMedicalInfo: '',
+                sex: 'female',
                 treatment: '',
                 time: defaultTime || '',
                 duration: 1,
@@ -321,9 +336,40 @@ export function AppointmentModal({
         setLoading(true);
 
         try {
+            let finalClientId = clientMode === 'registered' ? formData.clientId : undefined;
+
+            // Si es un cliente manual nuevo (no estamos editando un turno que ya tenía ID de cliente)
+            if (clientMode === 'manual' && !appointment) {
+                try {
+                    const newUid = await createManualUserProfile({
+                        firstName: capitalizeName(formData.clientFirstName),
+                        lastName: capitalizeName(formData.clientLastName),
+                        fullName: `${capitalizeName(formData.clientFirstName)} ${capitalizeName(formData.clientLastName)}`.trim(),
+                        email: formData.clientEmail.toLowerCase() || `manual_${Date.now()}@dhermica.internal`,
+                        phone: formData.clientPhone,
+                        role: 'client',
+                        sex: formData.sex || 'female',
+                        hasTattoos: formData.hasTattoos,
+                        isPregnant: formData.isPregnant,
+                        relevantMedicalInfo: formData.relevantMedicalInfo || '',
+                        birthDate: formData.clientBirthDate, 
+                    });
+                    finalClientId = newUid;
+                } catch (userError) {
+                    console.error('Error creating user profile during appointment creation:', userError);
+                    // Continuamos aunque falle la creación del perfil, para no perder el turno
+                }
+            }
+
             // Eliminar campos undefined manualmente para ser precisos
             const cleanData = Object.fromEntries(
-                Object.entries(appointmentData).filter(([_, v]) => v !== undefined)
+                Object.entries({
+                    ...appointmentData,
+                    clientId: finalClientId,
+                    // Si creamos un cliente nuevo, actualizamos los nombres en el turno
+                    clientFirstName: capitalizeName(clientMode === 'manual' ? formData.clientFirstName : (formData.clientFirstName || clientName.split(' ')[0])),
+                    clientLastName: capitalizeName(clientMode === 'manual' ? formData.clientLastName : (formData.clientLastName || clientName.split(' ').slice(1).join(' '))),
+                }).filter(([_, v]) => v !== undefined)
             );
 
             if (appointment) {
@@ -331,7 +377,7 @@ export function AppointmentModal({
                 toast.success('Turno actualizado exitosamente');
             } else {
                 await createAppointment(cleanData as any);
-                toast.success('Turno creado exitosamente');
+                toast.success('Turno creado y cliente registrado');
             }
             onClose();
         } catch (error) {
@@ -504,25 +550,68 @@ export function AppointmentModal({
                         )}
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                        <Input
-                            label="Nombre"
-                            value={formData.clientFirstName}
-                            onChange={(e) =>
-                                setFormData({ ...formData, clientFirstName: capitalizeName(e.target.value) })
-                            }
-                            placeholder="Ej: María"
-                            required
-                        />
-                        <Input
-                            label="Apellido"
-                            value={formData.clientLastName}
-                            onChange={(e) =>
-                                setFormData({ ...formData, clientLastName: capitalizeName(e.target.value) })
-                            }
-                            placeholder="Ej: González"
-                            required
-                        />
+                    <div className="space-y-4 mb-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <Input
+                                label="Nombre"
+                                value={formData.clientFirstName || ''}
+                                onChange={(e) =>
+                                    setFormData({ ...formData, clientFirstName: capitalizeName(e.target.value) })
+                                }
+                                placeholder="Ej: María"
+                                required
+                            />
+                            <Input
+                                label="Apellido"
+                                value={formData.clientLastName || ''}
+                                onChange={(e) =>
+                                    setFormData({ ...formData, clientLastName: capitalizeName(e.target.value) })
+                                }
+                                placeholder="Ej: González"
+                                required
+                            />
+                        </div>
+
+                        {/* Información de Salud (Solo Manual) */}
+                        <div className="bg-amber-50 p-5 rounded-3xl border border-amber-100 space-y-4 mt-4">
+                            <div className="flex items-center gap-2 mb-1">
+                                <BadgeDollarSign className="w-4 h-4 text-amber-600" />
+                                <h3 className="text-[10px] font-black text-amber-600 uppercase tracking-[0.2em]">Perfil de Salud</h3>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <label className="flex items-center gap-3 p-3 bg-white rounded-2xl border border-amber-200 cursor-pointer hover:bg-amber-100/50 transition-colors">
+                                    <input
+                                        type="checkbox"
+                                        checked={formData.isPregnant}
+                                        onChange={(e) => setFormData({ ...formData, isPregnant: e.target.checked })}
+                                        className="w-5 h-5 rounded border-amber-300 text-amber-600 focus:ring-amber-500"
+                                    />
+                                    <span className="text-sm font-medium text-amber-900">Embarazo</span>
+                                </label>
+
+                                <label className="flex items-center gap-3 p-3 bg-white rounded-2xl border border-amber-200 cursor-pointer hover:bg-amber-100/50 transition-colors">
+                                    <input
+                                        type="checkbox"
+                                        checked={formData.hasTattoos}
+                                        onChange={(e) => setFormData({ ...formData, hasTattoos: e.target.checked })}
+                                        className="w-5 h-5 rounded border-amber-300 text-amber-600 focus:ring-amber-500"
+                                    />
+                                    <span className="text-sm font-medium text-amber-900">Tatuajes</span>
+                                </label>
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="text-xs font-bold text-amber-700 uppercase px-1">Notas Médicas / Alergias</label>
+                                <textarea
+                                    value={formData.relevantMedicalInfo || ''}
+                                    onChange={(e) => setFormData({ ...formData, relevantMedicalInfo: e.target.value })}
+                                    placeholder="Ej: Alérgica a la aspirina, hipersensibilidad..."
+                                    rows={2}
+                                    className="w-full px-4 py-2 bg-white border border-amber-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent resize-none text-sm text-gray-900"
+                                />
+                            </div>
+                        </div>
                     </div>
                 )}
 
@@ -542,20 +631,30 @@ export function AppointmentModal({
                             required
                         />
 
-                        <Input
-                            label="Email (Opcional)"
-                            type="email"
-                            value={formData.clientEmail}
-                            onChange={(e) => setFormData({ ...formData, clientEmail: e.target.value })}
-                            placeholder="ejemplo@correo.com"
-                        />
+                        <div className={`grid grid-cols-1 ${clientMode === 'manual' ? 'md:grid-cols-2' : ''} gap-4`}>
+                            {clientMode === 'manual' && (
+                                <Input
+                                    label="Fecha de Nacimiento (Opcional)"
+                                    type="date"
+                                    value={formData.clientBirthDate || ''}
+                                    onChange={(e) => setFormData({ ...formData, clientBirthDate: e.target.value })}
+                                />
+                            )}
+                            <Input
+                                label="Email (Opcional)"
+                                type="email"
+                                value={formData.clientEmail || ''}
+                                onChange={(e) => setFormData({ ...formData, clientEmail: e.target.value })}
+                                placeholder="ejemplo@correo.com"
+                            />
+                        </div>
                     </div>
                 </div>
 
                 <div className="pt-4">
                     <Input
                         label="Tratamiento"
-                        value={formData.treatment}
+                        value={formData.treatment || ''}
                         onChange={(e) => setFormData({ ...formData, treatment: e.target.value })}
                         placeholder="Ej: Limpieza facial"
                         required
@@ -566,7 +665,7 @@ export function AppointmentModal({
                     <Input
                         label="Hora"
                         type="time"
-                        value={formData.time}
+                        value={formData.time || ''}
                         onChange={(e) => setFormData({ ...formData, time: e.target.value })}
                         min="07:30"
                         max="19:30"
@@ -783,8 +882,8 @@ export function AppointmentModal({
                                         type="number"
                                         min="0"
                                         max="100"
-                                        value={formData.commissionPercentageOverride || 0}
-                                        onChange={(e) => setFormData({ ...formData, commissionPercentageOverride: Number(e.target.value) })}
+                                        value={formData.commissionPercentageOverride ?? ''}
+                                        onChange={(e) => setFormData({ ...formData, commissionPercentageOverride: e.target.value ? Number(e.target.value) : undefined })}
                                         placeholder="Ej: 100"
                                     />
                                 </div>
@@ -803,7 +902,7 @@ export function AppointmentModal({
                         Notas (opcional)
                     </label>
                     <textarea
-                        value={formData.notes}
+                        value={formData.notes || ''}
                         onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                         placeholder="Notas adicionales..."
                         rows={3}
