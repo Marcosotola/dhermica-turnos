@@ -27,6 +27,7 @@ export function RentalModal({ isOpen, onClose, rental }: RentalModalProps) {
         commission: 0 as number | string,
         sellerId: '',
         paymentMethod: 'cash' as 'cash' | 'transfer' | 'debit' | 'credit' | 'qr',
+        bankAccount: 'cuenta1' as 'cuenta1' | 'cuenta2',
     });
     const [staff, setStaff] = useState<UserProfile[]>([]);
     const [loading, setLoading] = useState(false);
@@ -42,6 +43,7 @@ export function RentalModal({ isOpen, onClose, rental }: RentalModalProps) {
                 commission: rental.commission ?? 0,
                 sellerId: rental.sellerId ?? '',
                 paymentMethod: rental.paymentMethod ?? 'cash',
+                bankAccount: rental.bankAccount ?? 'cuenta1',
             });
         } else {
             setFormData({
@@ -52,6 +54,7 @@ export function RentalModal({ isOpen, onClose, rental }: RentalModalProps) {
                 commission: 10000,
                 sellerId: '',
                 paymentMethod: 'cash',
+                bankAccount: 'cuenta1',
             });
         }
     }, [rental, isOpen]);
@@ -89,6 +92,7 @@ export function RentalModal({ isOpen, onClose, rental }: RentalModalProps) {
                 commission: Number(formData.commission),
                 sellerId: formData.sellerId,
                 sellerName: selectedStaff?.fullName || 'Desconocido',
+                bankAccount: formData.paymentMethod !== 'cash' ? formData.bankAccount : undefined,
             };
 
             if (rental) {
@@ -180,6 +184,19 @@ export function RentalModal({ isOpen, onClose, rental }: RentalModalProps) {
                     ]}
                     required
                 />
+
+                {formData.paymentMethod !== 'cash' && (
+                    <Select
+                        label="Cuenta de Destino"
+                        value={formData.bankAccount}
+                        onChange={(e) => setFormData({ ...formData, bankAccount: e.target.value as any })}
+                        options={[
+                            { value: 'cuenta1', label: 'Cuenta 1' },
+                            { value: 'cuenta2', label: 'Cuenta 2' },
+                        ]}
+                        required
+                    />
+                )}
 
                 <div className="flex gap-3 pt-4">
                     <Button

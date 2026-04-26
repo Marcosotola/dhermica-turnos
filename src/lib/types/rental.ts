@@ -8,6 +8,7 @@ export interface Rental {
     sellerName: string;
     commission: number;
     paymentMethod: 'cash' | 'transfer' | 'debit' | 'credit' | 'qr';
+    bankAccount?: 'cuenta1' | 'cuenta2';
     createdAt: Date;
     updatedAt: Date;
 }

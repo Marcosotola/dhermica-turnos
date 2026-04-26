@@ -19,7 +19,10 @@ import {
     Loader2,
     Users,
     ShoppingBag,
-    Zap
+    Zap,
+    BookText,
+    Filter,
+    ArrowUpDown
 } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 import { useRouter } from 'next/navigation';
@@ -37,13 +40,19 @@ export default function FinanzasPage() {
         end: new Date().toISOString().split('T')[0]
     });
     const [currentDate, setCurrentDate] = useState(new Date());
+    const [expandedMetric, setExpandedMetric] = useState<string | null>(null);
+    const [visibleMovements, setVisibleMovements] = useState(20);
+    const [typeFilter, setTypeFilter] = useState<'all' | 'ingreso' | 'egreso'>('all');
 
     const isAdmin = profile?.role === 'admin';
     const isSecretary = profile?.role === 'secretary';
-    const canSeeIncome = isAdmin || isSecretary; // ve ingresos totales y métodos de pago
+    const isContador = profile?.role === 'contador';
+    const canSeeIncome = isAdmin || isSecretary || isContador;
 
     useEffect(() => {
         loadData();
+        setVisibleMovements(20);
+        setTypeFilter('all');
     }, [dateRange, currentDate, customRange, profile]);
 
     const loadData = async () => {
@@ -99,6 +108,10 @@ export default function FinanzasPage() {
         return currentDate.toLocaleDateString('es-AR', { month: 'long', year: 'numeric' });
     };
 
+    const toggleMetric = (metric: string) => {
+        setExpandedMetric(expandedMetric === metric ? null : metric);
+    };
+
     if (loading && !overview) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -107,13 +120,12 @@ export default function FinanzasPage() {
         );
     }
 
-    // Role-specific filtering for UI - find the entry that matches the current user's UID
     const personalData = profile?.uid && overview?.byProfessional ? (
         Object.values(overview.byProfessional).find(p => p.userId === profile.uid) || null
     ) : null;
 
     return (
-        <div className="min-h-screen bg-gray-50 pb-24">
+        <div className="min-h-screen bg-gray-50 pb-24 font-sans">
             <Toaster position="top-center" richColors />
 
             {/* Header */}
@@ -140,290 +152,343 @@ export default function FinanzasPage() {
                             <button
                                 key={range}
                                 onClick={() => setDateRange(range)}
-                                className={`flex-1 min-w-[80px] md:px-6 py-2.5 rounded-xl text-[10px] md:text-sm font-black uppercase tracking-widest transition-all ${dateRange === range ? 'bg-[#34baab] text-white shadow-lg' : 'text-gray-500 hover:text-gray-700'
+                                className={`flex-1 min-w-[80px] md:px-6 py-2.5 rounded-xl text-[10px] md:text-xs font-black uppercase tracking-widest transition-all ${dateRange === range ? 'bg-[#34baab] text-white shadow-lg' : 'text-gray-500 hover:text-gray-700'
                                     }`}
                             >
-                                {range === 'day' ? 'Hoy' : range === 'week' ? 'Semana' : range === 'month' ? 'Mes' : 'Rango'}
+                                {range === 'day' ? 'Día' : range === 'week' ? 'Semana' : range === 'month' ? 'Mes' : 'Rango'}
                             </button>
                         ))}
                     </div>
 
-                    {dateRange === 'custom' ? (
-                        <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
-                            <div className="flex items-center gap-2 bg-gray-50 px-4 py-2 rounded-2xl border border-gray-200 w-full md:w-auto">
-                                <span className="text-[10px] font-black uppercase text-gray-400">Desde:</span>
-                                <input
-                                    type="date"
-                                    value={customRange.start}
-                                    onChange={(e) => setCustomRange(prev => ({ ...prev, start: e.target.value }))}
-                                    className="bg-transparent border-none text-gray-800 font-bold text-sm focus:ring-0 outline-none p-0"
-                                />
+                    <div className="flex items-center gap-4">
+                        {dateRange === 'custom' ? (
+                            <div className="flex flex-col md:flex-row items-center gap-4">
+                                <div className="flex items-center gap-2 bg-gray-50 px-4 py-2 rounded-2xl border border-gray-200">
+                                    <span className="text-[10px] font-black uppercase text-gray-400">Desde:</span>
+                                    <input
+                                        type="date"
+                                        value={customRange.start}
+                                        onChange={(e) => setCustomRange(prev => ({ ...prev, start: e.target.value }))}
+                                        className="bg-transparent border-none text-gray-800 font-bold text-sm focus:ring-0 outline-none p-0"
+                                    />
+                                </div>
+                                <div className="flex items-center gap-2 bg-gray-50 px-4 py-2 rounded-2xl border border-gray-200">
+                                    <span className="text-[10px] font-black uppercase text-gray-400">Hasta:</span>
+                                    <input
+                                        type="date"
+                                        value={customRange.end}
+                                        onChange={(e) => setCustomRange(prev => ({ ...prev, end: e.target.value }))}
+                                        className="bg-transparent border-none text-gray-800 font-bold text-sm focus:ring-0 outline-none p-0"
+                                    />
+                                </div>
                             </div>
-                            <div className="flex items-center gap-2 bg-gray-50 px-4 py-2 rounded-2xl border border-gray-200 w-full md:w-auto">
-                                <span className="text-[10px] font-black uppercase text-gray-400">Hasta:</span>
-                                <input
-                                    type="date"
-                                    value={customRange.end}
-                                    onChange={(e) => setCustomRange(prev => ({ ...prev, end: e.target.value }))}
-                                    className="bg-transparent border-none text-gray-800 font-bold text-sm focus:ring-0 outline-none p-0"
-                                />
+                        ) : (
+                            <div className="flex items-center gap-4 bg-gray-50 px-4 py-2 rounded-2xl border border-gray-200">
+                                <button onClick={() => navigateDate(-1)} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
+                                    <ChevronLeft className="w-5 h-5 text-gray-600" />
+                                </button>
+                                
+                                {dateRange === 'day' ? (
+                                    <input 
+                                        type="date"
+                                        value={formatDate(currentDate)}
+                                        onChange={(e) => setCurrentDate(new Date(e.target.value + 'T00:00:00'))}
+                                        className="bg-transparent border-none text-gray-800 font-black text-sm focus:ring-0 outline-none p-0 text-center uppercase tracking-tight"
+                                    />
+                                ) : (
+                                    <span className="text-sm font-black text-gray-800 min-w-[150px] text-center capitalize">
+                                        {getDateLabel()}
+                                    </span>
+                                )}
+                                
+                                <button onClick={() => navigateDate(1)} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
+                                    <ChevronRight className="w-5 h-5 text-gray-600" />
+                                </button>
                             </div>
-                        </div>
-                    ) : (
-                        <div className="flex items-center gap-4 bg-gray-50 px-6 py-2 rounded-2xl border border-gray-200">
-                            <button onClick={() => navigateDate(-1)} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
-                                <ChevronLeft className="w-6 h-6 text-gray-600" />
-                            </button>
-                            <span className="text-lg font-black text-gray-800 min-w-[200px] text-center capitalize">
-                                {getDateLabel()}
-                            </span>
-                            <button onClick={() => navigateDate(1)} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
-                                <ChevronRight className="w-6 h-6 text-gray-600" />
-                            </button>
-                        </div>
-                    )}
+                        )}
+                    </div>
                 </div>
 
-                <div className="space-y-8 max-w-4xl mx-auto">
-                    {/* 1. Saldo Neto (Solo Admin) — Discreto */}
-                    {isAdmin && (
-                        <div className="bg-white rounded-2xl p-6 shadow-md border border-gray-100 flex items-center justify-between">
-                            <div>
-                                <h3 className="text-gray-400 font-black uppercase tracking-[0.2em] text-[10px] mb-1 flex items-center gap-2">
-                                    <TrendingUp className="w-3 h-3 text-[#34baab]" /> Saldo de Caja
-                                </h3>
-                                <p className={`text-4xl font-black ${(overview?.saldo ?? 0) >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                                    {formatCurrency(overview?.saldo || 0)}
-                                </p>
-                            </div>
-                            <div className={`p-3 rounded-xl ${(overview?.saldo ?? 0) >= 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
-                                <DollarSign className="w-8 h-8" />
-                            </div>
-                        </div>
-                    )}
-
-                    {/* 2. Ingresos Totales (Admins y Secretarias) */}
-                    {canSeeIncome && (
-                        <div className="bg-gradient-to-br from-[#484450] to-[#2d2a33] text-white p-8 rounded-[2.5rem] shadow-2xl shadow-[#34baab]/10 border border-white/5 relative overflow-hidden group">
-                            <div className="absolute top-0 right-0 p-8 transform group-hover:scale-110 transition-transform duration-500 opacity-20">
-                                <PieChart className="w-32 h-32" />
-                            </div>
-                            <h3 className="text-gray-400 font-black uppercase tracking-[0.2em] text-xs mb-4">Ingresos Totales</h3>
-                            <p className="text-5xl font-black tracking-tighter mb-4">{formatCurrency(overview?.totalIncome || 0)}</p>
-
-                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 opacity-80 border-t border-white/10 pt-6">
-                                <div className="space-y-1">
-                                    <span className="text-[10px] font-black uppercase text-gray-500 tracking-widest">Servicios</span>
-                                    <p className="text-lg font-black">{formatCurrency(overview?.totalServiceIncome || 0)}</p>
-                                </div>
-                                <div className="space-y-1">
-                                    <span className="text-[10px] font-black uppercase text-gray-500 tracking-widest">Pagos Parciales</span>
-                                    <p className="text-lg font-black">{formatCurrency(overview?.totalPartialIncome || 0)}</p>
-                                </div>
-                                <div className="space-y-1">
-                                    <span className="text-[10px] font-black uppercase text-gray-500 tracking-widest">Productos</span>
-                                    <p className="text-lg font-black">{formatCurrency(overview?.totalProductIncome || 0)}</p>
-                                </div>
-                                <div className="space-y-1">
-                                    <span className="text-[10px] font-black uppercase text-gray-500 tracking-widest">Alquileres</span>
-                                    <p className="text-lg font-black">{formatCurrency(overview?.totalRentalIncome || 0)}</p>
-                                </div>
-                            </div>
-
-                            <div className="flex items-center gap-2 text-[#34baab] bg-[#34baab]/10 w-fit px-3 py-1.5 rounded-full border border-[#34baab]/20">
-                                <TrendingUp className="w-4 h-4" />
-                                <span className="text-xs font-black uppercase">Flujo de Caja</span>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* 3. Métodos de Pago (Admins y Secretarias) */}
-                    {canSeeIncome && (
-                        <div className="bg-white rounded-[2.5rem] p-8 shadow-xl border border-gray-100">
-                            <h3 className="text-gray-400 font-black uppercase tracking-[0.2em] text-xs mb-8 flex items-center gap-2">
-                                <CreditCard className="w-4 h-4" /> Distribución por Método de Pago
-                            </h3>
-                            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                                {Object.entries(overview?.byMethod || {}).map(([method, amount]) => {
-                                    const labels: Record<string, string> = {
-                                        cash: 'Efectivo',
-                                        transfer: 'Transferencia',
-                                        debit: 'T. Débito',
-                                        credit: 'T. Crédito',
-                                        qr: 'QR / Digital'
-                                    };
-                                    if (amount === 0) return null;
-                                    return (
-                                        <div key={method} className="bg-gray-50 p-4 rounded-2xl border border-gray-100 group hover:border-[#34baab]/30 transition-all">
-                                            <span className="text-gray-400 font-black uppercase text-[9px] tracking-widest block mb-1">{labels[method]}</span>
-                                            <span className="text-gray-900 font-black block">{formatCurrency(amount)}</span>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                            {Object.values(overview?.byMethod || {}).every(v => v === 0) && (
-                                <p className="text-center text-gray-400 text-sm italic py-4">No se registran pagos.</p>
-                            )}
-                        </div>
-                    )}
-
-                    {/* 4. Desglose por Profesional (Solo Admin) */}
-                    {isAdmin && (
-                        <div className="bg-white rounded-[2.5rem] p-8 shadow-xl border border-gray-100">
-                            <h3 className="text-gray-800 font-black text-2xl mb-8 flex items-center gap-3">
-                                <Users className="w-6 h-6 text-[#34baab]" /> Desglose por Profesional
-                            </h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                {Object.entries(overview?.byProfessional || {}).map(([id, data]) => {
-                                    if (data.serviceCommission === 0 && data.productCommission === 0 && data.rentalCommission === 0 && data.aparatoFee === 0) return null;
-                                    return (
-                                        <div key={id} className="bg-gray-50 rounded-3xl p-6 border border-gray-100 hover:border-[#34baab]/30 transition-all hover:bg-white hover:shadow-lg group">
-                                            <div className="flex justify-between items-start mb-6">
-                                                <div>
-                                                    <h4 className="font-black text-gray-900 text-lg group-hover:text-[#34baab] transition-colors">{data.name}</h4>
-                                                    <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest block">Actividad del período</span>
-                                                    <span className="text-[9px] font-bold text-[#34baab] italic uppercase tracking-tighter">Solo turnos realizados</span>
-                                                </div>
+                <div className="space-y-6 mt-8">
+                    {/* 1. Top Metrics Bar - Interactive Tiles */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 items-start">
+                        {/* Saldo Neto */}
+                        {isAdmin && (
+                            <div className="space-y-2">
+                                <button 
+                                    onClick={() => toggleMetric('saldo')}
+                                    className={`w-full bg-white rounded-2xl md:rounded-3xl p-3 md:p-5 shadow-sm border transition-all flex items-center gap-3 md:gap-4 text-left ${expandedMetric === 'saldo' ? 'border-[#34baab] shadow-md ring-1 ring-[#34baab]/20' : 'border-gray-100 hover:shadow-md'}`}
+                                >
+                                    <div className={`p-2 md:p-3 rounded-xl md:rounded-2xl ${(overview?.saldo ?? 0) >= 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
+                                        <Wallet className="w-5 h-5 md:w-6 md:h-6" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <h3 className="text-gray-400 font-black uppercase tracking-widest text-[8px] md:text-[9px] mb-0.5 truncate">Saldo Neto</h3>
+                                        <p className={`text-base md:text-xl font-black truncate ${(overview?.saldo ?? 0) >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
+                                            {formatCurrency(overview?.saldo || 0)}
+                                        </p>
+                                    </div>
+                                    <ArrowUpDown className={`w-3 h-3 text-gray-300 transition-transform flex-shrink-0 ${expandedMetric === 'saldo' ? 'rotate-180' : ''}`} />
+                                </button>
+                                {expandedMetric === 'saldo' && (
+                                    <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 animate-in slide-in-from-top-2 duration-200">
+                                        <div className="space-y-2">
+                                            <div className="flex justify-between items-center text-[10px]">
+                                                <span className="text-gray-400 font-bold uppercase">Total Ingresos:</span>
+                                                <span className="text-emerald-600 font-black">{formatCurrency(overview?.totalIncome || 0)}</span>
                                             </div>
-                                            <div className="space-y-3">
-                                                <div className="flex justify-between text-sm">
-                                                    <span className="text-gray-500 font-medium">Servicios (comisión):</span>
-                                                    <span className="font-bold text-gray-800">{formatCurrency(data.serviceCommission)}</span>
-                                                </div>
-                                                <div className="flex justify-between text-sm">
-                                                    <span className="text-gray-500 font-medium">Productos (comisión):</span>
-                                                    <span className="font-bold text-gray-800">{formatCurrency(data.productCommission)}</span>
-                                                </div>
-                                                <div className="flex justify-between text-sm">
-                                                    <span className="text-gray-500 font-medium">Alquileres (comisión):</span>
-                                                    <span className="font-bold text-gray-800">{formatCurrency(data.rentalCommission)}</span>
-                                                </div>
-                                                {data.aparatoFee > 0 && (
-                                                    <div className="flex justify-between text-sm">
-                                                        <span className="text-amber-600 font-medium flex items-center gap-1"><Zap className="w-3 h-3" /> Aparatos (fijo):</span>
-                                                        <span className="font-bold text-amber-600">{formatCurrency(data.aparatoFee)}</span>
-                                                    </div>
-                                                )}
-                                                <div className="pt-3 border-t border-gray-200 mt-3 flex justify-between items-baseline">
-                                                    <span className="text-xs font-black uppercase text-[#34baab] tracking-widest">Total a Pagar:</span>
-                                                    <span className="font-black text-[#34baab] text-xl">{formatCurrency(data.totalCommission)}</span>
-                                                </div>
+                                            <div className="flex justify-between items-center text-[10px]">
+                                                <span className="text-gray-400 font-bold uppercase">Total Egresos:</span>
+                                                <span className="text-red-500 font-black">{formatCurrency(overview?.totalEgresosGeneral || 0)}</span>
                                             </div>
                                         </div>
-                                    );
-                                })}
-                                {Object.values(overview?.byProfessional || {}).every(d => d.serviceCommission === 0 && d.productCommission === 0 && d.rentalCommission === 0 && d.aparatoFee === 0) && (
-                                    <div className="col-span-full py-12 text-center text-gray-400">
-                                        No hay actividad registrada para profesionales en este período.
                                     </div>
                                 )}
                             </div>
-                        </div>
-                    )}
+                        )}
 
-
-                    {/* 5. Egresos Totales (Solo Admin) */}
-                    {isAdmin && (
-                        <div className="bg-white rounded-[2.5rem] p-8 shadow-md border border-gray-100 relative overflow-hidden group">
-                            <div className="absolute top-0 right-0 p-8 transform group-hover:scale-110 transition-transform duration-500 opacity-5">
-                                <TrendingDown className="w-32 h-32 text-red-500" />
-                            </div>
-                            <h3 className="text-gray-400 font-black uppercase tracking-[0.2em] text-[10px] mb-4">Egresos Totales</h3>
-                            <p className="text-5xl font-black tracking-tighter mb-4 text-gray-900">{formatCurrency(overview?.totalEgresosGeneral || 0)}</p>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2 mb-6 border-t border-gray-100 pt-6">
-                                <div className="flex justify-between items-center py-1">
-                                    <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Egresos Manuales</span>
-                                    <span className="text-base font-black text-gray-700">{formatCurrency(overview?.totalEgresos || 0)}</span>
-                                </div>
-                                <div className="flex justify-between items-center py-1">
-                                    <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Comisiones Prof.</span>
-                                    <span className="text-base font-black text-gray-700">{formatCurrency(overview?.totalProfCommissions || 0)}</span>
-                                </div>
-
-                                {Object.entries(overview?.egresosByCategory || {}).map(([cat, amount]) => (
-                                    <div key={cat} className="flex justify-between items-center py-1 border-t border-gray-50 md:border-t-0">
-                                        <span className="text-[10px] font-bold uppercase text-gray-400 tracking-widest">{EGRESO_CATEGORY_LABEL[cat as EgresoCategory] || cat}</span>
-                                        <span className="text-sm font-bold text-gray-600">{formatCurrency(amount)}</span>
+                        {/* Ingresos Totales */}
+                        {canSeeIncome && (
+                            <div className="space-y-2">
+                                <button 
+                                    onClick={() => toggleMetric('ingresos')}
+                                    className={`w-full bg-[#484450] rounded-2xl md:rounded-3xl p-3 md:p-5 shadow-sm border transition-all flex items-center gap-3 md:gap-4 text-left ${expandedMetric === 'ingresos' ? 'border-[#34baab] ring-1 ring-[#34baab]/50' : 'border-white/5 hover:shadow-lg'}`}
+                                >
+                                    <div className="p-2 md:p-3 rounded-xl md:rounded-2xl bg-[#34baab]/20 text-[#34baab]">
+                                        <TrendingUp className="w-5 h-5 md:w-6 md:h-6" />
                                     </div>
-                                ))}
-                            </div>
-
-                            <div className="flex items-center gap-2 text-red-600 bg-red-50 w-fit px-3 py-1.5 rounded-full border border-red-100">
-                                <ArrowDownRight className="w-4 h-4" />
-                                <span className="text-xs font-black uppercase">Detalle de Salidas</span>
-                            </div>
-                        </div>
-                    )}
-                    {/* VISTA PARA PROFESIONALES (si no es admin) */}
-                    {!isAdmin && profile?.role === 'professional' && (
-                        <div className="bg-white rounded-[2.5rem] p-8 shadow-xl border border-gray-100">
-                            <h3 className="text-gray-800 font-black text-2xl mb-8 flex items-center gap-3">
-                                <TrendingUp className="w-6 h-6 text-[#34baab]" /> Detalle de lo Generado
-                            </h3>
-
-                            <div className="space-y-6">
-                                <div className="bg-[#34baab]/5 rounded-3xl p-8 border border-[#34baab]/10 border-dashed">
-                                    <div className="flex items-center gap-4 mb-8">
-                                        <div className="w-12 h-12 bg-white rounded-2xl shadow-sm flex items-center justify-center text-[#34baab]">
-                                            <ArrowUpRight className="w-8 h-8" />
+                                    <div className="flex-1 min-w-0">
+                                        <h3 className="text-gray-400 font-black uppercase tracking-widest text-[8px] md:text-[9px] mb-0.5 truncate">Ingresos</h3>
+                                        <p className="text-base md:text-xl font-black text-white truncate">{formatCurrency(overview?.totalIncome || 0)}</p>
+                                    </div>
+                                    <ArrowUpDown className={`w-3 h-3 text-gray-500 transition-transform flex-shrink-0 ${expandedMetric === 'ingresos' ? 'rotate-180' : ''}`} />
+                                </button>
+                                {expandedMetric === 'ingresos' && (
+                                    <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 animate-in slide-in-from-top-2 duration-200 space-y-4">
+                                        <div className="grid grid-cols-2 gap-x-4 gap-y-2 pb-4 border-b border-gray-50">
+                                            {[
+                                                { label: 'Servicios', val: overview?.totalServiceIncome },
+                                                { label: 'Parciales', val: overview?.totalPartialIncome },
+                                                { label: 'Productos', val: overview?.totalProductIncome },
+                                                { label: 'Alquileres', val: overview?.totalRentalIncome }
+                                            ].map(i => (
+                                                <div key={i.label} className="flex flex-col">
+                                                    <span className="text-[8px] font-black text-gray-400 uppercase">{i.label}</span>
+                                                    <span className="text-[10px] font-black text-gray-700">{formatCurrency(i.val || 0)}</span>
+                                                </div>
+                                            ))}
                                         </div>
                                         <div>
-                                            <h4 className="text-xl font-black text-[#34baab]">Producción Total</h4>
-                                            <p className="text-xs text-gray-500 uppercase tracking-widest font-bold italic">Solo turnos marcados como "Realizado"</p>
+                                            <h4 className="text-[9px] font-black text-gray-400 uppercase mb-2">Por Método:</h4>
+                                            <div className="space-y-1">
+                                                {Object.entries(overview?.byMethod || {}).map(([m, val]) => val > 0 && (
+                                                    <div key={m} className="flex justify-between text-[10px]">
+                                                        <span className="text-gray-500 capitalize">{m === 'cash' ? 'Efectivo' : m}</span>
+                                                        <span className="font-bold text-gray-700">{formatCurrency(val)}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
                                         </div>
                                     </div>
+                                )}
+                            </div>
+                        )}
 
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        {/* Egresos Totales */}
+                        {isAdmin && (
+                            <div className="space-y-2">
+                                <button 
+                                    onClick={() => toggleMetric('egresos')}
+                                    className={`w-full bg-white rounded-2xl md:rounded-3xl p-3 md:p-5 shadow-sm border transition-all flex items-center gap-3 md:gap-4 text-left ${expandedMetric === 'egresos' ? 'border-red-500 ring-1 ring-red-500/20' : 'border-gray-100 hover:shadow-md'}`}
+                                >
+                                    <div className="p-2 md:p-3 rounded-xl md:rounded-2xl bg-red-50 text-red-500">
+                                        <TrendingDown className="w-5 h-5 md:w-6 md:h-6" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <h3 className="text-gray-400 font-black uppercase tracking-widest text-[8px] md:text-[9px] mb-0.5 truncate">Egresos</h3>
+                                        <p className="text-base md:text-xl font-black text-gray-900 truncate">{formatCurrency(overview?.totalEgresosGeneral || 0)}</p>
+                                    </div>
+                                    <ArrowUpDown className={`w-3 h-3 text-gray-300 transition-transform flex-shrink-0 ${expandedMetric === 'egresos' ? 'rotate-180' : ''}`} />
+                                </button>
+                                {expandedMetric === 'egresos' && (
+                                    <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 animate-in slide-in-from-top-2 duration-200 space-y-4">
                                         <div className="space-y-2">
-                                            <p className="text-gray-400 text-[10px] font-black uppercase tracking-widest">Total Servicios</p>
-                                            <p className="text-3xl font-black text-gray-900">{formatCurrency(personalData?.serviceIncome || 0)}</p>
-                                        </div>
-                                        <div className="space-y-2">
-                                            <p className="text-gray-400 text-[10px] font-black uppercase tracking-widest">Total Productos</p>
-                                            <p className="text-3xl font-black text-gray-900">{formatCurrency(personalData?.productIncome || 0)}</p>
-                                        </div>
-                                        <div className="space-y-2">
-                                            <p className="text-gray-400 text-[10px] font-black uppercase tracking-widest">Total Alquileres</p>
-                                            <p className="text-3xl font-black text-gray-900">{formatCurrency(personalData?.rentalIncome || 0)}</p>
-                                        </div>
-                                        {(personalData?.aparatoIncome || 0) > 0 && (
-                                            <div className="space-y-2">
-                                                <p className="text-amber-500 text-[10px] font-black uppercase tracking-widest">Aparatos (fijo)</p>
-                                                <p className="text-3xl font-black text-amber-600">{formatCurrency(personalData?.aparatoIncome || 0)}</p>
+                                            <div className="flex justify-between items-center text-[10px]">
+                                                <span className="text-gray-400 font-bold uppercase">Manuales:</span>
+                                                <span className="text-gray-700 font-black">{formatCurrency(overview?.totalEgresos || 0)}</span>
                                             </div>
-                                        )}
+                                            <div className="flex justify-between items-center text-[10px]">
+                                                <span className="text-gray-400 font-bold uppercase">Comisiones:</span>
+                                                <span className="text-gray-700 font-black">{formatCurrency(overview?.totalProfCommissions || 0)}</span>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <h4 className="text-[9px] font-black text-gray-400 uppercase mb-2">Categorías:</h4>
+                                            <div className="max-h-[120px] overflow-y-auto pr-1 space-y-1 custom-scrollbar">
+                                                {Object.entries(overview?.egresosByCategory || {}).map(([cat, val]) => (
+                                                    <div key={cat} className="flex justify-between text-[10px]">
+                                                        <span className="text-gray-500 truncate pr-2">{EGRESO_CATEGORY_LABEL[cat as EgresoCategory] || cat}</span>
+                                                        <span className="font-bold text-gray-700">{formatCurrency(val)}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Comisiones/Ganancias */}
+                        <div className="space-y-2">
+                            <button 
+                                onClick={() => toggleMetric('comisiones')}
+                                className={`w-full rounded-2xl md:rounded-3xl p-3 md:p-5 shadow-sm border transition-all flex items-center gap-3 md:gap-4 text-left ${isAdmin ? (expandedMetric === 'comisiones' ? 'bg-white border-amber-500 ring-1 ring-amber-500/20' : 'bg-white border-gray-100 hover:shadow-md') : 'bg-[#34baab] border-none shadow-md text-white'}`}
+                            >
+                                <div className={`p-2 md:p-3 rounded-xl md:rounded-2xl ${isAdmin ? 'bg-amber-50 text-amber-500' : 'bg-white/20 text-white'}`}>
+                                    {isAdmin ? <Users className="w-5 h-5 md:w-6 md:h-6" /> : <DollarSign className="w-5 h-5 md:w-6 md:h-6" />}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <h3 className={`font-black uppercase tracking-widest text-[8px] md:text-[9px] mb-0.5 truncate ${isAdmin ? 'text-gray-400' : 'text-white/70'}`}>
+                                        {isAdmin ? 'Comisiones' : 'Mi Ganancia'}
+                                    </h3>
+                                    <p className={`text-base md:text-xl font-black truncate ${isAdmin ? 'text-gray-900' : 'text-white'}`}>
+                                        {formatCurrency(isAdmin ? (overview?.totalProfCommissions || 0) : (personalData?.totalCommission || 0))}
+                                    </p>
+                                </div>
+                                {isAdmin && <ArrowUpDown className={`w-3 h-3 text-gray-300 transition-transform flex-shrink-0 ${expandedMetric === 'comisiones' ? 'rotate-180' : ''}`} />}
+                            </button>
+                            {isAdmin && expandedMetric === 'comisiones' && (
+                                <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 animate-in slide-in-from-top-2 duration-200">
+                                    <div className="max-h-[250px] overflow-y-auto pr-1 space-y-3 custom-scrollbar">
+                                        {Object.entries(overview?.byProfessional || {}).map(([id, data]) => data.totalCommission > 0 && (
+                                            <div key={id} className="flex justify-between items-start pb-2 border-b border-gray-50 last:border-0">
+                                                <div className="flex flex-col">
+                                                    <span className="text-[10px] font-bold text-gray-800">{data.name}</span>
+                                                    <span className="text-[8px] text-gray-400 uppercase">Serv: {formatCurrency(data.serviceCommission)} | Prod: {formatCurrency(data.productCommission)}</span>
+                                                </div>
+                                                <span className="text-xs font-black text-amber-600">{formatCurrency(data.totalCommission)}</span>
+                                            </div>
+                                        ))}
                                     </div>
                                 </div>
+                            )}
+                        </div>
+                    </div>
 
-                                <div className="bg-gray-50 rounded-3xl p-8 border border-gray-100">
-                                    <h4 className="font-black text-gray-800 mb-6 uppercase tracking-widest text-sm underline decoration-[#34baab] decoration-4 underline-offset-8">Resumen de Comisiones</h4>
-                                    <div className="space-y-4">
-                                        <div className="flex justify-between items-center bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
-                                            <span className="text-gray-600 font-bold uppercase tracking-tight text-xs">Comisión por Tratamientos</span>
-                                            <span className="text-gray-900 font-black text-lg">{formatCurrency(personalData?.serviceCommission || 0)}</span>
-                                        </div>
-                                        <div className="flex justify-between items-center bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
-                                            <span className="text-gray-600 font-bold uppercase tracking-tight text-xs">Comisión por Productos</span>
-                                            <span className="text-gray-900 font-black text-lg">{formatCurrency(personalData?.productCommission || 0)}</span>
-                                        </div>
-                                        <div className="flex justify-between items-center bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
-                                            <span className="text-gray-600 font-bold uppercase tracking-tight text-xs">Comisión por Alquileres</span>
-                                            <span className="text-gray-900 font-black text-lg">{formatCurrency(personalData?.rentalCommission || 0)}</span>
-                                        </div>
-                                        {(personalData?.aparatoFee || 0) > 0 && (
-                                            <div className="flex justify-between items-center bg-amber-50 p-4 rounded-2xl shadow-sm border border-amber-100">
-                                                <span className="text-amber-600 font-bold uppercase tracking-tight text-xs flex items-center gap-1"><Zap className="w-3 h-3" /> Aparatos (monto fijo)</span>
-                                                <span className="text-amber-600 font-black text-lg">{formatCurrency(personalData?.aparatoFee || 0)}</span>
-                                            </div>
-                                        )}
-                                        <div className="flex justify-between items-center bg-[#34baab] text-white p-6 rounded-[2rem] shadow-lg shadow-[#34baab]/20 mt-8">
-                                            <span className="font-black uppercase tracking-[0.2em] text-xs">Total Neto a Cobrar</span>
-                                            <span className="text-3xl font-black">{formatCurrency(personalData?.totalCommission || 0)}</span>
-                                        </div>
+
+                    {/* 3. Libro Diario - REFINED TABLE WITH LOAD MORE */}
+                    {canSeeIncome && (
+                        <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 overflow-hidden">
+                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 bg-[#34baab]/10 rounded-xl">
+                                        <BookText className="w-5 h-5 text-[#34baab]" />
                                     </div>
+                                    <div>
+                                        <h3 className="text-gray-800 font-black text-lg">Libro Diario</h3>
+                                        <p className="text-[10px] text-gray-400 font-medium">Movimientos financieros detallados</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-2 bg-gray-50 p-1.5 rounded-xl border border-gray-100 self-end md:self-auto">
+                                    <Filter className="w-3.5 h-3.5 text-gray-400 ml-1.5" />
+                                    <select 
+                                        value={typeFilter}
+                                        onChange={(e) => {
+                                            setTypeFilter(e.target.value as any);
+                                            setVisibleMovements(20);
+                                        }}
+                                        className="bg-transparent border-none text-[10px] font-bold text-gray-600 focus:ring-0 outline-none pr-7 py-1"
+                                    >
+                                        <option value="all">Todos</option>
+                                        <option value="ingreso">Ingresos</option>
+                                        <option value="egreso">Egresos</option>
+                                    </select>
                                 </div>
                             </div>
+
+                            <div className="overflow-x-auto -mx-6 px-6">
+                                <table className="w-full text-left table-fixed min-w-[1000px]">
+                                    <thead>
+                                        <tr className="text-gray-400 text-[8px] font-black uppercase tracking-[0.2em] border-b border-gray-50">
+                                            <th className="w-[100px] px-2 py-3">Fecha</th>
+                                            <th className="w-[60px] px-2 py-3">ID</th>
+                                            <th className="w-[80px] px-2 py-3">Tipo</th>
+                                            <th className="w-[100px] px-2 py-3">Categoría</th>
+                                            <th className="w-auto px-2 py-3">Descripción</th>
+                                            <th className="w-[100px] px-2 py-3">Cuenta</th>
+                                            <th className="w-[120px] px-2 py-3 text-right">Monto</th>
+                                            <th className="w-[120px] px-2 py-3 text-right">Saldo</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-50">
+                                        {overview?.movements
+                                            .filter(m => typeFilter === 'all' || m.type === typeFilter)
+                                            .slice(0, visibleMovements)
+                                            .map((m, idx) => (
+                                            <tr key={m.id + idx} className="hover:bg-gray-50 transition-colors group">
+                                                <td className="px-2 py-2">
+                                                    <span className="text-[11px] font-bold text-gray-600">{m.date.split('-').reverse().join('/')}</span>
+                                                </td>
+                                                <td className="px-2 py-2">
+                                                    <span className="text-[9px] font-mono text-gray-400">#{m.id.slice(-4)}</span>
+                                                </td>
+                                                <td className="px-2 py-2">
+                                                    <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${
+                                                        m.type === 'ingreso' ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'
+                                                    }`}>
+                                                        {m.type}
+                                                    </span>
+                                                </td>
+                                                <td className="px-2 py-2">
+                                                    <span className="text-[10px] font-bold text-gray-700 capitalize truncate block">{m.category}</span>
+                                                </td>
+                                                <td className="px-2 py-2">
+                                                    <span className="text-[10px] text-gray-500 font-medium truncate block pr-4 group-hover:whitespace-normal group-hover:overflow-visible group-hover:relative group-hover:z-10 group-hover:bg-gray-50 group-hover:shadow-sm" title={m.description}>
+                                                        {m.description}
+                                                    </span>
+                                                </td>
+                                                <td className="px-2 py-2">
+                                                    <div className="flex flex-col leading-[1.1]">
+                                                        <span className="text-[9px] font-bold text-gray-600 uppercase">
+                                                            {m.method === 'cash' ? 'Efectivo' : m.method === 'transfer' ? 'Transf.' : m.method === 'qr' ? 'Digital' : m.method}
+                                                        </span>
+                                                        {m.bankAccount && (
+                                                            <span className="text-[8px] font-black text-[#34baab] uppercase">
+                                                                {m.bankAccount === 'cuenta1' ? 'Cta 1' : 'Cta 2'}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                                <td className="px-2 py-2 text-right">
+                                                    <span className={`text-[11px] font-black ${m.type === 'ingreso' ? 'text-emerald-600' : 'text-red-600'}`}>
+                                                        {m.type === 'ingreso' ? '+' : '-'} {formatCurrency(m.amount)}
+                                                    </span>
+                                                </td>
+                                                <td className="px-2 py-2 text-right">
+                                                    <span className="text-[11px] font-black text-gray-900">{formatCurrency(m.balance || 0)}</span>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            {overview && overview.movements.length > visibleMovements && (
+                                <div className="mt-8 flex justify-center">
+                                    <button 
+                                        onClick={() => setVisibleMovements(prev => prev + 20)}
+                                        className="px-6 py-2 bg-gray-100 text-gray-600 text-xs font-black uppercase tracking-widest rounded-xl hover:bg-[#34baab] hover:text-white transition-all shadow-sm"
+                                    >
+                                        Ver Más Movimientos (+20)
+                                    </button>
+                                </div>
+                            )}
+
+                            {overview?.movements.length === 0 && (
+                                <div className="py-8 text-center text-gray-400 italic text-xs">
+                                    Sin movimientos en este periodo.
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>

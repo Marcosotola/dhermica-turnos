@@ -61,6 +61,7 @@ interface EgresoForm {
     amount: string;
     description: string;
     paymentMethod: 'cash' | 'transfer' | 'debit' | 'credit' | 'qr';
+    bankAccount?: 'cuenta1' | 'cuenta2';
 }
 
 const defaultForm: EgresoForm = {
@@ -175,6 +176,7 @@ export default function EgresosPage() {
             amount: String(e.amount),
             description: e.description || '',
             paymentMethod: e.paymentMethod,
+            bankAccount: e.bankAccount,
         });
         setShowModal(true);
     }
@@ -192,6 +194,7 @@ export default function EgresosPage() {
                 amount: Number(form.amount),
                 description: form.description.trim(),
                 paymentMethod: form.paymentMethod,
+                bankAccount: form.paymentMethod !== 'cash' ? form.bankAccount : undefined,
             };
             if (editingId) {
                 await updateEgreso(editingId, payload);
@@ -327,7 +330,9 @@ export default function EgresosPage() {
                                     {e.description && (
                                         <p className="text-gray-600 text-sm mt-1 truncate">{e.description}</p>
                                     )}
-                                    <p className="text-xs text-gray-400 font-medium mt-0.5">{PAYMENT_LABELS[e.paymentMethod]}</p>
+                                    <p className="text-xs text-gray-400 font-medium mt-0.5">
+                                        {PAYMENT_LABELS[e.paymentMethod]} {e.bankAccount && `(${e.bankAccount === 'cuenta1' ? 'Cta 1' : 'Cta 2'})`}
+                                    </p>
                                 </div>
                                 <div className="text-right shrink-0">
                                     <p className="text-xl font-black text-red-600">{formatCurrency(e.amount)}</p>
@@ -413,6 +418,21 @@ export default function EgresosPage() {
                                     ))}
                                 </select>
                             </div>
+
+                            {/* Cuenta de Destino (Solo si es digital) */}
+                            {form.paymentMethod !== 'cash' && (
+                                <div>
+                                    <label className="text-xs font-black uppercase tracking-widest text-gray-500 mb-1 block">Cuenta de Destino *</label>
+                                    <select
+                                        value={form.bankAccount || 'cuenta1'}
+                                        onChange={e => setForm(f => ({ ...f, bankAccount: e.target.value as 'cuenta1' | 'cuenta2' }))}
+                                        className="w-full border border-gray-200 rounded-2xl px-4 py-3 text-gray-900 font-medium focus:outline-none focus:ring-2 focus:ring-[#34baab] bg-gray-50"
+                                    >
+                                        <option value="cuenta1">Cuenta 1</option>
+                                        <option value="cuenta2">Cuenta 2</option>
+                                    </select>
+                                </div>
+                            )}
 
                             {/* Descripción */}
                             <div>

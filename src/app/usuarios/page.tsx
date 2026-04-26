@@ -231,6 +231,7 @@ export default function UsuariosPage() {
                                                             { value: 'promotor', label: 'Promotor' },
                                                             { value: 'professional', label: 'Profesional' },
                                                             { value: 'secretary', label: 'Secretaria' },
+                                                            { value: 'contador', label: 'Contador' },
                                                             { value: 'admin', label: 'Administrador' }
                                                         ]}
                                                         className="w-32"

@@ -33,6 +33,7 @@ export function ProductSaleModal({
     const [quantity, setQuantity] = useState<number | string>(1);
     const [commission, setCommission] = useState<number>(3000);
     const [paymentMethod, setPaymentMethod] = useState<'cash' | 'transfer' | 'debit' | 'credit' | 'qr'>('cash');
+    const [bankAccount, setBankAccount] = useState<'cuenta1' | 'cuenta2'>('cuenta1');
     const [soldById, setSoldById] = useState('');
     const [saleDate, setSaleDate] = useState(getTodayDate());
     const [loading, setLoading] = useState(false);
@@ -62,6 +63,7 @@ export function ProductSaleModal({
                 soldByName: professional?.name || 'Desconocido',
                 commission: Number(commission) || 0,
                 paymentMethod,
+                bankAccount: paymentMethod !== 'cash' ? bankAccount : undefined,
                 date: saleDate,
             });
 
@@ -156,6 +158,19 @@ export function ProductSaleModal({
                         required
                     />
                 </div>
+
+                {paymentMethod !== 'cash' && (
+                    <Select
+                        label="Cuenta de Destino"
+                        value={bankAccount}
+                        onChange={(e) => setBankAccount(e.target.value as any)}
+                        options={[
+                            { value: 'cuenta1', label: 'Cuenta 1' },
+                            { value: 'cuenta2', label: 'Cuenta 2' },
+                        ]}
+                        required
+                    />
+                )}
 
                 <div className="flex gap-3 pt-4 border-t">
                     <Button type="button" variant="ghost" onClick={onClose} className="flex-1">

@@ -11,6 +11,18 @@ import { AparatoSession } from '../types/aparato';
 import { Egreso } from '../types/egreso';
 import { Professional } from '../types/professional';
 
+export interface FinanceMovement {
+    id: string;
+    date: string;
+    type: 'ingreso' | 'egreso';
+    category: string;
+    description: string;
+    method: string;
+    amount: number;
+    bankAccount?: string;
+    balance?: number; // Saldo acumulado
+}
+
 export interface FinanceOverview {
     totalIncome: number;
     totalServiceIncome: number;
@@ -42,6 +54,7 @@ export interface FinanceOverview {
         quantity: number;
         income: number;
     }>;
+    movements: FinanceMovement[];
 }
 
 import { getUsersByRole } from './users';
@@ -76,7 +89,8 @@ export async function getFinanceOverview(startDate: string, endDate: string): Pr
         egresosByCategory: {},
         byMethod: { cash: 0, transfer: 0, debit: 0, credit: 0, qr: 0 },
         byProfessional: {},
-        byProduct: {}
+        byProduct: {},
+        movements: []
     };
 
     // Mapeo de ID de profesional a UserId para normalización
@@ -284,6 +298,84 @@ export async function getFinanceOverview(startDate: string, endDate: string): Pr
     // Calcular totales finales
     overview.totalEgresosGeneral = overview.totalEgresos + overview.totalProfCommissions;
     overview.saldo = overview.totalIncome - overview.totalEgresosGeneral;
+
+    // Consolidar todos los movimientos para el Libro Diario
+    const allMovements: FinanceMovement[] = [];
+
+    // 1. Pagos de Turnos
+    appointments.forEach(apt => {
+        (apt.payments || []).forEach(p => {
+            if (p.date >= startDate && p.date <= endDate) {
+                allMovements.push({
+                    id: p.id || `apt_${apt.id}_${p.date}`,
+                    date: p.date,
+                    type: 'ingreso',
+                    category: p.label === 'Seña' ? 'Seña' : 'Servicio',
+                    description: `${apt.clientName} - ${apt.treatment}`,
+                    method: p.method,
+                    amount: p.amount,
+                    bankAccount: p.bankAccount
+                });
+            }
+        });
+    });
+
+    // 2. Ventas de Productos
+    sales.forEach(sale => {
+        allMovements.push({
+            id: sale.id,
+            date: sale.date,
+            type: 'ingreso',
+            category: 'Productos',
+            description: `${sale.productName} (x${sale.quantity})`,
+            method: sale.paymentMethod,
+            amount: sale.totalAmount,
+            bankAccount: sale.bankAccount
+        });
+    });
+
+    // 3. Alquileres
+    rentals.forEach(rental => {
+        allMovements.push({
+            id: rental.id,
+            date: rental.date,
+            type: 'ingreso',
+            category: 'Alquiler',
+            description: `${rental.clientName} - ${rental.machine}`,
+            method: rental.paymentMethod,
+            amount: rental.price,
+            bankAccount: rental.bankAccount
+        });
+    });
+
+    // 4. Egresos Manuales
+    egresos.forEach(e => {
+        allMovements.push({
+            id: e.id,
+            date: e.date,
+            type: 'egreso',
+            category: e.category,
+            description: e.description || 'Gasto general',
+            method: e.paymentMethod,
+            amount: e.amount,
+            bankAccount: e.bankAccount
+        });
+    });
+
+    // Ordenar por fecha y luego por ID para consistencia
+    allMovements.sort((a, b) => {
+        if (a.date !== b.date) return a.date.localeCompare(b.date);
+        return a.id.localeCompare(b.id);
+    });
+
+    // Calcular saldo acumulado (solo si queremos ver cómo evoluciona en este periodo)
+    // Nota: Esto no incluye el saldo inicial histórico, solo el del rango seleccionado
+    let currentBalance = 0;
+    overview.movements = allMovements.map(m => {
+        if (m.type === 'ingreso') currentBalance += m.amount;
+        else currentBalance -= m.amount;
+        return { ...m, balance: currentBalance };
+    });
 
     return overview;
 }

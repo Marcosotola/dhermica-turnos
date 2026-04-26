@@ -6,6 +6,7 @@ export interface Payment {
     method: 'cash' | 'transfer' | 'debit' | 'credit' | 'qr';
     date: string; // YYYY-MM-DD
     label: string; // e.g., "Seña", "Saldo", "Pago Parcial"
+    bankAccount?: 'cuenta1' | 'cuenta2';
     createdAt: Date;
 }
 

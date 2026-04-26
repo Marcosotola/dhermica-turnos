@@ -66,6 +66,7 @@ export function AppointmentModal({
         amount: 0,
         method: 'cash' as Payment['method'],
         label: 'Pago',
+        bankAccount: 'cuenta1' as 'cuenta1' | 'cuenta2',
         date: new Date().toISOString().split('T')[0] // Default to today
     });
     const [showPaymentForm, setShowPaymentForm] = useState(false);
@@ -179,6 +180,7 @@ export function AppointmentModal({
             amount: 0,
             method: 'cash',
             label: 'Pago',
+            bankAccount: 'cuenta1',
             date: new Date().toISOString().split('T')[0]
         });
         setShowPaymentForm(false);
@@ -223,6 +225,7 @@ export function AppointmentModal({
             amount: newPayment.amount,
             method: newPayment.method,
             label: newPayment.label,
+            bankAccount: newPayment.method !== 'cash' ? newPayment.bankAccount : undefined,
             date: newPayment.date,
             createdAt: new Date().toISOString() as any // Use string for better serialization in arrays
         };
@@ -235,6 +238,7 @@ export function AppointmentModal({
             amount: 0,
             method: 'cash',
             label: 'Pago',
+            bankAccount: 'cuenta1',
             date: new Date().toISOString().split('T')[0]
         });
         setShowPaymentForm(false);
@@ -263,6 +267,7 @@ export function AppointmentModal({
                 amount: newPayment.amount,
                 method: newPayment.method,
                 label: newPayment.label,
+                bankAccount: newPayment.method !== 'cash' ? newPayment.bankAccount : undefined,
                 date: newPayment.date,
                 createdAt: new Date().toISOString() as any
             };
@@ -761,7 +766,8 @@ export function AppointmentModal({
                                 <div className="flex flex-col">
                                     <span className="text-xs font-black text-gray-900 uppercase tracking-tighter">{p.label}</span>
                                     <span className="text-[10px] text-gray-500">
-                                        {p.method === 'cash' ? 'EFECTIVO' : p.method === 'transfer' ? 'TRANSFERENCIA' : p.method === 'debit' ? 'DÉBITO' : p.method === 'credit' ? 'CRÉDITO' : p.method.toUpperCase()} • {(() => {
+                                        {p.method === 'cash' ? 'EFECTIVO' : p.method === 'transfer' ? 'TRANSFERENCIA' : p.method === 'debit' ? 'DÉBITO' : p.method === 'credit' ? 'CRÉDITO' : p.method.toUpperCase()} 
+                                        {p.bankAccount && ` (${p.bankAccount === 'cuenta1' ? 'CTA 1' : 'CTA 2'})`} • {(() => {
                                             const parts = p.date.split('-');
                                             return parts.length === 3 ? `${parts[2]}-${parts[1]}-${parts[0]}` : p.date;
                                         })()}
@@ -812,6 +818,33 @@ export function AppointmentModal({
                                         { value: 'qr', label: 'QR' },
                                     ]}
                                 />
+                                {newPayment.method !== 'cash' ? (
+                                    <Select
+                                        label="Cuenta de Destino"
+                                        value={newPayment.bankAccount}
+                                        onChange={(e) => setNewPayment({ ...newPayment, bankAccount: e.target.value as any })}
+                                        options={[
+                                            { value: 'cuenta1', label: 'Cuenta 1' },
+                                            { value: 'cuenta2', label: 'Cuenta 2' },
+                                        ]}
+                                    />
+                                ) : (
+                                    <div className="space-y-1">
+                                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">Etiqueta</label>
+                                        <select
+                                            value={newPayment.label}
+                                            onChange={(e) => setNewPayment({ ...newPayment, label: e.target.value })}
+                                            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#34baab]"
+                                        >
+                                            <option value="Pago">Pago</option>
+                                            <option value="Seña">Seña</option>
+                                            <option value="Saldo">Saldo</option>
+                                            <option value="Abono">Abono</option>
+                                        </select>
+                                    </div>
+                                )}
+                            </div>
+                            {newPayment.method !== 'cash' && (
                                 <div className="space-y-1">
                                     <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">Etiqueta</label>
                                     <select
@@ -825,7 +858,7 @@ export function AppointmentModal({
                                         <option value="Abono">Abono</option>
                                     </select>
                                 </div>
-                            </div>
+                            )}
                             <div className="flex gap-2 pt-2 border-t border-gray-100">
                                 <Button
                                     type="button"

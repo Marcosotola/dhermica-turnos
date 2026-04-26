@@ -100,6 +100,16 @@ export function TopNavbar() {
             { href: '/comunidad', label: 'Comunidad', icon: Users },
             { href: '/ubicacion', label: 'Ubicación', icon: MapPin },
         ] : []),
+        // Contador only
+        ...(role === 'contador' ? [
+            { href: '/mis-turnos', label: 'Turnos', icon: Calendar },
+            { href: '/finanzas', label: 'Finanzas', icon: DollarSign },
+            { href: '/tratamientos', label: 'Servicios', icon: Sparkles },
+            { href: '/productos', label: 'Productos', icon: ShoppingBag },
+            { href: '/promociones', label: 'Promociones', icon: Tag },
+            { href: '/comunidad', label: 'Comunidad', icon: Users },
+            { href: '/ubicacion', label: 'Ubicación', icon: MapPin },
+        ] : []),
     ];
 
 
