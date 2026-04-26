@@ -338,26 +338,37 @@ export function AppointmentModal({
         try {
             let finalClientId = clientMode === 'registered' ? formData.clientId : undefined;
 
-            // Si es un cliente manual nuevo (no estamos editando un turno que ya tenía ID de cliente)
-            if (clientMode === 'manual' && !appointment) {
+            // Si es modo manual, intentamos registrar al cliente o encontrar uno existente por teléfono
+            if (clientMode === 'manual') {
                 try {
-                    const newUid = await createManualUserProfile({
-                        firstName: capitalizeName(formData.clientFirstName),
-                        lastName: capitalizeName(formData.clientLastName),
-                        fullName: `${capitalizeName(formData.clientFirstName)} ${capitalizeName(formData.clientLastName)}`.trim(),
-                        email: formData.clientEmail.toLowerCase() || `manual_${Date.now()}@dhermica.internal`,
-                        phone: formData.clientPhone,
-                        role: 'client',
-                        sex: formData.sex || 'female',
-                        hasTattoos: formData.hasTattoos,
-                        isPregnant: formData.isPregnant,
-                        relevantMedicalInfo: formData.relevantMedicalInfo || '',
-                        birthDate: formData.clientBirthDate, 
-                    });
-                    finalClientId = newUid;
+                    // 1. Buscar si ya existe un cliente con este teléfono para evitar duplicados
+                    const formattedPhone = formData.clientPhone;
+                    const existingClient = clients.find(c => c.phone === formattedPhone);
+
+                    if (existingClient) {
+                        finalClientId = existingClient.uid;
+                        console.log('Cliente manual ya existente encontrado:', finalClientId);
+                    } else {
+                        // 2. Si no existe, lo creamos
+                        const newUid = await createManualUserProfile({
+                            firstName: capitalizeName(formData.clientFirstName),
+                            lastName: capitalizeName(formData.clientLastName),
+                            fullName: `${capitalizeName(formData.clientFirstName)} ${capitalizeName(formData.clientLastName)}`.trim(),
+                            email: formData.clientEmail.toLowerCase() || `manual_${Date.now()}@dhermica.internal`,
+                            phone: formData.clientPhone,
+                            role: 'client',
+                            sex: formData.sex || 'female',
+                            hasTattoos: formData.hasTattoos,
+                            isPregnant: formData.isPregnant,
+                            relevantMedicalInfo: formData.relevantMedicalInfo || '',
+                            birthDate: formData.clientBirthDate || '',
+                        });
+                        finalClientId = newUid;
+                        console.log('Nuevo cliente manual creado:', finalClientId);
+                    }
                 } catch (userError) {
-                    console.error('Error creating user profile during appointment creation:', userError);
-                    // Continuamos aunque falle la creación del perfil, para no perder el turno
+                    console.error('Error al gestionar el perfil del cliente:', userError);
+                    toast.error('No se pudo registrar la ficha del cliente, pero se guardará el turno.');
                 }
             }
 
@@ -366,7 +377,7 @@ export function AppointmentModal({
                 Object.entries({
                     ...appointmentData,
                     clientId: finalClientId,
-                    // Si creamos un cliente nuevo, actualizamos los nombres en el turno
+                    // Aseguramos que los nombres estén capitalizados y actualizados
                     clientFirstName: capitalizeName(clientMode === 'manual' ? formData.clientFirstName : (formData.clientFirstName || clientName.split(' ')[0])),
                     clientLastName: capitalizeName(clientMode === 'manual' ? formData.clientLastName : (formData.clientLastName || clientName.split(' ').slice(1).join(' '))),
                 }).filter(([_, v]) => v !== undefined)
@@ -374,7 +385,7 @@ export function AppointmentModal({
 
             if (appointment) {
                 await updateAppointment(appointment.id, cleanData);
-                toast.success('Turno actualizado exitosamente');
+                toast.success('Turno actualizado correctamente');
             } else {
                 await createAppointment(cleanData as any);
                 toast.success('Turno creado y cliente registrado');
