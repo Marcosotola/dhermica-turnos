@@ -92,7 +92,7 @@ export function RentalModal({ isOpen, onClose, rental }: RentalModalProps) {
                 commission: Number(formData.commission),
                 sellerId: formData.sellerId,
                 sellerName: selectedStaff?.fullName || 'Desconocido',
-                bankAccount: formData.paymentMethod !== 'cash' ? formData.bankAccount : undefined,
+                bankAccount: formData.paymentMethod !== 'cash' ? formData.bankAccount : null,
             };
 
             if (rental) {

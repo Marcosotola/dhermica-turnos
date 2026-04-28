@@ -18,7 +18,8 @@ import {
     BadgeDollarSign,
     UserCircle2,
     Phone,
-    Mail
+    Mail,
+    DollarSign
 } from 'lucide-react';
 
 interface AppointmentDetailModalProps {
@@ -28,6 +29,7 @@ interface AppointmentDetailModalProps {
     professionals: Professional[];
     onEdit: (appointment: Appointment) => void;
     onDelete: (appointment: Appointment) => void;
+    onQuickPayment: (appointment: Appointment) => void;
 }
 
 export function AppointmentDetailModal({
@@ -37,6 +39,7 @@ export function AppointmentDetailModal({
     professionals,
     onEdit,
     onDelete,
+    onQuickPayment,
 }: AppointmentDetailModalProps) {
     if (!appointment) return null;
 
@@ -88,6 +91,14 @@ export function AppointmentDetailModal({
                         className="flex-1 py-4 bg-red-500 hover:bg-red-600 font-bold flex items-center justify-center gap-2 text-white shadow-lg shadow-red-500/10"
                     >
                         <Trash2 className="w-5 h-5" /> Eliminar
+                    </Button>
+                    <Button
+                        onClick={() => {
+                            onQuickPayment(appointment);
+                        }}
+                        className="flex-[2] py-4 bg-[#34baab] hover:bg-[#2da699] font-bold flex items-center justify-center gap-2 text-white shadow-lg shadow-[#34baab]/10"
+                    >
+                        <DollarSign className="w-5 h-5" /> Cobrar / Cerrar
                     </Button>
                 </div>
             }

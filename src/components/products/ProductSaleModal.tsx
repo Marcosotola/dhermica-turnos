@@ -63,7 +63,7 @@ export function ProductSaleModal({
                 soldByName: professional?.name || 'Desconocido',
                 commission: Number(commission) || 0,
                 paymentMethod,
-                bankAccount: paymentMethod !== 'cash' ? bankAccount : undefined,
+                bankAccount: paymentMethod !== 'cash' ? bankAccount : null,
                 date: saleDate,
             });
 

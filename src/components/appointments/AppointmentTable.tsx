@@ -16,6 +16,7 @@ interface AppointmentTableProps {
     onEditClick: (appointment: Appointment) => void;
     onDeleteClick: (appointment: Appointment) => void;
     onDetailClick: (appointment: Appointment) => void;
+    onQuickPaymentClick: (appointment: Appointment) => void;
 }
 
 export function AppointmentTable({
@@ -25,6 +26,7 @@ export function AppointmentTable({
     onEditClick,
     onDeleteClick,
     onDetailClick,
+    onQuickPaymentClick,
 }: AppointmentTableProps) {
     const timeSlots = generateTimeSlots();
 
@@ -120,6 +122,7 @@ export function AppointmentTable({
                                                     onEdit={() => onEditClick(apt)}
                                                     onDelete={() => onDeleteClick(apt)}
                                                     onDetail={() => onDetailClick(apt)}
+                                                    onQuickPayment={() => onQuickPaymentClick(apt)}
                                                     isLastRows={index >= timeSlots.length - 3}
                                                 />
                                             ) : (
@@ -152,6 +155,7 @@ interface AppointmentCellProps {
     onEdit: () => void;
     onDelete: () => void;
     onDetail: () => void;
+    onQuickPayment: () => void;
     isLastRows?: boolean;
 }
 
@@ -161,6 +165,7 @@ function AppointmentCell({
     onEdit,
     onDelete,
     onDetail,
+    onQuickPayment,
     isLastRows,
 }: AppointmentCellProps) {
     const [menuOpen, setMenuOpen] = useState(false);
@@ -281,6 +286,15 @@ function AppointmentCell({
                                         <Pencil className="w-4 h-4 text-blue-600" />
                                     </div>
                                     <span className="font-semibold">Editar Turno</span>
+                                </button>
+                                <button
+                                    onClick={(e) => handleAction(e, onQuickPayment)}
+                                    className="w-full flex items-center gap-3 px-4 py-3 text-sm text-[#34baab] hover:bg-[#34baab]/5 transition-colors text-left"
+                                >
+                                    <div className="w-8 h-8 rounded-lg bg-[#34baab]/10 flex items-center justify-center">
+                                        <DollarSign className="w-4 h-4 text-[#34baab]" />
+                                    </div>
+                                    <span className="font-semibold">Cobrar / Cerrar</span>
                                 </button>
                                 <button
                                     onClick={(e) => handleAction(e, onDelete)}

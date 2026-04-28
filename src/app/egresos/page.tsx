@@ -61,7 +61,7 @@ interface EgresoForm {
     amount: string;
     description: string;
     paymentMethod: 'cash' | 'transfer' | 'debit' | 'credit' | 'qr';
-    bankAccount?: 'cuenta1' | 'cuenta2';
+    bankAccount?: 'cuenta1' | 'cuenta2' | null;
 }
 
 const defaultForm: EgresoForm = {
@@ -70,6 +70,7 @@ const defaultForm: EgresoForm = {
     amount: '',
     description: '',
     paymentMethod: 'cash',
+    bankAccount: null,
 };
 
 export default function EgresosPage() {
@@ -153,7 +154,8 @@ export default function EgresosPage() {
                 const data = await getEgresosByDateRange(start, end);
                 setEgresos(data);
             }
-        } catch {
+        } catch (error) {
+            console.error('Error loading egresos:', error);
             toast.error('Error al cargar los egresos');
         } finally {
             setLoading(false);
@@ -194,7 +196,7 @@ export default function EgresosPage() {
                 amount: Number(form.amount),
                 description: form.description.trim(),
                 paymentMethod: form.paymentMethod,
-                bankAccount: form.paymentMethod !== 'cash' ? form.bankAccount : undefined,
+                bankAccount: form.paymentMethod !== 'cash' ? (form.bankAccount || 'cuenta1') : null,
             };
             if (editingId) {
                 await updateEgreso(editingId, payload);
@@ -205,7 +207,8 @@ export default function EgresosPage() {
             }
             setShowModal(false);
             loadData();
-        } catch {
+        } catch (error) {
+            console.error('Error saving egreso:', error);
             toast.error('Error al guardar');
         } finally {
             setSaving(false);
@@ -218,7 +221,8 @@ export default function EgresosPage() {
             toast.success('Egreso eliminado');
             setDeletingId(null);
             loadData();
-        } catch {
+        } catch (error) {
+            console.error('Error deleting egreso:', error);
             toast.error('Error al eliminar');
         }
     }

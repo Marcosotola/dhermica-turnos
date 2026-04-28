@@ -9,6 +9,7 @@ import { AppointmentDetailModal } from '@/components/appointments/AppointmentDet
 import { DeleteConfirmDialog } from '@/components/appointments/DeleteConfirmDialog';
 import { DatePicker } from '@/components/appointments/DatePicker';
 import { AppointmentSearch } from '@/components/appointments/AppointmentSearch';
+import { QuickPaymentModal } from '@/components/appointments/QuickPaymentModal';
 import { useAppointments } from '@/lib/hooks/useAppointments';
 import { useProfessionals } from '@/lib/hooks/useProfessionals';
 import { Appointment } from '@/lib/types/appointment';
@@ -46,6 +47,7 @@ function TurnosContent() {
     const [deleting, setDeleting] = useState(false);
     const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
     const [isSearchOpen, setIsSearchOpen] = useState(false);
+    const [quickPaymentModalOpen, setQuickPaymentModalOpen] = useState(false);
 
     const { professionals } = useProfessionals();
     const { appointments, loading } = useAppointments(selectedDate, professionals);
@@ -125,6 +127,12 @@ function TurnosContent() {
         setDeleteDialogOpen(true);
     };
 
+    const handleQuickPaymentClick = (appointment: Appointment) => {
+        setSelectedAppointment(appointment);
+        setQuickPaymentModalOpen(true);
+        setDetailModalOpen(false);
+    };
+
     const handleConfirmDelete = async () => {
         if (!selectedAppointment) return;
 
@@ -145,6 +153,7 @@ function TurnosContent() {
     const handleModalClose = () => {
         setModalOpen(false);
         setDetailModalOpen(false);
+        setQuickPaymentModalOpen(false);
         setSelectedAppointment(null);
         setDefaultTime(undefined);
         setDefaultProfessionalId(undefined);
@@ -265,6 +274,7 @@ function TurnosContent() {
                                         onEditClick={handleEditClick}
                                         onDeleteClick={handleDeleteClick}
                                         onDetailClick={handleDetailClick}
+                                        onQuickPaymentClick={handleQuickPaymentClick}
                                     />
                                 </>
                             ))}
@@ -317,6 +327,13 @@ function TurnosContent() {
                 professionals={professionals}
                 onEdit={handleEditClick}
                 onDelete={handleDeleteClick}
+                onQuickPayment={handleQuickPaymentClick}
+            />
+
+            <QuickPaymentModal
+                isOpen={quickPaymentModalOpen}
+                onClose={() => setQuickPaymentModalOpen(false)}
+                appointment={selectedAppointment}
             />
 
             <DeleteConfirmDialog

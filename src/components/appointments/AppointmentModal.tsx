@@ -225,7 +225,7 @@ export function AppointmentModal({
             amount: newPayment.amount,
             method: newPayment.method,
             label: newPayment.label,
-            bankAccount: newPayment.method !== 'cash' ? newPayment.bankAccount : undefined,
+            bankAccount: newPayment.method !== 'cash' ? newPayment.bankAccount : null,
             date: newPayment.date,
             createdAt: new Date().toISOString() as any // Use string for better serialization in arrays
         };
@@ -267,7 +267,7 @@ export function AppointmentModal({
                 amount: newPayment.amount,
                 method: newPayment.method,
                 label: newPayment.label,
-                bankAccount: newPayment.method !== 'cash' ? newPayment.bankAccount : undefined,
+                bankAccount: newPayment.method !== 'cash' ? newPayment.bankAccount : null,
                 date: newPayment.date,
                 createdAt: new Date().toISOString() as any
             };
@@ -294,7 +294,7 @@ export function AppointmentModal({
             price: formData.price,
             status: formData.status,
             payments: finalPayments,
-            commissionPercentageOverride: useCustomCommission ? formData.commissionPercentageOverride : null,
+            commissionPercentageOverride: useCustomCommission ? (formData.commissionPercentageOverride ?? null) : null,
         };
 
         // Validar datos

@@ -48,7 +48,7 @@ export interface Egreso {
     amount: number;
     description?: string;
     paymentMethod: 'cash' | 'transfer' | 'debit' | 'credit' | 'qr';
-    bankAccount?: 'cuenta1' | 'cuenta2';
+    bankAccount?: 'cuenta1' | 'cuenta2' | null;
     createdAt: Date;
     updatedAt: Date;
 }
