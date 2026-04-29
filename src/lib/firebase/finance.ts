@@ -1,15 +1,16 @@
-import { getSalesByDateRange, getSalesByProfessional } from './sales';
-import { getAppointmentsByDateRange, getAppointmentsByProfessional } from './appointments';
+import { getSalesByDateRange } from './sales';
+import { getAppointmentsByDateRange } from './appointments';
 import { getRentalsByDateRange } from './rentals';
 import { getAparatoSessionsByDateRange } from './aparatos';
 import { getEgresosByDateRange } from './egresos';
-import { getActiveProfessionals } from './professionals';
+import { getProfessionals } from './professionals';
 import { Appointment } from '../types/appointment';
 import { Sale } from '../types/sale';
 import { Rental } from '../types/rental';
 import { AparatoSession } from '../types/aparato';
 import { Egreso } from '../types/egreso';
 import { Professional } from '../types/professional';
+import { getUsersByRole } from './users';
 
 export interface FinanceMovement {
     id: string;
@@ -20,13 +21,13 @@ export interface FinanceMovement {
     method: string;
     amount: number;
     bankAccount?: string | null;
-    balance?: number; // Saldo acumulado
+    balance?: number;
+    referenceId?: string;
 }
 
 export interface FinanceOverview {
     totalIncome: number;
     totalServiceIncome: number;
-    totalPartialIncome: number;
     totalProductIncome: number;
     totalRentalIncome: number;
     totalAparatoIncome: number;
@@ -57,19 +58,14 @@ export interface FinanceOverview {
     movements: FinanceMovement[];
 }
 
-import { getUsersByRole } from './users';
-
-/**
- * Calcula el balance financiero para un rango de fechas
- */
 export async function getFinanceOverview(startDate: string, endDate: string): Promise<FinanceOverview> {
-    const [appointments, sales, rentals, aparatos, egresos, professionals, admins, secretaries, promotors] = await Promise.all([
+    const [appointments, sales, rentals, aparatos, egresos, allProfessionals, admins, secretaries, promotors] = await Promise.all([
         getAppointmentsByDateRange(startDate, endDate),
         getSalesByDateRange(startDate, endDate),
         getRentalsByDateRange(startDate, endDate),
         getAparatoSessionsByDateRange(startDate, endDate),
         getEgresosByDateRange(startDate, endDate),
-        getActiveProfessionals(),
+        getProfessionals(),
         getUsersByRole('admin'),
         getUsersByRole('secretary'),
         getUsersByRole('promotor')
@@ -78,7 +74,6 @@ export async function getFinanceOverview(startDate: string, endDate: string): Pr
     const overview: FinanceOverview = {
         totalIncome: 0,
         totalServiceIncome: 0,
-        totalPartialIncome: 0,
         totalProductIncome: 0,
         totalRentalIncome: 0,
         totalAparatoIncome: 0,
@@ -93,289 +88,227 @@ export async function getFinanceOverview(startDate: string, endDate: string): Pr
         movements: []
     };
 
-    // Mapeo de ID de profesional a UserId para normalización
-    const profIdToUid: Record<string, string> = {};
-    professionals.forEach(p => {
-        if (p.userId) profIdToUid[p.id] = p.userId;
-    });
+    const idToName: Record<string, string> = {};
+    const nameToProfessional: Record<string, Professional> = {};
 
-    // Inicializar personal (Profesionales y Staff) por su UID
-    // Esto asegura que las ventas y alquileres se sumen a la misma persona
-    professionals.forEach(p => {
-        const key = p.userId || p.id;
-        overview.byProfessional[key] = {
-            serviceIncome: 0,
-            productIncome: 0,
-            rentalIncome: 0,
-            aparatoIncome: 0,
-            serviceCommission: 0,
-            productCommission: 0,
-            rentalCommission: 0,
-            aparatoFee: 0,
-            totalCommission: 0,
-            name: p.name,
-            userId: p.userId
-        };
+    allProfessionals.forEach(p => {
+        idToName[p.id] = p.name;
+        if (p.userId) idToName[p.userId] = p.name;
+        nameToProfessional[p.name] = p;
+        
+        if (!overview.byProfessional[p.name]) {
+            overview.byProfessional[p.name] = {
+                serviceIncome: 0, productIncome: 0, rentalIncome: 0, aparatoIncome: 0,
+                serviceCommission: 0, productCommission: 0, rentalCommission: 0, aparatoFee: 0,
+                totalCommission: 0, name: p.name, userId: p.userId
+            };
+        }
     });
 
     [...admins, ...secretaries, ...promotors].forEach(u => {
-        if (!overview.byProfessional[u.uid]) {
-            overview.byProfessional[u.uid] = {
-                serviceIncome: 0,
-                productIncome: 0,
-                rentalIncome: 0,
-                aparatoIncome: 0,
-                serviceCommission: 0,
-                productCommission: 0,
-                rentalCommission: 0,
-                aparatoFee: 0,
-                totalCommission: 0,
-                name: u.fullName,
-                userId: u.uid
+        if (u.uid) idToName[u.uid] = u.fullName;
+        if (!overview.byProfessional[u.fullName]) {
+            overview.byProfessional[u.fullName] = {
+                serviceIncome: 0, productIncome: 0, rentalIncome: 0, aparatoIncome: 0,
+                serviceCommission: 0, productCommission: 0, rentalCommission: 0, aparatoFee: 0,
+                totalCommission: 0, name: u.fullName, userId: u.uid
             };
         }
     });
 
-    // Pre-construir un Set: 'professionalId|YYYY-MM-DD' para días con aparato
-    // En esos días el profesional cobra el monto fijo, no comisión por porcentaje
+    const aparatoFeesByDay: Record<string, number> = {};
     const aparatoDays = new Set<string>();
+
     aparatos.forEach((session: AparatoSession) => {
-        aparatoDays.add(`${session.professionalId}|${session.date}`);
-    });
-
-    // Procesar Turnos
-    appointments.forEach((apt: Appointment) => {
-        const appointmentPrice = Number(apt.price) || 0;
-        const aptDate = apt.date; // formato YYYY-MM-DD
-        const isAptInRange = aptDate >= startDate && aptDate <= endDate;
-
-        // 1. Calcular COMISIONES (Solo si el turno está realizado)
-        // Se considera realizado si el status es 'completed' o 'realizado'
-        const isCompleted = (apt.status as any) === 'completed' || (apt.status as any) === 'realizado';
-
-        if (isAptInRange && appointmentPrice > 0 && isCompleted) {
-            const targetUid = apt.professionalId ? (profIdToUid[apt.professionalId] || apt.professionalId) : null;
-            if (targetUid && overview.byProfessional[targetUid]) {
-                const prof = professionals.find((p: Professional) => p.id === apt.professionalId);
-                const profData = overview.byProfessional[targetUid];
-                profData.serviceIncome += appointmentPrice;
-
-                // Calcular comisión: Prioridad 1: Override en el turno, Prioridad 2: Porcentaje del profesional
-                const hasAparato = aparatoDays.has(`${apt.professionalId}|${aptDate}`);
-                if (!hasAparato) {
-                    const commissionPct = (apt.commissionPercentageOverride !== undefined && apt.commissionPercentageOverride !== null)
-                        ? apt.commissionPercentageOverride
-                        : (prof?.serviceCommissionPercentage || 0);
-
-                    if (commissionPct > 0) {
-                        profData.serviceCommission += (appointmentPrice * commissionPct) / 100;
-                    }
-                }
-            }
-        }
-
-        // 2. Calcular INGRESOS (Basado en la fecha de cada pago, incluso si está cancelado)
-        if (apt.payments && apt.payments.length > 0) {
-            apt.payments.forEach(p => {
-                if (p.date >= startDate && p.date <= endDate) {
-                    overview.totalIncome += p.amount;
-
-                    // Lógica refinada de categorización:
-                    // SOLO es "Servicio" si el turno está realizado Y la etiqueta es Pago/Saldo.
-                    // Todo lo demás (señas, abonos, pagos en turnos pendientes/cancelados) es "Pago Parcial".
-                    const isLabelService = p.label === 'Pago' || p.label === 'Saldo';
-
-                    if (isCompleted && isLabelService) {
-                        overview.totalServiceIncome += p.amount;
-                    } else {
-                        overview.totalPartialIncome += p.amount;
-                    }
-
-                    if (p.method) {
-                        overview.byMethod[p.method] = (overview.byMethod[p.method] || 0) + p.amount;
-                    }
-                }
-            });
-        } else if (isAptInRange && appointmentPrice > 0 && apt.isPaid) {
-            // Fallback para turnos legacy pagados sin desglose
-            overview.totalIncome += appointmentPrice;
-            overview.totalServiceIncome += appointmentPrice;
-            if (apt.paymentMethod) {
-                overview.byMethod[apt.paymentMethod] = (overview.byMethod[apt.paymentMethod] || 0) + appointmentPrice;
-            }
-        }
-    });
-
-    // Procesar Ventas
-    sales.forEach((sale: Sale) => {
-        const saleAmount = Number(sale.totalAmount) || 0;
-        overview.totalIncome += saleAmount;
-        overview.totalProductIncome += saleAmount;
-
-        // Sumar al ranking por producto
-        if (!overview.byProduct[sale.productId]) {
-            overview.byProduct[sale.productId] = {
-                name: sale.productName,
-                quantity: 0,
-                income: 0
-            };
-        }
-        overview.byProduct[sale.productId].quantity += (Number(sale.quantity) || 0);
-        overview.byProduct[sale.productId].income += saleAmount;
-
-        if (sale.paymentMethod) {
-            overview.byMethod[sale.paymentMethod] = (overview.byMethod[sale.paymentMethod] || 0) + saleAmount;
-        }
-
-        // Mapear soldById a UID si es necesario
-        const targetUid = sale.soldById ? (profIdToUid[sale.soldById] || sale.soldById) : null;
-        if (targetUid && overview.byProfessional[targetUid]) {
-            const profData = overview.byProfessional[targetUid];
-            profData.productIncome += saleAmount;
-
-            // Usar comisión manual si existe, si no calcular por porcentaje (datos legacy)
-            if (sale.commission !== undefined && sale.commission !== null) {
-                profData.productCommission += Number(sale.commission) || 0;
-            } else {
-                const prof = professionals.find((p: Professional) => p.id === sale.soldById || p.userId === targetUid);
-                if (prof?.productCommissionPercentage) {
-                    profData.productCommission += (saleAmount * prof.productCommissionPercentage) / 100;
-                }
-            }
-        }
-    });
-
-    // Procesar Alquileres
-    rentals.forEach((rental: Rental) => {
-        const rentalPrice = Number(rental.price) || 0;
-        const rentalCommission = Number(rental.commission) || 0;
-
-        overview.totalIncome += rentalPrice;
-        overview.totalRentalIncome += rentalPrice;
-
-        if (rental.paymentMethod) {
-            overview.byMethod[rental.paymentMethod] = (overview.byMethod[rental.paymentMethod] || 0) + rentalPrice;
-        }
-
-        // rentals.sellerId ya es un UID (uid)
-        if (rental.sellerId && overview.byProfessional[rental.sellerId]) {
-            overview.byProfessional[rental.sellerId].rentalIncome += rentalPrice;
-            overview.byProfessional[rental.sellerId].rentalCommission += rentalCommission;
-        }
-    });
-
-    // Procesar Aparatos
-    // El fee NO se suma al ingreso del local — es lo que cobra el profesional.
-    // El ingreso del local ya está en totalServiceIncome a través de los turnos del día.
-    aparatos.forEach((session: AparatoSession) => {
+        const profName = idToName[session.professionalId] || session.professionalId;
+        const key = `${profName}|${session.date}`;
         const fee = Number(session.fixedFee) || 0;
-        // Solo registrar el fee como ganancia del profesional
-        const targetUid = profIdToUid[session.professionalId] || session.professionalId;
-        if (targetUid && overview.byProfessional[targetUid]) {
-            overview.byProfessional[targetUid].aparatoIncome += fee;
-            overview.byProfessional[targetUid].aparatoFee += fee;
+        
+        if (fee > (aparatoFeesByDay[key] || 0)) {
+            aparatoFeesByDay[key] = fee;
+            aparatoDays.add(key);
         }
     });
 
-    // Calcular totales de comisiones
-    Object.values(overview.byProfessional).forEach(data => {
-        data.totalCommission = data.serviceCommission + data.productCommission + data.rentalCommission + data.aparatoFee;
+    Object.entries(aparatoFeesByDay).forEach(([key, fee]) => {
+        const [profName] = key.split('|');
+        if (overview.byProfessional[profName]) {
+            overview.byProfessional[profName].aparatoIncome += fee;
+            overview.byProfessional[profName].aparatoFee += fee;
+        }
     });
 
-    // Procesar Egresos manuales
-    (egresos as Egreso[]).forEach((e) => {
-        const amount = Number(e.amount) || 0;
-        overview.totalEgresos += amount;
-        overview.egresosByCategory[e.category] = (overview.egresosByCategory[e.category] || 0) + amount;
-    });
-
-    // Sumar comisiones de profesionales como egreso del local
-    overview.totalProfCommissions = Object.values(overview.byProfessional).reduce(
-        (sum, d) => sum + d.totalCommission,
-        0
-    );
-
-    // Calcular totales finales
-    overview.totalEgresosGeneral = overview.totalEgresos + overview.totalProfCommissions;
-    overview.saldo = overview.totalIncome - overview.totalEgresosGeneral;
-
-    // Consolidar todos los movimientos para el Libro Diario
     const allMovements: FinanceMovement[] = [];
 
-    // 1. Pagos de Turnos
+    // 2. Procesar Turnos
     appointments.forEach(apt => {
-        (apt.payments || []).forEach(p => {
-            if (p.date >= startDate && p.date <= endDate) {
+        const isCompleted = (apt.status as any) === 'completed' || (apt.status as any) === 'realizado';
+        const isAptInDateRange = apt.date >= startDate && apt.date <= endDate;
+        
+        // PRECIO REAL: Buscar en el tope del turno o dentro de los pagos
+        const paymentsArray = (apt.payments || []);
+        const totalPaid = paymentsArray.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+        const paymentsInRange = paymentsArray.filter(p => p.date >= startDate && p.date <= endDate);
+        const totalPaidInRange = paymentsInRange.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+        
+        // Si no hay precio arriba, usamos lo que se pagó en total
+        const actualPrice = Number(apt.price) || (paymentsArray.length > 0 ? Number((paymentsArray[0] as any).price) || totalPaid : totalPaid);
+
+        if (isAptInDateRange) {
+            // Monto a mostrar hoy: si hubo pagos hoy usamos eso, si no el precio total si está pago/completo
+            const amountToShow = totalPaidInRange > 0 ? totalPaidInRange : (apt.isPaid || isCompleted ? actualPrice : 0);
+            const method = paymentsInRange.length > 0 ? paymentsInRange[0].method : (apt.paymentMethod || 'cash');
+            const bankAccount = paymentsInRange.length > 0 ? paymentsInRange[0].bankAccount : ((apt as any).bankAccount || null);
+
+            allMovements.push({
+                id: `apt_service_${apt.id}`,
+                date: apt.date,
+                type: 'ingreso',
+                category: 'Servicio',
+                description: `${apt.clientName} - ${apt.treatment}`,
+                amount: amountToShow,
+                method,
+                bankAccount,
+                referenceId: apt.id
+            });
+        } else if (totalPaidInRange > 0) {
+            // Pagos diferidos (pago hoy algo de otro día)
+            paymentsInRange.forEach(p => {
                 allMovements.push({
-                    id: p.id || `apt_${apt.id}_${p.date}`,
+                    id: `apt_pay_${apt.id}_${p.id || Math.random()}`,
                     date: p.date,
                     type: 'ingreso',
-                    category: p.label === 'Seña' ? 'Seña' : 'Servicio',
-                    description: `${apt.clientName} - ${apt.treatment}`,
+                    category: p.label === 'Seña' ? 'Seña' : 'Cobro',
+                    description: `Pago: ${apt.clientName} - ${apt.treatment}`,
+                    amount: Number(p.amount) || 0,
                     method: p.method,
-                    amount: p.amount,
-                    bankAccount: p.bankAccount
+                    bankAccount: p.bankAccount,
+                    referenceId: apt.id
                 });
+            });
+        }
+
+        // COMISIONES: Sobre el precio real detectado
+        if (isAptInDateRange && isCompleted && actualPrice > 0) {
+            const profName = apt.professionalId ? (idToName[apt.professionalId] || apt.professionalId) : null;
+            if (profName && overview.byProfessional[profName]) {
+                const prof = nameToProfessional[profName];
+                const profData = overview.byProfessional[profName];
+                profData.serviceIncome += actualPrice;
+                
+                const hasAparato = aparatoDays.has(`${profName}|${apt.date}`);
+                if (!hasAparato) {
+                    const commissionPct = apt.commissionPercentageOverride !== undefined && apt.commissionPercentageOverride !== null
+                        ? apt.commissionPercentageOverride
+                        : (prof?.serviceCommissionPercentage || (prof as any)?.commissionPercentage || 0);
+                    
+                    if (commissionPct > 0) {
+                        profData.serviceCommission += (actualPrice * commissionPct) / 100;
+                    }
+                }
             }
-        });
+        }
     });
 
-    // 2. Ventas de Productos
+    // 3. Ventas
     sales.forEach(sale => {
+        const amount = Number(sale.totalAmount) || 0;
         allMovements.push({
             id: sale.id,
             date: sale.date,
             type: 'ingreso',
             category: 'Productos',
             description: `${sale.productName} (x${sale.quantity})`,
+            amount,
             method: sale.paymentMethod,
-            amount: sale.totalAmount,
             bankAccount: sale.bankAccount
         });
+        const sellerName = sale.soldById ? (idToName[sale.soldById] || sale.soldById) : null;
+        if (sellerName && overview.byProfessional[sellerName]) {
+            overview.byProfessional[sellerName].productIncome += amount;
+        }
     });
 
-    // 3. Alquileres
+    // 4. Alquileres
     rentals.forEach(rental => {
+        const amount = Number(rental.price) || 0;
         allMovements.push({
             id: rental.id,
             date: rental.date,
             type: 'ingreso',
             category: 'Alquiler',
-            description: `${rental.clientName} - ${rental.machine}`,
+            description: `Alquiler: ${rental.clientName}`,
+            amount,
             method: rental.paymentMethod,
-            amount: rental.price,
             bankAccount: rental.bankAccount
         });
+        const sellerName = rental.sellerId ? (idToName[rental.sellerId] || rental.sellerId) : null;
+        if (sellerName && overview.byProfessional[sellerName]) {
+            overview.byProfessional[sellerName].rentalIncome += amount;
+            overview.byProfessional[sellerName].rentalCommission += Number(rental.commission) || 0;
+        }
     });
 
-    // 4. Egresos Manuales
+    // 5. Egresos Manuales
     egresos.forEach(e => {
+        const amount = Number(e.amount) || 0;
         allMovements.push({
             id: e.id,
             date: e.date,
             type: 'egreso',
-            category: e.category,
+            category: e.category || 'Otros',
             description: e.description || 'Gasto general',
-            method: e.paymentMethod,
-            amount: e.amount,
-            bankAccount: e.bankAccount
+            amount,
+            method: e.payments?.[0]?.method || e.paymentMethod || 'cash',
+            bankAccount: e.payments?.[0]?.bankAccount || e.bankAccount
         });
     });
 
-    // Ordenar por fecha y luego por ID para consistencia
-    allMovements.sort((a, b) => {
-        if (a.date !== b.date) return a.date.localeCompare(b.date);
-        return a.id.localeCompare(b.id);
+    // 6. Consolidar Comisiones
+    overview.totalProfCommissions = 0;
+    Object.values(overview.byProfessional).forEach((data) => {
+        data.totalCommission = data.serviceCommission + data.productCommission + data.rentalCommission + data.aparatoFee;
+        if (data.totalCommission > 0) {
+            overview.totalProfCommissions += data.totalCommission;
+            allMovements.push({
+                id: `comm_${data.name.replace(/\s+/g, '_')}`,
+                date: endDate,
+                type: 'egreso',
+                category: 'sueldos',
+                description: `Comisión: ${data.name}`,
+                method: 'cash',
+                amount: data.totalCommission
+            });
+        }
     });
 
-    // Calcular saldo acumulado (solo si queremos ver cómo evoluciona en este periodo)
-    // Nota: Esto no incluye el saldo inicial histórico, solo el del rango seleccionado
-    let currentBalance = 0;
-    overview.movements = allMovements.map(m => {
-        if (m.type === 'ingreso') currentBalance += m.amount;
-        else currentBalance -= m.amount;
-        return { ...m, balance: currentBalance };
+    // 7. Totales Finales
+    allMovements.forEach(m => {
+        if (m.type === 'ingreso') {
+            overview.totalIncome += m.amount;
+            if (m.category === 'Servicio' || m.category === 'Seña' || m.category === 'Cobro') overview.totalServiceIncome += m.amount;
+            else if (m.category === 'Productos') overview.totalProductIncome += m.amount;
+            else if (m.category === 'Alquiler') overview.totalRentalIncome += m.amount;
+            if (m.method && overview.byMethod[m.method] !== undefined) overview.byMethod[m.method] += m.amount;
+        } else {
+            if (!m.id.startsWith('comm_')) {
+                overview.totalEgresos += m.amount;
+                if (m.category) overview.egresosByCategory[m.category] = (overview.egresosByCategory[m.category] || 0) + m.amount;
+            }
+            if (m.method && overview.byMethod[m.method] !== undefined) overview.byMethod[m.method] -= m.amount;
+        }
     });
+
+    overview.totalEgresosGeneral = overview.totalEgresos + overview.totalProfCommissions;
+    overview.saldo = overview.totalIncome - overview.totalEgresosGeneral;
+
+    allMovements.sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
+    let runningBalance = 0;
+    overview.movements = allMovements.map(m => {
+        if (m.type === 'ingreso') runningBalance += m.amount;
+        else runningBalance -= m.amount;
+        return { ...m, balance: runningBalance };
+    }).sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
 
     return overview;
 }

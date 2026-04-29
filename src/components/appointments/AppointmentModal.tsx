@@ -67,7 +67,7 @@ export function AppointmentModal({
         method: 'cash' as Payment['method'],
         label: 'Pago',
         bankAccount: 'cuenta1' as 'cuenta1' | 'cuenta2',
-        date: new Date().toISOString().split('T')[0] // Default to today
+        date: new Date().toLocaleDateString('en-CA') // Default to today
     });
     const [showPaymentForm, setShowPaymentForm] = useState(false);
     const [loading, setLoading] = useState(false);
@@ -181,7 +181,7 @@ export function AppointmentModal({
             method: 'cash',
             label: 'Pago',
             bankAccount: 'cuenta1',
-            date: new Date().toISOString().split('T')[0]
+            date: new Date().toLocaleDateString('en-CA')
         });
         setShowPaymentForm(false);
     }, [appointment, defaultTime, defaultProfessionalId, isOpen]);
@@ -239,7 +239,7 @@ export function AppointmentModal({
             method: 'cash',
             label: 'Pago',
             bankAccount: 'cuenta1',
-            date: new Date().toISOString().split('T')[0]
+            date: new Date().toLocaleDateString('en-CA')
         });
         setShowPaymentForm(false);
         toast.success('Pago registrado');

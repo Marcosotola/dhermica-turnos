@@ -42,7 +42,7 @@ export function QuickPaymentModal({
         method: 'cash' as Payment['method'],
         label: 'Pago',
         bankAccount: 'cuenta1' as 'cuenta1' | 'cuenta2',
-        date: new Date().toISOString().split('T')[0]
+        date: new Date().toLocaleDateString('en-CA')
     });
 
     useEffect(() => {
@@ -55,7 +55,7 @@ export function QuickPaymentModal({
                 method: 'cash',
                 label: 'Pago',
                 bankAccount: 'cuenta1',
-                date: new Date().toISOString().split('T')[0]
+                date: new Date().toLocaleDateString('en-CA')
             });
             setShowPaymentForm(false);
         }

@@ -17,7 +17,7 @@ import {
 import { db } from './config';
 import { Professional } from '../types/professional';
 import { Appointment } from '../types/appointment';
-import { getActiveProfessionals } from './professionals';
+import { getActiveProfessionals, getProfessionals } from './professionals';
 import { getUserProfile, formatPhone } from './users';
 
 const APPOINTMENTS_COLLECTION = 'appointments';
@@ -56,11 +56,38 @@ async function sendAutomatedNotification(title: string, body: string, uid: strin
 }
 
 /**
+ * Normaliza una fecha a formato YYYY-MM-DD
+ */
+function normalizeDate(d: any): string {
+    if (!d || typeof d !== 'string') return '';
+    // DD/MM/YYYY -> YYYY-MM-DD
+    if (d.includes('/')) {
+        const parts = d.split('/');
+        if (parts.length === 3) {
+            const [day, month, year] = parts;
+            if (day.length <= 2 && month.length <= 2 && year.length === 4) {
+                return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+            }
+        }
+    }
+    // DD-MM-YYYY -> YYYY-MM-DD (pero solo si el primero no es el año)
+    if (d.includes('-')) {
+        const parts = d.split('-');
+        if (parts.length === 3 && parts[0].length <= 2 && parts[2].length === 4) {
+             const [day, month, year] = parts;
+             return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+        }
+    }
+    return d;
+}
+
+/**
  * Mapea datos de Firebase (pueden ser legacy en español) al tipo Appointment
  */
 function mapLegacyAppointment(docId: string, data: any, professionalId?: string): Appointment {
-    const appointmentDate = data.date || data.fecha || '';
-    const today = new Date().toISOString().split('T')[0];
+    const rawDate = data.date || data.fecha || '';
+    const appointmentDate = normalizeDate(rawDate);
+    const today = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD local
 
     // Auto-complete past appointments if no status is set
     let status = data.status;
@@ -103,7 +130,11 @@ function mapLegacyAppointment(docId: string, data: any, professionalId?: string)
         notes: data.notes || data.observaciones || '',
         price: data.price !== undefined ? data.price : data.precio,
         status: status,
-        payments: Array.isArray(payments) ? payments : [],
+        payments: Array.isArray(payments) ? payments.map((p: any) => ({
+            ...p,
+            amount: Number(p.amount) || 0,
+            date: normalizeDate(p.date || appointmentDate || new Date().toLocaleDateString('en-CA'))
+        })) : [],
         isPaid: data.isPaid || false,
         paymentMethod: data.paymentMethod || undefined,
         createdAt: data.createdAt?.toDate?.() || data.createdAt || new Date(),
@@ -434,20 +465,140 @@ export function subscribeToAppointmentsByDate(
 }
 
 /**
- * Obtiene turnos por rango de fechas
+ * Obtiene turnos por rango de fechas buscando en todas las fuentes (unificada y legacy)
  */
 export async function getAppointmentsByDateRange(
     startDate: string,
     endDate: string
 ): Promise<Appointment[]> {
-    const q = query(
-        collection(db, APPOINTMENTS_COLLECTION),
-        where('date', '>=', startDate),
-        where('date', '<=', endDate)
-    );
+    const allAppointmentsMap = new Map<string, Appointment>();
+    
+    try {
+        const professionals = await getProfessionals();
+        const promises: Promise<void>[] = [];
 
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map((doc) => mapLegacyAppointment(doc.id, doc.data()));
+        // 1. Colección principal 'appointments' (campos 'date' y 'fecha')
+        const qMainDate = query(
+            collection(db, APPOINTMENTS_COLLECTION),
+            where('date', '>=', startDate),
+            where('date', '<=', endDate)
+        );
+        promises.push(getDocs(qMainDate).then(snap => {
+            snap.docs.forEach(d => {
+                const apt = mapLegacyAppointment(d.id, d.data());
+                allAppointmentsMap.set(`main_date_${d.id}`, apt);
+            });
+        }).catch(err => console.error('Error en qMainDate:', err)));
+
+        const qMainFecha = query(
+            collection(db, APPOINTMENTS_COLLECTION),
+            where('fecha', '>=', startDate),
+            where('fecha', '<=', endDate)
+        );
+        promises.push(getDocs(qMainFecha).then(snap => {
+            snap.docs.forEach(d => {
+                const apt = mapLegacyAppointment(d.id, d.data());
+                const key = `main_fecha_${d.id}`;
+                if (!allAppointmentsMap.has(key)) {
+                    allAppointmentsMap.set(key, apt);
+                }
+            });
+        }).catch(err => console.error('Error en qMainFecha:', err)));
+
+        // 2. Colecciones legacy de profesionales
+        professionals.forEach(prof => {
+            if (prof.legacyCollectionName) {
+                // Query by 'fecha'
+                const qLegacyFecha = query(
+                    collection(db, prof.legacyCollectionName),
+                    where('fecha', '>=', startDate),
+                    where('fecha', '<=', endDate)
+                );
+                promises.push(getDocs(qLegacyFecha).then(snap => {
+                    snap.docs.forEach(d => {
+                        const apt = mapLegacyAppointment(d.id, d.data(), prof.id);
+                        allAppointmentsMap.set(`${prof.legacyCollectionName}_fecha_${d.id}`, apt);
+                    });
+                }).catch(err => console.error(`Error en qLegacyFecha (${prof.legacyCollectionName}):`, err)));
+
+                // Query by 'date' (some legacy collections might have migrated field names)
+                const qLegacyDate = query(
+                    collection(db, prof.legacyCollectionName),
+                    where('date', '>=', startDate),
+                    where('date', '<=', endDate)
+                );
+                promises.push(getDocs(qLegacyDate).then(snap => {
+                    snap.docs.forEach(d => {
+                        const apt = mapLegacyAppointment(d.id, d.data(), prof.id);
+                        const key = `${prof.legacyCollectionName}_date_${d.id}`;
+                        if (!allAppointmentsMap.has(key)) {
+                            allAppointmentsMap.set(key, apt);
+                        }
+                    });
+                }).catch(err => console.error(`Error en qLegacyDate (${prof.legacyCollectionName}):`, err)));
+            }
+        });
+
+        await Promise.all(promises);
+
+        // 3. Fallback para formatos DD/MM/YYYY y DD-MM-YYYY si es un solo día
+        if (startDate === endDate) {
+            const [y, m, d] = startDate.split('-');
+            const mPadded = m.padStart(2, '0');
+            const dPadded = d.padStart(2, '0');
+            const mInt = parseInt(m).toString();
+            const dInt = parseInt(d).toString();
+
+            const variations = [
+                `${dPadded}/${mPadded}/${y}`,
+                `${dPadded}-${mPadded}-${y}`,
+                `${dInt}/${mInt}/${y}`,
+                `${dInt}-${mInt}-${y}`,
+                `${y}-${mInt}-${dInt}`
+            ];
+
+            const fallbackPromises: Promise<void>[] = [];
+
+            const addFallbackQuery = (collectionName: string, fieldName: string, value: string) => {
+                fallbackPromises.push(getDocs(query(collection(db, collectionName), where(fieldName, '==', value))).then(snap => {
+                    snap.docs.forEach(docSnap => {
+                        const apt = mapLegacyAppointment(docSnap.id, docSnap.data());
+                        const key = `fallback_${collectionName}_${fieldName}_${value}_${docSnap.id}`;
+                        if (!allAppointmentsMap.has(key)) {
+                            allAppointmentsMap.set(key, apt);
+                        }
+                    });
+                }).catch(() => {}));
+            };
+
+            variations.forEach(val => {
+                // Main collection
+                addFallbackQuery(APPOINTMENTS_COLLECTION, 'date', val);
+                addFallbackQuery(APPOINTMENTS_COLLECTION, 'fecha', val);
+
+                // Legacy collections
+                professionals.forEach(prof => {
+                    if (prof.legacyCollectionName) {
+                        addFallbackQuery(prof.legacyCollectionName, 'fecha', val);
+                        addFallbackQuery(prof.legacyCollectionName, 'date', val);
+                    }
+                });
+            });
+
+            await Promise.all(fallbackPromises);
+        }
+        
+        // Convertir a array y ordenar
+        return Array.from(allAppointmentsMap.values()).sort((a, b) => {
+            const dateCompare = a.date.localeCompare(b.date);
+            if (dateCompare !== 0) return dateCompare;
+            return a.time.localeCompare(b.time);
+        });
+
+    } catch (error) {
+        console.error('Error obteniendo turnos por rango:', error);
+        return [];
+    }
 }
 
 /**

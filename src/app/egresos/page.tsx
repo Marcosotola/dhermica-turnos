@@ -3,13 +3,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
-import {
-    createEgreso,
-    updateEgreso,
-    deleteEgreso,
-    getEgresosByDateRange,
-    getAllEgresos,
+import { 
+    getEgresosByDateRange, 
+    getAllEgresos, 
+    createEgreso, 
+    updateEgreso, 
+    deleteEgreso 
 } from '@/lib/firebase/egresos';
+import { getFinanceOverview, FinanceOverview } from '@/lib/firebase/finance';
 import {
     Egreso,
     EgresoCategory,
@@ -55,13 +56,19 @@ function todayStr() {
     return getTodayDate();
 }
 
+interface EgresoFormPayment {
+    id: string;
+    method: 'cash' | 'transfer' | 'debit' | 'credit' | 'qr';
+    amount: string;
+    bankAccount?: 'cuenta1' | 'cuenta2' | null;
+}
+
 interface EgresoForm {
     date: string;
     category: EgresoCategory;
     amount: string;
     description: string;
-    paymentMethod: 'cash' | 'transfer' | 'debit' | 'credit' | 'qr';
-    bankAccount?: 'cuenta1' | 'cuenta2' | null;
+    payments: EgresoFormPayment[];
 }
 
 const defaultForm: EgresoForm = {
@@ -69,8 +76,7 @@ const defaultForm: EgresoForm = {
     category: 'otros',
     amount: '',
     description: '',
-    paymentMethod: 'cash',
-    bankAccount: null,
+    payments: [{ id: Date.now().toString(), method: 'cash', amount: '', bankAccount: null }],
 };
 
 export default function EgresosPage() {
@@ -84,6 +90,7 @@ export default function EgresosPage() {
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [form, setForm] = useState<EgresoForm>(defaultForm);
     const [saving, setSaving] = useState(false);
+    const [financeOverview, setFinanceOverview] = useState<FinanceOverview | null>(null);
 
     // Filtros
     const [filterRange, setFilterRange] = useState<'day' | 'week' | 'month' | 'all'>('month');
@@ -146,17 +153,16 @@ export default function EgresosPage() {
     const loadData = useCallback(async () => {
         setLoading(true);
         try {
-            if (filterRange === 'all') {
-                const data = await getAllEgresos();
-                setEgresos(data);
-            } else {
-                const { start, end } = getDateRange();
-                const data = await getEgresosByDateRange(start, end);
-                setEgresos(data);
-            }
+            const { start, end } = getDateRange();
+            const [data, overview] = await Promise.all([
+                filterRange === 'all' ? getAllEgresos() : getEgresosByDateRange(start, end),
+                getFinanceOverview(start, end)
+            ]);
+            setEgresos(data);
+            setFinanceOverview(overview);
         } catch (error) {
             console.error('Error loading egresos:', error);
-            toast.error('Error al cargar los egresos');
+            toast.error('Error al cargar los datos');
         } finally {
             setLoading(false);
         }
@@ -172,13 +178,28 @@ export default function EgresosPage() {
 
     function openEdit(e: Egreso) {
         setEditingId(e.id);
+        
+        // Convert payments to form format
+        const payments: EgresoFormPayment[] = e.payments && e.payments.length > 0 
+            ? e.payments.map(p => ({
+                id: p.id || Math.random().toString(),
+                method: p.method,
+                amount: String(p.amount),
+                bankAccount: p.bankAccount
+            }))
+            : [{
+                id: Date.now().toString(),
+                method: e.paymentMethod || 'cash',
+                amount: String(e.amount),
+                bankAccount: e.bankAccount
+            }];
+
         setForm({
             date: e.date,
             category: e.category,
             amount: String(e.amount),
             description: e.description || '',
-            paymentMethod: e.paymentMethod,
-            bankAccount: e.bankAccount,
+            payments
         });
         setShowModal(true);
     }
@@ -188,6 +209,13 @@ export default function EgresosPage() {
             toast.error('Completá fecha, categoría y monto');
             return;
         }
+
+        const totalPaymentsAmount = form.payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+        if (Math.abs(totalPaymentsAmount - Number(form.amount)) > 0.01) {
+            toast.error(`La suma de los pagos (${formatCurrency(totalPaymentsAmount)}) debe coincidir con el monto total (${formatCurrency(Number(form.amount))})`);
+            return;
+        }
+
         setSaving(true);
         try {
             const payload = {
@@ -195,8 +223,15 @@ export default function EgresosPage() {
                 category: form.category,
                 amount: Number(form.amount),
                 description: form.description.trim(),
-                paymentMethod: form.paymentMethod,
-                bankAccount: form.paymentMethod !== 'cash' ? (form.bankAccount || 'cuenta1') : null,
+                payments: form.payments.map(p => ({
+                    id: p.id,
+                    method: p.method,
+                    amount: Number(p.amount),
+                    bankAccount: p.method !== 'cash' ? (p.bankAccount || 'cuenta1') : null,
+                })),
+                // Legacy fields for backward compatibility
+                paymentMethod: form.payments[0]?.method || 'cash',
+                bankAccount: form.payments[0]?.method !== 'cash' ? (form.payments[0]?.bankAccount || 'cuenta1') : null,
             };
             if (editingId) {
                 await updateEgreso(editingId, payload);
@@ -227,7 +262,7 @@ export default function EgresosPage() {
         }
     }
 
-    const totalAmount = egresos.reduce((s, e) => s + e.amount, 0);
+    const totalAmount = egresos.reduce((s, e) => s + (Number(e.amount) || 0), 0) + (financeOverview?.totalProfCommissions || 0);
 
     if (authLoading || profile?.role !== 'admin') {
         return (
@@ -308,14 +343,43 @@ export default function EgresosPage() {
                     <div className="flex justify-center py-16">
                         <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#34baab]" />
                     </div>
-                ) : egresos.length === 0 ? (
+                ) : (egresos.length === 0 && (!financeOverview || (financeOverview.totalProfCommissions || 0) === 0)) ? (
                     <div className="bg-white rounded-3xl border border-gray-100 shadow-sm text-center py-16">
                         <FileText className="w-12 h-12 text-gray-300 mx-auto mb-4" />
                         <p className="text-gray-400 font-bold text-lg">No hay egresos en este período</p>
                         <p className="text-gray-300 text-sm mt-1">Hacé clic en "Nuevo Egreso" para registrar un gasto</p>
                     </div>
                 ) : (
-                    <div className="space-y-3">
+                    <div className="space-y-4">
+                        {/* Comisiones Automáticas (Virtuales) */}
+                        {financeOverview?.movements
+                            .filter(m => m.type === 'egreso' && m.id.startsWith('comm_'))
+                            .map(comm => (
+                                <div key={comm.id} className="bg-white rounded-3xl p-5 shadow-sm border border-amber-100 flex items-center gap-5 group hover:shadow-md transition-all">
+                                    <div className="w-14 h-14 rounded-2xl bg-amber-50 flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform">
+                                        <span className="text-[10px] font-black text-amber-600 uppercase">Sueldos</span>
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <span className="text-[10px] font-bold text-gray-400 uppercase flex items-center gap-1.5">
+                                                <Calendar className="w-3 h-3 text-gray-400" />
+                                                Automático
+                                            </span>
+                                        </div>
+                                        <h3 className="text-gray-800 font-black text-sm mb-1 truncate">{comm.description}</h3>
+                                        <p className="text-gray-400 text-[10px] font-medium flex items-center gap-1.5">
+                                            Comisión por servicios
+                                        </p>
+                                    </div>
+                                    <div className="text-right flex flex-col items-end gap-2">
+                                        <span className="text-red-500 font-black text-lg">$ {formatCurrency(comm.amount).replace('$', '').trim()}</span>
+                                        <span className="text-[8px] font-black uppercase text-amber-500 bg-amber-50 px-2 py-0.5 rounded-full">Automático</span>
+                                    </div>
+                                </div>
+                            ))
+                        }
+
+                        {/* Egresos Manuales */}
                         {egresos.map(e => (
                             <div key={e.id} className="bg-white rounded-3xl border border-gray-100 shadow-sm p-5 flex items-center gap-4 hover:shadow-md transition-all">
                                 <div className={`p-3 rounded-2xl border text-sm font-black uppercase ${EGRESO_CATEGORY_COLOR[e.category]}`}>
@@ -334,9 +398,19 @@ export default function EgresosPage() {
                                     {e.description && (
                                         <p className="text-gray-600 text-sm mt-1 truncate">{e.description}</p>
                                     )}
-                                    <p className="text-xs text-gray-400 font-medium mt-0.5">
-                                        {PAYMENT_LABELS[e.paymentMethod]} {e.bankAccount && `(${e.bankAccount === 'cuenta1' ? 'Cta 1' : 'Cta 2'})`}
-                                    </p>
+                                    <div className="flex flex-wrap gap-x-3 gap-y-1 mt-0.5">
+                                        {e.payments && e.payments.length > 0 ? (
+                                            e.payments.map((p, idx) => (
+                                                <p key={idx} className="text-xs text-gray-400 font-medium">
+                                                    {PAYMENT_LABELS[p.method]} {p.bankAccount && `(${p.bankAccount === 'cuenta1' ? 'Cta 1' : 'Cta 2'})`}: {formatCurrency(p.amount)}
+                                                </p>
+                                            ))
+                                        ) : (
+                                            <p className="text-xs text-gray-400 font-medium">
+                                                {PAYMENT_LABELS[e.paymentMethod]} {e.bankAccount && `(${e.bankAccount === 'cuenta1' ? 'Cta 1' : 'Cta 2'})`}
+                                            </p>
+                                        )}
+                                    </div>
                                 </div>
                                 <div className="text-right shrink-0">
                                     <p className="text-xl font-black text-red-600">{formatCurrency(e.amount)}</p>
@@ -358,15 +432,15 @@ export default function EgresosPage() {
             {/* Modal Crear/Editar */}
             {showModal && (
                 <div className="fixed inset-0 bg-black/60 z-50 flex items-end md:items-center justify-center p-4">
-                    <div className="bg-white rounded-[2.5rem] w-full max-w-md shadow-2xl p-8">
-                        <div className="flex items-center justify-between mb-6">
+                    <div className="bg-white rounded-[2.5rem] w-full max-w-md shadow-2xl p-8 flex flex-col max-h-[90vh]">
+                        <div className="flex items-center justify-between mb-6 flex-shrink-0">
                             <h2 className="text-2xl font-black text-gray-900">{editingId ? 'Editar Egreso' : 'Nuevo Egreso'}</h2>
                             <button onClick={() => setShowModal(false)} className="p-2 hover:bg-gray-100 rounded-xl text-gray-500">
                                 <X className="w-5 h-5 text-gray-500" />
                             </button>
                         </div>
 
-                        <div className="space-y-4">
+                        <div className="space-y-4 overflow-y-auto pr-2 custom-scrollbar">
                             {/* Fecha */}
                             <div>
                                 <label className="text-xs font-black uppercase tracking-widest text-gray-500 mb-1 block">Fecha *</label>
@@ -409,34 +483,92 @@ export default function EgresosPage() {
                                 </div>
                             </div>
 
-                            {/* Método de pago */}
-                            <div>
-                                <label className="text-xs font-black uppercase tracking-widest text-gray-500 mb-1 block">Método de pago</label>
-                                <select
-                                    value={form.paymentMethod}
-                                    onChange={e => setForm(f => ({ ...f, paymentMethod: e.target.value as EgresoForm['paymentMethod'] }))}
-                                    className="w-full border border-gray-200 rounded-2xl px-4 py-3 text-gray-900 font-medium focus:outline-none focus:ring-2 focus:ring-[#34baab] bg-gray-50"
-                                >
-                                    {Object.entries(PAYMENT_LABELS).map(([v, l]) => (
-                                        <option key={v} value={v} className="text-gray-900">{l}</option>
-                                    ))}
-                                </select>
-                            </div>
-
-                            {/* Cuenta de Destino (Solo si es digital) */}
-                            {form.paymentMethod !== 'cash' && (
-                                <div>
-                                    <label className="text-xs font-black uppercase tracking-widest text-gray-500 mb-1 block">Cuenta de Destino *</label>
-                                    <select
-                                        value={form.bankAccount || 'cuenta1'}
-                                        onChange={e => setForm(f => ({ ...f, bankAccount: e.target.value as 'cuenta1' | 'cuenta2' }))}
-                                        className="w-full border border-gray-200 rounded-2xl px-4 py-3 text-gray-900 font-medium focus:outline-none focus:ring-2 focus:ring-[#34baab] bg-gray-50"
+                            {/* Pagos */}
+                            <div className="border-t border-gray-100 pt-4 mt-2">
+                                <div className="flex items-center justify-between mb-3">
+                                    <label className="text-xs font-black uppercase tracking-widest text-gray-500">Desglose de Pagos *</label>
+                                    <button
+                                        onClick={() => setForm(f => ({
+                                            ...f,
+                                            payments: [...f.payments, { id: Date.now().toString(), method: 'cash', amount: '', bankAccount: null }]
+                                        }))}
+                                        className="text-[10px] font-black uppercase tracking-widest bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-xl transition-colors flex items-center gap-1.5 text-gray-600"
                                     >
-                                        <option value="cuenta1">Cuenta 1</option>
-                                        <option value="cuenta2">Cuenta 2</option>
-                                    </select>
+                                        <Plus className="w-3 h-3" /> Agregar Pago
+                                    </button>
                                 </div>
-                            )}
+                                
+                                <div className="space-y-3">
+                                    {form.payments.map((p, idx) => (
+                                        <div key={p.id} className="bg-gray-50 rounded-2xl p-4 border border-gray-100 relative group">
+                                            {form.payments.length > 1 && (
+                                                <button
+                                                    onClick={() => setForm(f => ({
+                                                        ...f,
+                                                        payments: f.payments.filter(pay => pay.id !== p.id)
+                                                    }))}
+                                                    className="absolute -top-2 -right-2 bg-white border border-gray-200 text-red-500 p-1.5 rounded-full shadow-sm hover:bg-red-50 transition-colors"
+                                                >
+                                                    <X className="w-3 h-3" />
+                                                </button>
+                                            )}
+                                            
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <div>
+                                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1 block">Medio</label>
+                                                    <select
+                                                        value={p.method}
+                                                        onChange={e => {
+                                                            const newPayments = [...form.payments];
+                                                            newPayments[idx].method = e.target.value as any;
+                                                            if (e.target.value === 'cash') newPayments[idx].bankAccount = null;
+                                                            setForm(f => ({ ...f, payments: newPayments }));
+                                                        }}
+                                                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#34baab] bg-white"
+                                                    >
+                                                        {Object.entries(PAYMENT_LABELS).map(([v, l]) => (
+                                                            <option key={v} value={v}>{l}</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1 block">Monto</label>
+                                                    <input
+                                                        type="number"
+                                                        value={p.amount}
+                                                        onChange={e => {
+                                                            const newPayments = [...form.payments];
+                                                            newPayments[idx].amount = e.target.value;
+                                                            setForm(f => ({ ...f, payments: newPayments }));
+                                                        }}
+                                                        placeholder="0"
+                                                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-[#34baab] bg-white"
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            {p.method !== 'cash' && (
+                                                <div className="mt-3">
+                                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1 block">Cuenta</label>
+                                                    <select
+                                                        value={p.bankAccount || 'cuenta1'}
+                                                        onChange={e => {
+                                                            const newPayments = [...form.payments];
+                                                            newPayments[idx].bankAccount = e.target.value as any;
+                                                            setForm(f => ({ ...f, payments: newPayments }));
+                                                        }}
+                                                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#34baab] bg-white"
+                                                    >
+                                                        <option value="cuenta1">Cuenta 1</option>
+                                                        <option value="cuenta2">Cuenta 2</option>
+                                                    </select>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                                
+                            </div>
 
                             {/* Descripción */}
                             <div>
@@ -450,10 +582,21 @@ export default function EgresosPage() {
                                 />
                             </div>
 
+                        </div>
+
+                        <div className="pt-4 mt-2 border-t border-gray-100 flex-shrink-0">
+                            {form.payments.length > 0 && (
+                                <div className="mb-4 flex justify-between items-center px-1">
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Total Desglosado:</span>
+                                    <span className={`text-sm font-black ${Math.abs(form.payments.reduce((s, p) => s + (Number(p.amount) || 0), 0) - Number(form.amount)) < 0.01 ? 'text-[#34baab]' : 'text-red-500'}`}>
+                                        {formatCurrency(form.payments.reduce((s, p) => s + (Number(p.amount) || 0), 0))}
+                                    </span>
+                                </div>
+                            )}
                             <button
                                 onClick={handleSave}
                                 disabled={saving}
-                                className="w-full bg-[#34baab] hover:bg-[#2a968a] text-white font-black py-4 rounded-2xl transition-all active:scale-95 disabled:opacity-50 mt-2"
+                                className="w-full bg-[#34baab] hover:bg-[#2a968a] text-white font-black py-4 rounded-2xl transition-all active:scale-95 disabled:opacity-50"
                             >
                                 {saving ? 'Guardando...' : editingId ? 'Guardar Cambios' : 'Registrar Egreso'}
                             </button>

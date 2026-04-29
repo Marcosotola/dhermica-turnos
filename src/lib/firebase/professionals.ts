@@ -77,8 +77,7 @@ export async function getProfessionalById(id: string): Promise<Professional | nu
  */
 export async function getProfessionals(): Promise<Professional[]> {
     const q = query(
-        collection(db, PROFESSIONALS_COLLECTION),
-        orderBy('order', 'asc')
+        collection(db, PROFESSIONALS_COLLECTION)
     );
 
     const snapshot = await getDocs(q);
@@ -98,8 +97,7 @@ export async function getProfessionals(): Promise<Professional[]> {
 export async function getActiveProfessionals(): Promise<Professional[]> {
     const q = query(
         collection(db, PROFESSIONALS_COLLECTION),
-        where('active', '==', true),
-        orderBy('order', 'asc')
+        where('active', '==', true)
     );
 
     const snapshot = await getDocs(q);

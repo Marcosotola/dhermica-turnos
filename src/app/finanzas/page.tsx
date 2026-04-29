@@ -36,8 +36,8 @@ export default function FinanzasPage() {
     const [overview, setOverview] = useState<FinanceOverview | null>(null);
     const [dateRange, setDateRange] = useState<'day' | 'week' | 'month' | 'custom'>('day');
     const [customRange, setCustomRange] = useState({
-        start: new Date().toISOString().split('T')[0],
-        end: new Date().toISOString().split('T')[0]
+        start: getTodayDate(),
+        end: getTodayDate()
     });
     const [currentDate, setCurrentDate] = useState(new Date());
     const [expandedMetric, setExpandedMetric] = useState<string | null>(null);
