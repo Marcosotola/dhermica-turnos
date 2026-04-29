@@ -31,6 +31,7 @@ export interface FinanceOverview {
     totalProductIncome: number;
     totalRentalIncome: number;
     totalAparatoIncome: number;
+    totalPartialIncome: number;
     totalEgresos: number;
     totalProfCommissions: number;
     totalEgresosGeneral: number;
@@ -77,6 +78,7 @@ export async function getFinanceOverview(startDate: string, endDate: string): Pr
         totalProductIncome: 0,
         totalRentalIncome: 0,
         totalAparatoIncome: 0,
+        totalPartialIncome: 0,
         totalEgresos: 0,
         totalProfCommissions: 0,
         totalEgresosGeneral: 0,
@@ -286,9 +288,11 @@ export async function getFinanceOverview(startDate: string, endDate: string): Pr
     allMovements.forEach(m => {
         if (m.type === 'ingreso') {
             overview.totalIncome += m.amount;
-            if (m.category === 'Servicio' || m.category === 'Seña' || m.category === 'Cobro') overview.totalServiceIncome += m.amount;
+            if (m.category === 'Servicio' || m.category === 'Cobro') overview.totalServiceIncome += m.amount;
+            else if (m.category === 'Seña' || m.category === 'Parcial') overview.totalPartialIncome += m.amount;
             else if (m.category === 'Productos') overview.totalProductIncome += m.amount;
             else if (m.category === 'Alquiler') overview.totalRentalIncome += m.amount;
+            else if (m.category === 'Aparato') overview.totalAparatoIncome += m.amount;
             if (m.method && overview.byMethod[m.method] !== undefined) overview.byMethod[m.method] += m.amount;
         } else {
             if (!m.id.startsWith('comm_')) {
