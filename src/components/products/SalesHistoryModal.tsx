@@ -11,7 +11,7 @@ import { Sale } from '@/lib/types/sale';
 import { getSalesByDateRange, deleteSale, updateSale } from '@/lib/firebase/sales';
 import { Professional } from '@/lib/types/professional';
 import { toast } from 'sonner';
-import { Trash2, Pencil, X, Check, Loader2, ShoppingBag } from 'lucide-react';
+import { Trash2, Pencil, X, Check, Loader2, ShoppingBag, CreditCard } from 'lucide-react';
 import { getTodayDate } from '@/lib/utils/time';
 
 interface SalesHistoryModalProps {
@@ -218,13 +218,35 @@ export function SalesHistoryModal({ isOpen, onClose, professionals, onRefresh }:
                                     ) : (
                                         /* View mode */
                                         <div className="flex items-center justify-between gap-3">
-                                            <div className="min-w-0">
+                                            <div className="min-w-0 flex-1">
                                                 <p className="font-black text-gray-800 text-sm truncate">{sale.productName}</p>
-                                                <p className="text-xs text-gray-500">{sale.date} · {sale.soldByName} · {PAYMENT_LABELS[sale.paymentMethod]}</p>
-                                                <div className="flex gap-3 mt-1">
-                                                    <span className="text-xs text-gray-600">x{sale.quantity} · {formatCurrency(sale.totalAmount)}</span>
+                                                <p className="text-[10px] text-gray-500 mb-1">{sale.date} · {sale.soldByName}</p>
+                                                
+                                                {/* Payments List */}
+                                                <div className="space-y-1 mb-2">
+                                                    {sale.payments && sale.payments.length > 0 ? (
+                                                        sale.payments.map((p, idx) => (
+                                                            <div key={p.id || idx} className="flex items-center gap-2 text-[9px]">
+                                                                <CreditCard className="w-3 h-3 text-gray-400" />
+                                                                <span className="font-bold text-gray-700">{PAYMENT_LABELS[p.method]}</span>
+                                                                {p.bankAccount && <span className="text-gray-400">({p.bankAccount === 'cuenta1' ? 'CTA 1' : 'CTA 2'})</span>}
+                                                                <span className="ml-auto font-black text-gray-900">{formatCurrency(p.amount)}</span>
+                                                            </div>
+                                                        ))
+                                                    ) : (
+                                                        <div className="flex items-center gap-2 text-[9px]">
+                                                            <CreditCard className="w-3 h-3 text-gray-400" />
+                                                            <span className="font-bold text-gray-700">{PAYMENT_LABELS[sale.paymentMethod]}</span>
+                                                            {sale.bankAccount && <span className="text-gray-400">({sale.bankAccount === 'cuenta1' ? 'CTA 1' : 'CTA 2'})</span>}
+                                                            <span className="ml-auto font-black text-gray-900">{formatCurrency(sale.totalAmount)}</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                <div className="flex gap-3 mt-1 pt-1 border-t border-gray-200/50">
+                                                    <span className="text-[10px] text-gray-600 font-bold">Cant: x{sale.quantity} · Total: {formatCurrency(sale.totalAmount)}</span>
                                                     {sale.commission !== undefined && sale.commission > 0 && (
-                                                        <span className="text-xs text-[#34baab] font-bold">Comisión: {formatCurrency(sale.commission)}</span>
+                                                        <span className="text-[10px] text-[#34baab] font-black uppercase tracking-tight">Comisión: {formatCurrency(sale.commission)}</span>
                                                     )}
                                                 </div>
                                             </div>

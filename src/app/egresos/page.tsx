@@ -97,7 +97,7 @@ export default function EgresosPage() {
     const [currentDate, setCurrentDate] = useState(new Date());
 
     useEffect(() => {
-        if (!authLoading && profile?.role !== 'admin') {
+        if (!authLoading && !(profile?.role === 'admin' || profile?.role === 'secretary')) {
             router.push('/dashboard');
         }
     }, [authLoading, profile, router]);
@@ -264,7 +264,7 @@ export default function EgresosPage() {
 
     const totalAmount = egresos.reduce((s, e) => s + (Number(e.amount) || 0), 0) + (financeOverview?.totalProfCommissions || 0);
 
-    if (authLoading || profile?.role !== 'admin') {
+    if (authLoading || !(profile?.role === 'admin' || profile?.role === 'secretary')) {
         return (
             <div className="min-h-screen bg-gray-50 flex items-center justify-center">
                 <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#34baab]" />

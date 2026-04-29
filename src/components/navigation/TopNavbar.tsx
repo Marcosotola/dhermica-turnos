@@ -81,6 +81,7 @@ export function TopNavbar() {
         ...(role === 'secretary' ? [
             { href: '/turnos', label: 'Turnos', icon: Calendar },
             { href: '/finanzas', label: 'Finanzas', icon: DollarSign },
+            { href: '/egresos', label: 'Egresos', icon: TrendingDown },
             { href: '/aparatos', label: 'Aparatos', icon: Zap },
             { href: '/promociones', label: 'Promos', icon: Tag },
             { href: '/tratamientos', label: 'Servicios', icon: Sparkles },

@@ -215,35 +215,76 @@ export async function getFinanceOverview(startDate: string, endDate: string): Pr
     // 3. Ventas
     sales.forEach(sale => {
         const amount = Number(sale.totalAmount) || 0;
-        allMovements.push({
-            id: sale.id,
-            date: sale.date,
-            type: 'ingreso',
-            category: 'Productos',
-            description: `${sale.productName} (x${sale.quantity})`,
-            amount,
-            method: sale.paymentMethod,
-            bankAccount: sale.bankAccount
-        });
+        
+        if (sale.payments && sale.payments.length > 0) {
+            sale.payments.forEach((p, idx) => {
+                allMovements.push({
+                    id: `${sale.id}_p${idx}`,
+                    date: p.date || sale.date,
+                    type: 'ingreso',
+                    category: 'Productos',
+                    description: `${sale.productName} (x${sale.quantity})`,
+                    amount: Number(p.amount) || 0,
+                    method: p.method,
+                    bankAccount: p.bankAccount,
+                    referenceId: sale.id
+                });
+            });
+        } else {
+            allMovements.push({
+                id: sale.id,
+                date: sale.date,
+                type: 'ingreso',
+                category: 'Productos',
+                description: `${sale.productName} (x${sale.quantity})`,
+                amount,
+                method: sale.paymentMethod,
+                bankAccount: sale.bankAccount,
+                referenceId: sale.id
+            });
+        }
+
         const sellerName = sale.soldById ? (idToName[sale.soldById] || sale.soldById) : null;
         if (sellerName && overview.byProfessional[sellerName]) {
             overview.byProfessional[sellerName].productIncome += amount;
+            if (sale.commission) {
+                overview.byProfessional[sellerName].productCommission += Number(sale.commission) || 0;
+            }
         }
     });
 
     // 4. Alquileres
     rentals.forEach(rental => {
         const amount = Number(rental.price) || 0;
-        allMovements.push({
-            id: rental.id,
-            date: rental.date,
-            type: 'ingreso',
-            category: 'Alquiler',
-            description: `Alquiler: ${rental.clientName}`,
-            amount,
-            method: rental.paymentMethod,
-            bankAccount: rental.bankAccount
-        });
+        
+        if (rental.payments && rental.payments.length > 0) {
+            rental.payments.forEach((p, idx) => {
+                allMovements.push({
+                    id: `${rental.id}_p${idx}`,
+                    date: p.date || rental.date,
+                    type: 'ingreso',
+                    category: 'Alquiler',
+                    description: `Alquiler: ${rental.clientName}`,
+                    amount: Number(p.amount) || 0,
+                    method: p.method,
+                    bankAccount: p.bankAccount,
+                    referenceId: rental.id
+                });
+            });
+        } else {
+            allMovements.push({
+                id: rental.id,
+                date: rental.date,
+                type: 'ingreso',
+                category: 'Alquiler',
+                description: `Alquiler: ${rental.clientName}`,
+                amount,
+                method: rental.paymentMethod,
+                bankAccount: rental.bankAccount,
+                referenceId: rental.id
+            });
+        }
+
         const sellerName = rental.sellerId ? (idToName[rental.sellerId] || rental.sellerId) : null;
         if (sellerName && overview.byProfessional[sellerName]) {
             overview.byProfessional[sellerName].rentalIncome += amount;

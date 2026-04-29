@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
-import { Calendar, TrendingUp, Sparkles, ShoppingBag, BookOpen, Bell, MapPin, Users, Truck, DollarSign, Zap } from 'lucide-react';
+import { Calendar, TrendingUp, Sparkles, ShoppingBag, BookOpen, Bell, MapPin, Users, Truck, DollarSign, Zap, TrendingDown } from 'lucide-react';
 import { ProfileSection } from '@/components/dashboard/ProfileSection';
 import { EditProfileModal } from '@/components/dashboard/EditProfileModal';
 import { Toaster } from 'sonner';
@@ -172,6 +172,16 @@ export default function SecretariaPage() {
                         <Truck className="w-10 h-10 text-orange-500 group-hover:scale-110 transition-transform mb-4" />
                         <h2 className="text-xl font-bold text-gray-900">Alquiler</h2>
                         <p className="hidden md:block text-sm text-gray-500 mt-2">Gestionar alquileres</p>
+                    </button>
+
+                    {/* Egresos */}
+                    <button
+                        onClick={() => router.push('/egresos')}
+                        className="flex flex-col items-center justify-center bg-white rounded-3xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-all text-center group"
+                    >
+                        <TrendingDown className="w-10 h-10 text-red-500 group-hover:scale-110 transition-transform mb-4" />
+                        <h2 className="text-xl font-bold text-gray-900">Egresos</h2>
+                        <p className="hidden md:block text-sm text-gray-500 mt-2">Gestionar gastos del local</p>
                     </button>
                 </div>
             </div>

@@ -1,7 +1,7 @@
 'use client';
 
 import { Rental } from '@/lib/types/rental';
-import { Pencil, Trash2 } from 'lucide-react';
+import { Pencil, Trash2, CreditCard } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { formatCurrencyWithSymbol } from '@/lib/utils/currency';
 
@@ -10,6 +10,10 @@ interface RentalTableProps {
     onEdit: (rental: Rental) => void;
     onDelete: (rental: Rental) => void;
 }
+
+const PAYMENT_LABELS: Record<string, string> = {
+    cash: 'Efectivo', transfer: 'Transf.', debit: 'Débito', credit: 'Crédito', qr: 'QR'
+};
 
 export function RentalTable({ rentals, onEdit, onDelete }: RentalTableProps) {
     if (rentals.length === 0) {
@@ -31,15 +35,16 @@ export function RentalTable({ rentals, onEdit, onDelete }: RentalTableProps) {
                                 <th className="px-6 py-4 text-sm font-bold text-gray-400 uppercase tracking-widest">Fecha</th>
                                 <th className="px-6 py-4 text-sm font-bold text-gray-400 uppercase tracking-widest">Cliente</th>
                                 <th className="px-6 py-4 text-sm font-bold text-gray-400 uppercase tracking-widest">Máquina</th>
+                                <th className="px-6 py-4 text-sm font-bold text-gray-400 uppercase tracking-widest">Métodos</th>
                                 <th className="px-6 py-4 text-sm font-bold text-gray-400 uppercase tracking-widest">Vendedor</th>
-                                <th className="px-6 py-4 text-sm font-bold text-gray-400 uppercase tracking-widest">Precio</th>
+                                <th className="px-6 py-4 text-sm font-bold text-gray-400 uppercase tracking-widest text-right">Precio</th>
                                 <th className="px-6 py-4 text-sm font-bold text-gray-400 uppercase tracking-widest text-right">Acciones</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-50">
                             {rentals.map((rental) => (
                                 <tr key={rental.id} className="hover:bg-gray-50/50 transition-colors">
-                                    <td className="px-6 py-4 font-semibold text-gray-700">
+                                    <td className="px-6 py-4 font-semibold text-gray-700 whitespace-nowrap">
                                         {(() => {
                                             const [year, month, day] = rental.date.split('-');
                                             return `${day}/${month}/${year}`;
@@ -51,8 +56,26 @@ export function RentalTable({ rentals, onEdit, onDelete }: RentalTableProps) {
                                             {rental.machine}
                                         </span>
                                     </td>
+                                    <td className="px-6 py-4">
+                                        <div className="flex flex-col gap-1">
+                                            {rental.payments && rental.payments.length > 0 ? (
+                                                rental.payments.map((p, idx) => (
+                                                    <div key={p.id || idx} className="flex items-center gap-1.5 text-[10px]">
+                                                        <CreditCard className="w-3 h-3 text-gray-400" />
+                                                        <span className="font-bold text-gray-700">{PAYMENT_LABELS[p.method]}</span>
+                                                        <span className="text-gray-400 font-medium">{formatCurrencyWithSymbol(p.amount)}</span>
+                                                    </div>
+                                                ))
+                                            ) : (
+                                                <div className="flex items-center gap-1.5 text-[10px]">
+                                                    <CreditCard className="w-3 h-3 text-gray-400" />
+                                                    <span className="font-bold text-gray-700">{PAYMENT_LABELS[rental.paymentMethod]}</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </td>
                                     <td className="px-6 py-4 font-bold text-gray-700">{rental.sellerName}</td>
-                                    <td className="px-6 py-4 font-black text-gray-900">{formatCurrencyWithSymbol(rental.price || 0)}</td>
+                                    <td className="px-6 py-4 font-black text-gray-900 text-right">{formatCurrencyWithSymbol(rental.price || 0)}</td>
                                     <td className="px-6 py-4 text-right">
                                         <div className="flex justify-end gap-2">
                                             <button
@@ -99,13 +122,33 @@ export function RentalTable({ rentals, onEdit, onDelete }: RentalTableProps) {
                             </span>
                         </div>
 
+                        {/* Payments Mobile */}
+                        <div className="mb-4 space-y-1.5">
+                            {rental.payments && rental.payments.length > 0 ? (
+                                rental.payments.map((p, idx) => (
+                                    <div key={p.id || idx} className="flex items-center gap-2 text-[10px] bg-gray-50/50 p-2 rounded-lg border border-gray-100/50">
+                                        <CreditCard className="w-3.5 h-3.5 text-gray-400" />
+                                        <span className="font-black text-gray-700 uppercase">{PAYMENT_LABELS[p.method]}</span>
+                                        {p.bankAccount && <span className="text-[8px] text-gray-400 font-bold bg-white px-1.5 py-0.5 rounded border">{(p.bankAccount as string).toUpperCase()}</span>}
+                                        <span className="ml-auto font-black text-gray-900">{formatCurrencyWithSymbol(p.amount)}</span>
+                                    </div>
+                                ))
+                            ) : (
+                                <div className="flex items-center gap-2 text-[10px] bg-gray-50/50 p-2 rounded-lg border border-gray-100/50">
+                                    <CreditCard className="w-3.5 h-3.5 text-gray-400" />
+                                    <span className="font-black text-gray-700 uppercase">{PAYMENT_LABELS[rental.paymentMethod]}</span>
+                                    <span className="ml-auto font-black text-gray-900">{formatCurrencyWithSymbol(rental.price)}</span>
+                                </div>
+                            )}
+                        </div>
+
                         <div className="grid grid-cols-2 gap-4 mb-4">
                             <div className="p-3 bg-gray-50 rounded-xl border border-gray-100">
                                 <p className="text-[10px] text-gray-400 font-black uppercase mb-1">Vendedor</p>
                                 <p className="font-bold text-gray-700 text-sm whitespace-nowrap overflow-hidden text-ellipsis">{rental.sellerName}</p>
                             </div>
                             <div className="p-3 bg-gray-50 rounded-xl border border-gray-100">
-                                <p className="text-[10px] text-gray-400 font-black uppercase mb-1">Precio</p>
+                                <p className="text-[10px] text-gray-400 font-black uppercase mb-1">Precio Total</p>
                                 <p className="font-black text-gray-900 text-sm">{formatCurrencyWithSymbol(rental.price || 0)}</p>
                             </div>
                         </div>
