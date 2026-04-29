@@ -23,12 +23,14 @@ interface QuickPaymentModalProps {
     isOpen: boolean;
     onClose: () => void;
     appointment: Appointment | null;
+    onSuccess?: () => void;
 }
 
 export function QuickPaymentModal({
     isOpen,
     onClose,
     appointment,
+    onSuccess,
 }: QuickPaymentModalProps) {
     const [loading, setLoading] = useState(false);
     const [status, setStatus] = useState<AppointmentStatus>('pending');
@@ -120,6 +122,7 @@ export function QuickPaymentModal({
             });
             
             toast.success('Turno actualizado correctamente');
+            onSuccess?.();
             onClose();
         } catch (error) {
             console.error('Error updating appointment:', error);

@@ -19,7 +19,7 @@ export interface FinanceMovement {
     description: string;
     method: string;
     amount: number;
-    bankAccount?: string;
+    bankAccount?: string | null;
     balance?: number; // Saldo acumulado
 }
 

@@ -18,8 +18,9 @@ import { Input } from '@/components/ui/Input';
 import { formatArgentineCurrency } from '@/lib/utils/time';
 import { AppointmentDetailModal } from '../appointments/AppointmentDetailModal';
 import { toast } from 'sonner';
-import { deleteAppointment } from '@/lib/firebase/appointments';
+import { deleteAppointment, updateAppointment } from '@/lib/firebase/appointments';
 import { useRouter } from 'next/navigation';
+import { QuickPaymentModal } from '../appointments/QuickPaymentModal';
 
 interface ProfessionalAppointmentsProps {
     professional: Professional;
@@ -36,6 +37,7 @@ export function ProfessionalAppointments({ professional }: ProfessionalAppointme
     // Modal state
     const [selectedApt, setSelectedApt] = useState<Appointment | null>(null);
     const [isDetailOpen, setIsDetailOpen] = useState(false);
+    const [isQuickPaymentOpen, setIsQuickPaymentOpen] = useState(false);
 
     const loadAppointments = async () => {
         setLoading(true);
@@ -71,6 +73,11 @@ export function ProfessionalAppointments({ professional }: ProfessionalAppointme
                 toast.error('Error al eliminar el turno');
             }
         }
+    };
+    const handleQuickPayment = (apt: Appointment) => {
+        setSelectedApt(apt);
+        setIsDetailOpen(false);
+        setIsQuickPaymentOpen(true);
     };
 
     const filteredAppointments = appointments.filter(apt => {
@@ -220,6 +227,14 @@ export function ProfessionalAppointments({ professional }: ProfessionalAppointme
                 professionals={[professional]}
                 onEdit={handleEdit}
                 onDelete={handleDelete}
+                onQuickPayment={handleQuickPayment}
+            />
+
+            <QuickPaymentModal
+                isOpen={isQuickPaymentOpen}
+                onClose={() => setIsQuickPaymentOpen(false)}
+                appointment={selectedApt}
+                onSuccess={loadAppointments}
             />
         </div>
     );
