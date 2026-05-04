@@ -132,6 +132,7 @@ export default function ProfesionalTurnosPage() {
                 <div className="max-w-7xl mx-auto px-4 py-8">
                     <div className="flex items-center gap-4 mb-4">
                         <button
+                            aria-label="Volver"
                             onClick={() => router.back()}
                             className="p-2 hover:bg-white/10 rounded-xl transition-colors"
                         >
@@ -213,10 +214,11 @@ export default function ProfesionalTurnosPage() {
                                                 placeholder="0.00"
                                             />
                                             <div>
-                                                <label className="block text-sm font-bold text-gray-900 mb-2 ml-1">
+                                                <label htmlFor="prof-notes" className="block text-sm font-bold text-gray-900 mb-2 ml-1">
                                                     Observaciones internas
                                                 </label>
                                                 <textarea
+                                                    id="prof-notes"
                                                     value={editData.notes}
                                                     onChange={(e) => setEditData({ ...editData, notes: e.target.value })}
                                                     rows={3}

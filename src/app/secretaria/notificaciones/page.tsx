@@ -299,10 +299,11 @@ export default function NotificationsPage() {
                             />
 
                             <div>
-                                <label className="block text-sm font-bold text-gray-700 mb-1">
+                                <label htmlFor="notif-body" className="block text-sm font-bold text-gray-700 mb-1">
                                     Mensaje
                                 </label>
                                 <textarea
+                                    id="notif-body"
                                     value={body}
                                     onChange={(e) => setBody(e.target.value)}
                                     placeholder="Escribe el contenido de la notificación..."
@@ -312,9 +313,9 @@ export default function NotificationsPage() {
                             </div>
 
                             <div className="space-y-3">
-                                <label className="block text-sm font-bold text-gray-700">
+                                <p className="block text-sm font-bold text-gray-700">
                                     Destinatarios
-                                </label>
+                                </p>
                                 <div className="grid grid-cols-2 gap-2">
                                     <button
                                         type="button"
@@ -343,7 +344,7 @@ export default function NotificationsPage() {
 
                             {targetType === 'specific' && (
                                 <div className="animate-in fade-in slide-in-from-top-2 duration-300 relative">
-                                    <label className="block text-sm font-bold text-gray-700 mb-1">
+                                    <label htmlFor="notif-recipient" className="block text-sm font-bold text-gray-700 mb-1">
                                         Buscar Destinatario
                                     </label>
                                     <div className="relative">
@@ -351,6 +352,7 @@ export default function NotificationsPage() {
                                             <Search className="h-5 w-5 text-gray-400" />
                                         </div>
                                         <input
+                                            id="notif-recipient"
                                             type="text"
                                             value={searchQuery}
                                             onChange={(e) => {
@@ -391,10 +393,11 @@ export default function NotificationsPage() {
 
                             {/* Destination URL Selector */}
                             <div className="space-y-3">
-                                <label className="block text-sm font-bold text-gray-700">
+                                <label htmlFor="notif-target-url" className="block text-sm font-bold text-gray-700">
                                     Abrir al hacer click
                                 </label>
                                 <select
+                                    id="notif-target-url"
                                     value={targetUrl}
                                     onChange={(e) => setTargetUrl(e.target.value)}
                                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white text-gray-900 font-bold"
@@ -561,6 +564,7 @@ export default function NotificationsPage() {
                                                     </span>
                                                 </div>
                                                 <button
+                                                    aria-label="Eliminar registro"
                                                     onClick={() => handleDelete(item.id!)}
                                                     className="text-gray-300 hover:text-red-500 transition-colors p-1"
                                                 >
