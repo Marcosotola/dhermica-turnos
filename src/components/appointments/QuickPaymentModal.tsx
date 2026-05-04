@@ -175,7 +175,7 @@ export function QuickPaymentModal({
 
                 {/* Status Selection */}
                 <div className="space-y-3">
-                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Estado del Turno</label>
+                    <p className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Estado del Turno</p>
                     <div className="grid grid-cols-3 gap-2">
                         {[
                             { id: 'pending', label: 'Pendiente', icon: Clock, color: 'text-orange-600', bg: 'bg-orange-50', border: 'border-orange-200' },
@@ -186,7 +186,7 @@ export function QuickPaymentModal({
                                 key={s.id}
                                 type="button"
                                 onClick={() => setStatus(s.id as AppointmentStatus)}
-                                className={`flex flex-col items-center justify-center p-3 rounded-2xl border-2 transition-all min-h-[70px] ${status === s.id
+                                className={`flex flex-col items-center justify-center p-3 rounded-2xl border-2 transition-all min-h-17.5 ${status === s.id
                                     ? `${s.bg} ${s.border} ${s.color} shadow-sm scale-105`
                                     : 'bg-white border-gray-100 text-gray-400 hover:border-gray-200'
                                     }`}
@@ -269,8 +269,9 @@ export function QuickPaymentModal({
                                 onChange={(val) => setNewPayment({ ...newPayment, amount: val })}
                             />
                             <div className="space-y-1">
-                                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">Fecha</label>
+                                <label htmlFor="quick-pay-date" className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">Fecha</label>
                                 <input
+                                    id="quick-pay-date"
                                     type="date"
                                     value={newPayment.date}
                                     onChange={(e) => setNewPayment({ ...newPayment, date: e.target.value })}

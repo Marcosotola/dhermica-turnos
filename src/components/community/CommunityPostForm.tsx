@@ -166,6 +166,7 @@ export function CommunityPostForm({ onSuccess, onCancel }: CommunityPostFormProp
                     ref={fileInputRef}
                     onChange={handleImageChange}
                     accept="image/*"
+                    aria-label="Seleccionar imagen"
                     className="hidden"
                 />
             </div>
