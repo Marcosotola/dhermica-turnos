@@ -1,5 +1,15 @@
 export type AppointmentStatus = 'pending' | 'completed' | 'cancelled';
 
+export interface SelectedTreatment {
+    treatmentId: string;
+    name: string;
+    category?: import('./treatment').TreatmentCategory;
+    zone?: string;
+    gender?: 'male' | 'female' | 'both';
+    price: number;
+    duration: number; // minutes
+}
+
 export interface Payment {
     id: string;
     amount: number;
@@ -25,6 +35,7 @@ export interface Appointment {
     professionalId?: string; // Opcional para turnos legacy
     notes?: string;
     price?: number; // Precio total del turno
+    treatments?: SelectedTreatment[]; // Tratamientos del catálogo (opcional, para nuevos turnos)
     status: AppointmentStatus;
     payments: Payment[];
     commissionPercentageOverride?: number | null; // Override for professional commission (e.g., 100 for total)

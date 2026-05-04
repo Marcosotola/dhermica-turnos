@@ -6,8 +6,9 @@ import { Input } from '../ui/Input';
 import { CurrencyInput } from '../ui/CurrencyInput';
 import { Select } from '../ui/Select';
 import { Button } from '../ui/Button';
-import { Appointment, DURATION_OPTIONS, AppointmentStatus, Payment } from '@/lib/types/appointment';
-import { Plus, Trash2, CreditCard, CheckCircle2, Clock, XCircle, ChevronDown, Save, Phone } from 'lucide-react';
+import { Appointment, DURATION_OPTIONS, AppointmentStatus, Payment, SelectedTreatment } from '@/lib/types/appointment';
+import { TreatmentSelectorSheet } from './TreatmentSelectorSheet';
+import { Plus, Trash2, CreditCard, CheckCircle2, Clock, XCircle, ChevronDown, Save, Phone, Sparkles } from 'lucide-react';
 import { Professional } from '@/lib/types/professional';
 import { UserProfile } from '@/lib/types/user';
 import { getAllUsers, createManualUserProfile } from '@/lib/firebase/users';
@@ -79,6 +80,21 @@ export function AppointmentModal({
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [filteredClients, setFilteredClients] = useState<UserProfile[]>([]);
     const [countryCode, setCountryCode] = useState('+54');
+    const [selectedTreatments, setSelectedTreatments] = useState<SelectedTreatment[]>([]);
+    const [treatmentMode, setTreatmentMode] = useState<'catalog' | 'manual'>('catalog');
+    const [showTreatmentSheet, setShowTreatmentSheet] = useState(false);
+
+    const formatMinutes = (minutes: number) => {
+        const h = Math.floor(minutes / 60);
+        const m = minutes % 60;
+        if (h === 0) return `${m}m`;
+        if (m === 0) return `${h}h`;
+        return `${h}h ${m}m`;
+    };
+
+    const removeSelectedTreatment = (index: number) => {
+        setSelectedTreatments(prev => prev.filter((_, i) => i !== index));
+    };
 
     useEffect(() => {
         const fetchClients = async () => {
@@ -115,6 +131,24 @@ export function AppointmentModal({
 
 
     useEffect(() => {
+        if (treatmentMode !== 'catalog') return;
+        const totalMinutes = selectedTreatments.reduce((sum, t) => sum + t.duration, 0);
+        const totalHours = selectedTreatments.length > 0
+            ? Math.max(0.5, Math.round(totalMinutes / 30) * 0.5)
+            : 1;
+        const totalPrice = selectedTreatments.reduce((sum, t) => sum + t.price, 0);
+        const treatmentLabel = selectedTreatments
+            .map(t => t.zone ? `${t.name} (${t.zone})` : t.name)
+            .join(' + ');
+        setFormData(prev => ({
+            ...prev,
+            treatment: treatmentLabel,
+            duration: totalHours,
+            price: totalPrice,
+        }));
+    }, [selectedTreatments, treatmentMode]);
+
+    useEffect(() => {
         if (appointment) {
             setFormData({
                 clientName: appointment.clientName,
@@ -147,6 +181,13 @@ export function AppointmentModal({
             } else {
                 setClientMode('manual');
             }
+            if (appointment.treatments && appointment.treatments.length > 0) {
+                setSelectedTreatments(appointment.treatments);
+                setTreatmentMode('catalog');
+            } else {
+                setSelectedTreatments([]);
+                setTreatmentMode('manual');
+            }
         } else {
             setFormData({
                 clientName: '',
@@ -172,6 +213,8 @@ export function AppointmentModal({
             });
             setClientMode('registered');
             setUseCustomCommission(false);
+            setSelectedTreatments([]);
+            setTreatmentMode('catalog');
         }
         setErrors([]);
         setSearchQuery('');
@@ -286,6 +329,7 @@ export function AppointmentModal({
             clientPhone: formData.clientPhone,
             clientEmail: formData.clientEmail || undefined,
             treatment: formData.treatment,
+            treatments: treatmentMode === 'catalog' ? selectedTreatments : [],
             date,
             time: formData.time,
             duration: formData.duration,
@@ -408,6 +452,7 @@ export function AppointmentModal({
     const professionalOptions = professionals.map((p) => ({ value: p.id, label: p.name }));
 
     return (
+    <>
         <Modal
             isOpen={isOpen}
             onClose={onClose}
@@ -668,14 +713,84 @@ export function AppointmentModal({
                     </div>
                 </div>
 
-                <div className="pt-4">
-                    <Input
-                        label="Tratamiento"
-                        value={formData.treatment || ''}
-                        onChange={(e) => setFormData({ ...formData, treatment: e.target.value })}
-                        placeholder="Ej: Limpieza facial"
-                        required
-                    />
+                <div className="space-y-3 pt-4">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <Sparkles className="w-4 h-4 text-[#34baab]" />
+                            <span className="text-[10px] font-black text-gray-700 uppercase tracking-[0.2em]">Tratamientos</span>
+                        </div>
+                        <div className="bg-gray-100 p-0.5 rounded-lg flex">
+                            <button
+                                type="button"
+                                onClick={() => setTreatmentMode('catalog')}
+                                className={`px-2.5 py-1 rounded text-[10px] font-bold uppercase tracking-wider transition-all ${treatmentMode === 'catalog' ? 'bg-white text-[#34baab] shadow-sm' : 'text-gray-400'}`}
+                            >
+                                Catálogo
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setTreatmentMode('manual')}
+                                className={`px-2.5 py-1 rounded text-[10px] font-bold uppercase tracking-wider transition-all ${treatmentMode === 'manual' ? 'bg-white text-gray-700 shadow-sm' : 'text-gray-400'}`}
+                            >
+                                Manual
+                            </button>
+                        </div>
+                    </div>
+
+                    {treatmentMode === 'catalog' ? (
+                        <div className="space-y-2">
+                            {selectedTreatments.map((t, i) => (
+                                <div key={i} className="flex items-center gap-3 bg-[#34baab]/5 border border-[#34baab]/10 rounded-2xl px-4 py-3">
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-bold text-gray-900 truncate">
+                                            {t.name}{t.zone ? <span className="text-gray-400 font-normal"> · {t.zone}</span> : ''}
+                                        </p>
+                                        <p className="text-[11px] text-gray-400 mt-0.5">
+                                            ${t.price.toLocaleString('es-AR')} · {formatMinutes(t.duration)}
+                                        </p>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => removeSelectedTreatment(i)}
+                                        aria-label="Quitar tratamiento"
+                                        className="text-gray-300 hover:text-red-400 transition-colors shrink-0"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            ))}
+
+                            <button
+                                type="button"
+                                onClick={() => setShowTreatmentSheet(true)}
+                                className="w-full py-4 border-2 border-dashed border-[#34baab]/30 rounded-2xl text-[#34baab] hover:bg-[#34baab]/5 transition-all text-[10px] font-black uppercase tracking-[0.2em] flex items-center justify-center gap-2"
+                            >
+                                <Plus className="w-4 h-4" /> Agregar tratamiento
+                            </button>
+
+                            {selectedTreatments.length > 1 && (
+                                <div className="flex items-center justify-between bg-[#34baab]/5 rounded-xl px-4 py-2.5">
+                                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Total calculado</span>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-sm font-black text-[#34baab]">
+                                            ${selectedTreatments.reduce((s, t) => s + t.price, 0).toLocaleString('es-AR')}
+                                        </span>
+                                        <span className="text-[11px] text-gray-400">
+                                            · {formatMinutes(selectedTreatments.reduce((s, t) => s + t.duration, 0))}
+                                        </span>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        <Input
+                            label="Tratamiento"
+                            value={formData.treatment || ''}
+                            onChange={(e) => setFormData({ ...formData, treatment: e.target.value })}
+                            placeholder="Ej: Limpieza facial"
+                            required
+                        />
+                    )}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -964,5 +1079,15 @@ export function AppointmentModal({
 
             </form>
         </Modal>
+
+        <TreatmentSelectorSheet
+            isOpen={showTreatmentSheet}
+            onClose={() => setShowTreatmentSheet(false)}
+            onAdd={(t) => {
+                setSelectedTreatments(prev => [...prev, t]);
+                toast.success(`${t.name} agregado`);
+            }}
+        />
+    </>
     );
 }
