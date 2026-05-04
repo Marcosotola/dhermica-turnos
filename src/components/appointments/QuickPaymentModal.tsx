@@ -242,6 +242,7 @@ export function QuickPaymentModal({
                                         <span className="text-sm font-bold text-gray-900">$ {p.amount.toLocaleString('es-AR')}</span>
                                         <button
                                             type="button"
+                                            aria-label="Eliminar pago"
                                             onClick={() => removePayment(p.id)}
                                             className="text-gray-300 hover:text-red-500 transition-colors"
                                         >

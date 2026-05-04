@@ -66,6 +66,7 @@ export function CommunityPostCard({ post, isAdmin, onDelete, onLike, onClick, tr
 
                 {canDelete && (
                     <button
+                        aria-label="Eliminar publicación"
                         onClick={(e) => {
                             e.stopPropagation();
                             onDelete(post);

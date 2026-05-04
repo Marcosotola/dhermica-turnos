@@ -26,6 +26,7 @@ export function CommunityImageModal({ post, onClose, treatmentName }: CommunityI
                 onClick={onClose}
             >
                 <button
+                    aria-label="Cerrar imagen"
                     onClick={onClose}
                     className="absolute top-4 right-4 md:top-8 md:right-8 z-[160] p-3 bg-white/10 hover:bg-white/20 text-white rounded-full transition-all active:scale-95"
                 >

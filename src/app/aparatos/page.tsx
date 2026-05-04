@@ -240,12 +240,14 @@ export default function AparatosPage() {
                                     {canEdit && (
                                         <div className="flex gap-2">
                                             <button
+                                                aria-label="Editar sesión"
                                                 onClick={() => openEdit(session)}
                                                 className="p-2 rounded-xl hover:bg-gray-100 text-gray-400 hover:text-[#34baab] transition-colors"
                                             >
                                                 <Pencil className="w-4 h-4" />
                                             </button>
                                             <button
+                                                aria-label="Eliminar sesión"
                                                 onClick={() => { setSelectedSession(session); setDeleteDialogOpen(true); }}
                                                 className="p-2 rounded-xl hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"
                                             >

@@ -316,13 +316,13 @@ export default function EgresosPage() {
 
                     {filterRange !== 'all' && (
                         <div className="flex items-center gap-3 bg-gray-50 px-4 py-2 rounded-2xl border border-gray-200">
-                            <button onClick={() => navigateDate(-1)} className="p-1.5 hover:bg-gray-200 rounded-full transition-colors text-gray-600">
+                            <button aria-label="Período anterior" onClick={() => navigateDate(-1)} className="p-1.5 hover:bg-gray-200 rounded-full transition-colors text-gray-600">
                                 <ChevronLeft className="w-5 h-5 text-gray-600" />
                             </button>
                             <span className="text-base font-black text-gray-800 min-w-[180px] text-center capitalize">
                                 {getDateLabel()}
                             </span>
-                            <button onClick={() => navigateDate(1)} className="p-1.5 hover:bg-gray-200 rounded-full transition-colors text-gray-600">
+                            <button aria-label="Período siguiente" onClick={() => navigateDate(1)} className="p-1.5 hover:bg-gray-200 rounded-full transition-colors text-gray-600">
                                 <ChevronRight className="w-5 h-5 text-gray-600" />
                             </button>
                         </div>
@@ -415,10 +415,10 @@ export default function EgresosPage() {
                                 <div className="text-right shrink-0">
                                     <p className="text-xl font-black text-red-600">{formatCurrency(e.amount)}</p>
                                     <div className="flex items-center gap-2 mt-2 justify-end">
-                                        <button onClick={() => openEdit(e)} className="p-2 hover:bg-gray-100 rounded-xl transition-colors text-gray-500">
+                                        <button aria-label="Editar egreso" onClick={() => openEdit(e)} className="p-2 hover:bg-gray-100 rounded-xl transition-colors text-gray-500">
                                             <Pencil className="w-4 h-4 text-gray-500" />
                                         </button>
-                                        <button onClick={() => setDeletingId(e.id)} className="p-2 hover:bg-red-50 rounded-xl transition-colors text-red-400">
+                                        <button aria-label="Eliminar egreso" onClick={() => setDeletingId(e.id)} className="p-2 hover:bg-red-50 rounded-xl transition-colors text-red-400">
                                             <Trash2 className="w-4 h-4 text-red-400" />
                                         </button>
                                     </div>
@@ -435,7 +435,7 @@ export default function EgresosPage() {
                     <div className="bg-white rounded-[2.5rem] w-full max-w-md shadow-2xl p-8 flex flex-col max-h-[90vh]">
                         <div className="flex items-center justify-between mb-6 flex-shrink-0">
                             <h2 className="text-2xl font-black text-gray-900">{editingId ? 'Editar Egreso' : 'Nuevo Egreso'}</h2>
-                            <button onClick={() => setShowModal(false)} className="p-2 hover:bg-gray-100 rounded-xl text-gray-500">
+                            <button aria-label="Cerrar" onClick={() => setShowModal(false)} className="p-2 hover:bg-gray-100 rounded-xl text-gray-500">
                                 <X className="w-5 h-5 text-gray-500" />
                             </button>
                         </div>
