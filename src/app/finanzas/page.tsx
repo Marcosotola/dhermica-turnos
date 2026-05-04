@@ -164,8 +164,9 @@ export default function FinanzasPage() {
                         {dateRange === 'custom' ? (
                             <div className="flex flex-col md:flex-row items-center gap-4">
                                 <div className="flex items-center gap-2 bg-gray-50 px-4 py-2 rounded-2xl border border-gray-200">
-                                    <span className="text-[10px] font-black uppercase text-gray-400">Desde:</span>
+                                    <label htmlFor="date-desde" className="text-[10px] font-black uppercase text-gray-400">Desde:</label>
                                     <input
+                                        id="date-desde"
                                         type="date"
                                         value={customRange.start}
                                         onChange={(e) => setCustomRange(prev => ({ ...prev, start: e.target.value }))}
@@ -173,8 +174,9 @@ export default function FinanzasPage() {
                                     />
                                 </div>
                                 <div className="flex items-center gap-2 bg-gray-50 px-4 py-2 rounded-2xl border border-gray-200">
-                                    <span className="text-[10px] font-black uppercase text-gray-400">Hasta:</span>
+                                    <label htmlFor="date-hasta" className="text-[10px] font-black uppercase text-gray-400">Hasta:</label>
                                     <input
+                                        id="date-hasta"
                                         type="date"
                                         value={customRange.end}
                                         onChange={(e) => setCustomRange(prev => ({ ...prev, end: e.target.value }))}
@@ -184,12 +186,13 @@ export default function FinanzasPage() {
                             </div>
                         ) : (
                             <div className="flex items-center gap-4 bg-gray-50 px-4 py-2 rounded-2xl border border-gray-200">
-                                <button onClick={() => navigateDate(-1)} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
+                                <button aria-label="Período anterior" onClick={() => navigateDate(-1)} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
                                     <ChevronLeft className="w-5 h-5 text-gray-600" />
                                 </button>
-                                
+
                                 {dateRange === 'day' ? (
-                                    <input 
+                                    <input
+                                        aria-label="Seleccionar fecha"
                                         type="date"
                                         value={formatDate(currentDate)}
                                         onChange={(e) => setCurrentDate(new Date(e.target.value + 'T00:00:00'))}
@@ -200,8 +203,8 @@ export default function FinanzasPage() {
                                         {getDateLabel()}
                                     </span>
                                 )}
-                                
-                                <button onClick={() => navigateDate(1)} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
+
+                                <button aria-label="Período siguiente" onClick={() => navigateDate(1)} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
                                     <ChevronRight className="w-5 h-5 text-gray-600" />
                                 </button>
                             </div>
@@ -391,7 +394,8 @@ export default function FinanzasPage() {
                                 </div>
                                 <div className="flex items-center gap-2 bg-gray-50 p-1.5 rounded-xl border border-gray-100 self-end md:self-auto">
                                     <Filter className="w-3.5 h-3.5 text-gray-400 ml-1.5" />
-                                    <select 
+                                    <select
+                                        aria-label="Filtrar por tipo de movimiento"
                                         value={typeFilter}
                                         onChange={(e) => {
                                             setTypeFilter(e.target.value as any);

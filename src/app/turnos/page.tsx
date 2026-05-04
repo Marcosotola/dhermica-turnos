@@ -219,6 +219,7 @@ function TurnosContent() {
                                     <div className="flex items-center justify-between mb-6">
                                         <h2 className="text-xl font-bold text-gray-900">Buscar Turno</h2>
                                         <button
+                                            aria-label="Cerrar búsqueda"
                                             onClick={() => setIsSearchOpen(false)}
                                             className="p-2 hover:bg-gray-100 rounded-full transition-colors"
                                         >
