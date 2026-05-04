@@ -74,8 +74,12 @@ export default function ProfessionalDetailPage() {
 
             try {
                 const finance = await getFinanceOverview(firstDay, lastDay);
-                const profKey = professional.userId || (id as string);
-                const profData = finance.byProfessional[profKey];
+                const cleanName = professional.name.trim().toLowerCase();
+                const profData = finance.byProfessional[professional.name.trim()] || 
+                                Object.values(finance.byProfessional).find(p => 
+                                    (p.userId && professional.userId && p.userId === professional.userId) || 
+                                    p.name.trim().toLowerCase() === cleanName
+                                );
                 if (profData) {
                     setMonthlyPerformance(profData.totalCommission);
                 } else {

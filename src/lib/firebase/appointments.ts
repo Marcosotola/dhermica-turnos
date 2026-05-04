@@ -506,36 +506,20 @@ export async function getAppointmentsByDateRange(
         }).catch(err => console.error('Error en qMainFecha:', err)));
 
         // 2. Colecciones legacy de profesionales
+        // NOTA: No usamos filtros de fecha en la query porque el formato legacy (DD/MM/YYYY) 
+        // no es compatible con rangos de Firestore. Filtramos en memoria.
         professionals.forEach(prof => {
             if (prof.legacyCollectionName) {
-                // Query by 'fecha'
-                const qLegacyFecha = query(
-                    collection(db, prof.legacyCollectionName),
-                    where('fecha', '>=', startDate),
-                    where('fecha', '<=', endDate)
-                );
-                promises.push(getDocs(qLegacyFecha).then(snap => {
+                const qLegacy = query(collection(db, prof.legacyCollectionName));
+                promises.push(getDocs(qLegacy).then(snap => {
                     snap.docs.forEach(d => {
                         const apt = mapLegacyAppointment(d.id, d.data(), prof.id);
-                        allAppointmentsMap.set(`${prof.legacyCollectionName}_fecha_${d.id}`, apt);
-                    });
-                }).catch(err => console.error(`Error en qLegacyFecha (${prof.legacyCollectionName}):`, err)));
-
-                // Query by 'date' (some legacy collections might have migrated field names)
-                const qLegacyDate = query(
-                    collection(db, prof.legacyCollectionName),
-                    where('date', '>=', startDate),
-                    where('date', '<=', endDate)
-                );
-                promises.push(getDocs(qLegacyDate).then(snap => {
-                    snap.docs.forEach(d => {
-                        const apt = mapLegacyAppointment(d.id, d.data(), prof.id);
-                        const key = `${prof.legacyCollectionName}_date_${d.id}`;
-                        if (!allAppointmentsMap.has(key)) {
-                            allAppointmentsMap.set(key, apt);
+                        // Filtrar por rango en memoria usando la fecha normalizada
+                        if (apt.date >= startDate && apt.date <= endDate) {
+                            allAppointmentsMap.set(`${prof.legacyCollectionName}_${d.id}`, apt);
                         }
                     });
-                }).catch(err => console.error(`Error en qLegacyDate (${prof.legacyCollectionName}):`, err)));
+                }).catch(err => console.error(`Error en qLegacy (${prof.legacyCollectionName}):`, err)));
             }
         });
 

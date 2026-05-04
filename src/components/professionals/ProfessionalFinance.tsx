@@ -21,8 +21,21 @@ interface ProfessionalFinanceProps {
 export function ProfessionalFinance({ professional }: ProfessionalFinanceProps) {
     const [loading, setLoading] = useState(true);
     const [overview, setOverview] = useState<FinanceOverview | null>(null);
-    const [dateRange, setDateRange] = useState<'day' | 'week' | 'month'>('month');
-    const [currentDate] = useState(new Date());
+    const [dateRange, setDateRange] = useState<'day' | 'week' | 'month' | 'custom'>('month');
+    const [currentDate, setCurrentDate] = useState(new Date());
+    const [customRange, setCustomRange] = useState({
+        start: formatDate(new Date(new Date().getFullYear(), new Date().getMonth(), 1)),
+        end: formatDate(new Date())
+    });
+
+    const navigateDate = (direction: number) => {
+        if (dateRange === 'custom') return;
+        const d = new Date(currentDate);
+        if (dateRange === 'day') d.setDate(d.getDate() + direction);
+        else if (dateRange === 'week') d.setDate(d.getDate() + (direction * 7));
+        else d.setMonth(d.getMonth() + direction);
+        setCurrentDate(d);
+    };
 
     useEffect(() => {
         const loadData = async () => {
@@ -31,22 +44,27 @@ export function ProfessionalFinance({ professional }: ProfessionalFinanceProps) 
                 let start = '';
                 let end = '';
 
-                const d = new Date(currentDate);
-                if (dateRange === 'day') {
-                    const dateStr = formatDate(d);
-                    start = dateStr;
-                    end = dateStr;
-                } else if (dateRange === 'week') {
-                    const first = d.getDate() - d.getDay();
-                    const last = first + 6;
-                    start = formatDate(new Date(d.getFullYear(), d.getMonth(), first));
-                    end = formatDate(new Date(d.getFullYear(), d.getMonth(), last));
-                } else if (dateRange === 'month') {
-                    start = formatDate(new Date(d.getFullYear(), d.getMonth(), 1));
-                    end = formatDate(new Date(d.getFullYear(), d.getMonth() + 1, 0));
+                if (dateRange === 'custom') {
+                    start = customRange.start;
+                    end = customRange.end;
+                } else {
+                    const d = new Date(currentDate);
+                    if (dateRange === 'day') {
+                        const dateStr = formatDate(d);
+                        start = dateStr;
+                        end = dateStr;
+                    } else if (dateRange === 'week') {
+                        const first = d.getDate() - d.getDay();
+                        const last = first + 6;
+                        start = formatDate(new Date(d.getFullYear(), d.getMonth(), first));
+                        end = formatDate(new Date(d.getFullYear(), d.getMonth(), last));
+                    } else if (dateRange === 'month') {
+                        start = formatDate(new Date(d.getFullYear(), d.getMonth(), 1));
+                        end = formatDate(new Date(d.getFullYear(), d.getMonth() + 1, 0));
+                    }
                 }
 
-                const data = await getFinanceOverview(start, end);
+                const data = await getFinanceOverview(start, end, professional.id);
                 setOverview(data);
             } catch (error) {
                 console.error('Error loading professional finance:', error);
@@ -56,14 +74,18 @@ export function ProfessionalFinance({ professional }: ProfessionalFinanceProps) 
         };
 
         loadData();
-    }, [dateRange, currentDate, professional.id, professional.userId]);
+    }, [dateRange, currentDate, customRange, professional.id, professional.userId]);
 
     const formatCurrency = (amount: number) => {
         return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(amount);
     };
 
-    const profKey = professional.userId || professional.id;
-    const profData = overview?.byProfessional[profKey];
+    const cleanName = professional.name.trim().toLowerCase();
+    const profData = overview?.byProfessional[professional.name.trim()] || 
+                    (overview?.byProfessional ? Object.values(overview.byProfessional).find(p => 
+                        (p.userId && professional.userId && p.userId === professional.userId) || 
+                        p.name.trim().toLowerCase() === cleanName
+                    ) : null);
 
     if (loading) {
         return (
@@ -75,19 +97,59 @@ export function ProfessionalFinance({ professional }: ProfessionalFinanceProps) 
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight">Análisis de Ingresos</h3>
-                <div className="flex bg-white p-1 rounded-xl shadow-sm border border-gray-100">
-                    {(['day', 'week', 'month'] as const).map((range) => (
-                        <button
-                            key={range}
-                            onClick={() => setDateRange(range)}
-                            className={`px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${dateRange === range ? 'bg-[#484450] text-white shadow-md' : 'text-gray-400 hover:text-gray-600'
-                                }`}
-                        >
-                            {range === 'day' ? 'Hoy' : range === 'week' ? 'Semana' : 'Mes'}
-                        </button>
-                    ))}
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-8 bg-white p-6 rounded-[32px] border border-gray-100 shadow-sm">
+                <div className="space-y-1">
+                    <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight">Análisis de Ingresos</h3>
+                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Consulta de rendimiento y comisiones</p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-4">
+                    {/* Selectores Predefinidos */}
+                    <div className="flex bg-gray-50 p-1 rounded-xl border border-gray-100">
+                        {(['day', 'week', 'month', 'custom'] as const).map((range) => (
+                            <button
+                                key={range}
+                                onClick={() => setDateRange(range)}
+                                className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${dateRange === range ? 'bg-[#484450] text-white shadow-lg' : 'text-gray-400 hover:text-gray-600'
+                                    }`}
+                            >
+                                {range === 'day' ? 'Hoy' : range === 'week' ? 'Semana' : range === 'month' ? 'Mes' : 'Rango'}
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* Navegador o Custom Range */}
+                    {dateRange !== 'custom' ? (
+                        <div className="flex items-center gap-3 bg-gray-50 px-4 py-2 rounded-xl border border-gray-100">
+                            <button onClick={() => navigateDate(-1)} className="p-1.5 hover:bg-white hover:shadow-sm rounded-lg transition-all text-gray-400 hover:text-[#34baab]">
+                                <CalendarIcon className="w-4 h-4" />
+                            </button>
+                            <span className="text-[10px] font-black uppercase tracking-widest text-gray-700 min-w-[120px] text-center">
+                                {dateRange === 'month'
+                                    ? currentDate.toLocaleDateString('es-AR', { month: 'long', year: 'numeric' })
+                                    : currentDate.toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })}
+                            </span>
+                            <button onClick={() => navigateDate(1)} className="p-1.5 hover:bg-white hover:shadow-sm rounded-lg transition-all text-gray-400 hover:text-[#34baab]">
+                                <CalendarIcon className="w-4 h-4 rotate-180" />
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="date"
+                                value={customRange.start}
+                                onChange={(e) => setCustomRange({ ...customRange, start: e.target.value })}
+                                className="bg-gray-50 border border-gray-100 rounded-xl px-3 py-2 text-[10px] font-bold text-gray-600 focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                            />
+                            <span className="text-gray-300">/</span>
+                            <input
+                                type="date"
+                                value={customRange.end}
+                                onChange={(e) => setCustomRange({ ...customRange, end: e.target.value })}
+                                className="bg-gray-50 border border-gray-100 rounded-xl px-3 py-2 text-[10px] font-bold text-gray-600 focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                            />
+                        </div>
+                    )}
                 </div>
             </div>
 

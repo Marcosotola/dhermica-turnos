@@ -32,7 +32,12 @@ export function ProfessionalAppointments({ professional }: ProfessionalAppointme
     const [appointments, setAppointments] = useState<Appointment[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'completed' | 'cancelled'>('all');
-    const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'week' | 'month'>('all');
+    const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'week' | 'month' | 'custom'>('all');
+    const [currentDate, setCurrentDate] = useState(new Date());
+    const [customRange, setCustomRange] = useState({
+        start: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
+        end: new Date().toISOString().split('T')[0]
+    });
 
     // Modal state
     const [selectedApt, setSelectedApt] = useState<Appointment | null>(null);
@@ -49,6 +54,15 @@ export function ProfessionalAppointments({ professional }: ProfessionalAppointme
         } finally {
             setLoading(false);
         }
+    };
+
+    const navigateDate = (direction: number) => {
+        if (dateFilter === 'custom' || dateFilter === 'all') return;
+        const d = new Date(currentDate);
+        if (dateFilter === 'today') d.setDate(d.getDate() + direction);
+        else if (dateFilter === 'week') d.setDate(d.getDate() + (direction * 7));
+        else d.setMonth(d.getMonth() + direction);
+        setCurrentDate(d);
     };
 
     useEffect(() => {
@@ -88,21 +102,28 @@ export function ProfessionalAppointments({ professional }: ProfessionalAppointme
         // Date filter logic
         let matchesDate = true;
         if (dateFilter !== 'all') {
-            const aptDate = new Date(apt.date + 'T00:00:00');
-            const now = new Date();
-            now.setHours(0, 0, 0, 0);
-
-            if (dateFilter === 'today') {
-                const todayStr = now.toISOString().split('T')[0];
-                matchesDate = apt.date === todayStr;
-            } else if (dateFilter === 'week') {
-                const sevenDaysAgo = new Date(now);
-                sevenDaysAgo.setDate(now.getDate() - 7);
-                matchesDate = aptDate >= sevenDaysAgo && aptDate <= now;
-            } else if (dateFilter === 'month') {
-                const thirtyDaysAgo = new Date(now);
-                thirtyDaysAgo.setDate(now.getDate() - 30);
-                matchesDate = aptDate >= thirtyDaysAgo && aptDate <= now;
+            if (dateFilter === 'custom') {
+                matchesDate = apt.date >= customRange.start && apt.date <= customRange.end;
+            } else {
+                const d = new Date(currentDate);
+                if (dateFilter === 'today') {
+                    const todayStr = d.toISOString().split('T')[0];
+                    matchesDate = apt.date === todayStr;
+                } else if (dateFilter === 'week') {
+                    const first = new Date(d);
+                    first.setDate(d.getDate() - d.getDay());
+                    const last = new Date(first);
+                    last.setDate(first.getDate() + 6);
+                    const firstStr = first.toISOString().split('T')[0];
+                    const lastStr = last.toISOString().split('T')[0];
+                    matchesDate = apt.date >= firstStr && apt.date <= lastStr;
+                } else if (dateFilter === 'month') {
+                    const first = new Date(d.getFullYear(), d.getMonth(), 1);
+                    const last = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+                    const firstStr = first.toISOString().split('T')[0];
+                    const lastStr = last.toISOString().split('T')[0];
+                    matchesDate = apt.date >= firstStr && apt.date <= lastStr;
+                }
             }
         }
 
@@ -147,22 +168,61 @@ export function ProfessionalAppointments({ professional }: ProfessionalAppointme
             </div>
 
             {/* Date Filters */}
-            <div className="flex gap-2 overflow-x-auto pb-2 -mt-2 no-scrollbar">
-                {(['all', 'today', 'week', 'month'] as const).map(filter => (
-                    <button
-                        key={filter}
-                        onClick={() => setDateFilter(filter)}
-                        className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all border ${dateFilter === filter
-                            ? 'bg-[#34baab] text-white border-[#34baab] shadow-sm'
-                            : 'bg-white text-gray-400 border-gray-100 hover:border-gray-300'
-                            }`}
-                    >
-                        {filter === 'all' ? 'Historial Completo' :
-                            filter === 'today' ? 'Hoy' :
-                                filter === 'week' ? 'Últimos 7 días' :
-                                    'Últimos 30 días'}
-                    </button>
-                ))}
+            <div className="flex flex-col sm:flex-row gap-4 items-center justify-between bg-white p-4 rounded-3xl border border-gray-100 shadow-sm -mt-2">
+                <div className="flex gap-2 overflow-x-auto pb-2 sm:pb-0 no-scrollbar">
+                    {(['all', 'today', 'week', 'month', 'custom'] as const).map(filter => (
+                        <button
+                            key={filter}
+                            onClick={() => setDateFilter(filter)}
+                            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all border ${dateFilter === filter
+                                ? 'bg-[#34baab] text-white border-[#34baab] shadow-sm'
+                                : 'bg-white text-gray-400 border-gray-100 hover:border-gray-300'
+                                }`}
+                        >
+                            {filter === 'all' ? 'Historial Completo' :
+                                filter === 'today' ? 'Hoy' :
+                                    filter === 'week' ? 'Semana' :
+                                        filter === 'month' ? 'Mes' : 'Rango'}
+                        </button>
+                    ))}
+                </div>
+
+                {/* Navigator or Custom Range */}
+                {dateFilter !== 'all' && (
+                    <div className="flex items-center gap-3">
+                        {dateFilter !== 'custom' ? (
+                            <div className="flex items-center gap-2 bg-gray-50 px-3 py-1.5 rounded-xl border border-gray-100">
+                                <button onClick={() => navigateDate(-1)} className="p-1 hover:bg-white rounded-lg transition-all text-gray-400 hover:text-[#34baab]">
+                                    <Calendar className="w-4 h-4" />
+                                </button>
+                                <span className="text-[10px] font-black uppercase tracking-widest text-gray-600 min-w-[100px] text-center">
+                                    {dateFilter === 'month'
+                                        ? currentDate.toLocaleDateString('es-AR', { month: 'long', year: 'numeric' })
+                                        : currentDate.toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })}
+                                </span>
+                                <button onClick={() => navigateDate(1)} className="p-1 hover:bg-white rounded-lg transition-all text-gray-400 hover:text-[#34baab]">
+                                    <Calendar className="w-4 h-4 rotate-180" />
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="flex items-center gap-2">
+                                <input
+                                    type="date"
+                                    value={customRange.start}
+                                    onChange={(e) => setCustomRange({ ...customRange, start: e.target.value })}
+                                    className="bg-gray-50 border border-gray-100 rounded-xl px-2 py-1.5 text-[10px] font-bold text-gray-600 focus:outline-none"
+                                />
+                                <span className="text-gray-300">/</span>
+                                <input
+                                    type="date"
+                                    value={customRange.end}
+                                    onChange={(e) => setCustomRange({ ...customRange, end: e.target.value })}
+                                    className="bg-gray-50 border border-gray-100 rounded-xl px-2 py-1.5 text-[10px] font-bold text-gray-600 focus:outline-none"
+                                />
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
 
             {/* List */}

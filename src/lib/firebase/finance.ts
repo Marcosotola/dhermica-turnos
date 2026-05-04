@@ -1,5 +1,5 @@
 import { getSalesByDateRange } from './sales';
-import { getAppointmentsByDateRange } from './appointments';
+import { getAppointmentsByDateRange, getAppointmentsByProfessionalId } from './appointments';
 import { getRentalsByDateRange } from './rentals';
 import { getAparatoSessionsByDateRange } from './aparatos';
 import { getEgresosByDateRange } from './egresos';
@@ -59,17 +59,21 @@ export interface FinanceOverview {
     movements: FinanceMovement[];
 }
 
-export async function getFinanceOverview(startDate: string, endDate: string): Promise<FinanceOverview> {
+export async function getFinanceOverview(startDate: string, endDate: string, targetProfessionalId?: string): Promise<FinanceOverview> {
     const [appointments, sales, rentals, aparatos, egresos, allProfessionals, admins, secretaries, promotors] = await Promise.all([
-        getAppointmentsByDateRange(startDate, endDate),
-        getSalesByDateRange(startDate, endDate),
-        getRentalsByDateRange(startDate, endDate),
-        getAparatoSessionsByDateRange(startDate, endDate),
-        getEgresosByDateRange(startDate, endDate),
-        getProfessionals(),
-        getUsersByRole('admin'),
-        getUsersByRole('secretary'),
-        getUsersByRole('promotor')
+        (targetProfessionalId 
+            ? getAppointmentsByProfessionalId(targetProfessionalId).then(apts => 
+                apts.filter(a => a.date >= startDate && a.date <= endDate)
+              )
+            : getAppointmentsByDateRange(startDate, endDate)).catch(() => []),
+        getSalesByDateRange(startDate, endDate).catch(() => []),
+        getRentalsByDateRange(startDate, endDate).catch(() => []),
+        getAparatoSessionsByDateRange(startDate, endDate).catch(() => []),
+        getEgresosByDateRange(startDate, endDate).catch(() => []),
+        getProfessionals().catch(() => []),
+        getUsersByRole('admin').catch(() => []),
+        getUsersByRole('secretary').catch(() => []),
+        getUsersByRole('promotor').catch(() => [])
     ]);
 
     const overview: FinanceOverview = {
@@ -94,26 +98,29 @@ export async function getFinanceOverview(startDate: string, endDate: string): Pr
     const nameToProfessional: Record<string, Professional> = {};
 
     allProfessionals.forEach(p => {
-        idToName[p.id] = p.name;
-        if (p.userId) idToName[p.userId] = p.name;
-        nameToProfessional[p.name] = p;
+        const nameKey = p.name.trim();
+        idToName[p.id] = nameKey;
+        if (p.userId) idToName[p.userId] = nameKey;
+        idToName[nameKey] = nameKey;
+        nameToProfessional[nameKey] = p;
         
-        if (!overview.byProfessional[p.name]) {
-            overview.byProfessional[p.name] = {
+        if (!overview.byProfessional[nameKey]) {
+            overview.byProfessional[nameKey] = {
                 serviceIncome: 0, productIncome: 0, rentalIncome: 0, aparatoIncome: 0,
                 serviceCommission: 0, productCommission: 0, rentalCommission: 0, aparatoFee: 0,
-                totalCommission: 0, name: p.name, userId: p.userId
+                totalCommission: 0, name: nameKey, userId: p.userId
             };
         }
     });
 
     [...admins, ...secretaries, ...promotors].forEach(u => {
-        if (u.uid) idToName[u.uid] = u.fullName;
-        if (!overview.byProfessional[u.fullName]) {
-            overview.byProfessional[u.fullName] = {
+        const nameKey = u.fullName.trim();
+        if (u.uid) idToName[u.uid] = nameKey;
+        if (!overview.byProfessional[nameKey]) {
+            overview.byProfessional[nameKey] = {
                 serviceIncome: 0, productIncome: 0, rentalIncome: 0, aparatoIncome: 0,
                 serviceCommission: 0, productCommission: 0, rentalCommission: 0, aparatoFee: 0,
-                totalCommission: 0, name: u.fullName, userId: u.uid
+                totalCommission: 0, name: nameKey, userId: u.uid
             };
         }
     });
@@ -144,7 +151,8 @@ export async function getFinanceOverview(startDate: string, endDate: string): Pr
 
     // 2. Procesar Turnos
     appointments.forEach(apt => {
-        const isCompleted = (apt.status as any) === 'completed' || (apt.status as any) === 'realizado';
+        const status = (apt.status as string || '').toLowerCase();
+        const isCompleted = status === 'completed' || status === 'realizado';
         const isAptInDateRange = apt.date >= startDate && apt.date <= endDate;
         
         // PRECIO REAL: Buscar en el tope del turno o dentro de los pagos
