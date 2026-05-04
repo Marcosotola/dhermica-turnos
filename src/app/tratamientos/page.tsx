@@ -179,6 +179,7 @@ export default function TratamientosPage() {
 
             {/* Modals */}
             <TreatmentForm
+                key={editingTreatment?.id ?? 'new'}
                 isOpen={isFormOpen}
                 onClose={() => setIsFormOpen(false)}
                 treatment={editingTreatment}

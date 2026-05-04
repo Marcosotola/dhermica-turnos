@@ -6,7 +6,7 @@ import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
 import { Button } from '../ui/Button';
 import { Treatment, TreatmentCategory, TreatmentPrice } from '@/lib/types/treatment';
-import { Plus, Trash2, X } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface TreatmentFormProps {
@@ -18,9 +18,35 @@ interface TreatmentFormProps {
 
 const CATEGORIES: TreatmentCategory[] = ['Facial', 'Corporal', 'Aparatología', 'Depilación', 'Manos', 'Pies', 'Cejas', 'Pestañas'];
 
-export function TreatmentForm({ isOpen, onClose, onSubmit, treatment }: TreatmentFormProps) {
-    const [loading, setLoading] = useState(false);
-    const [formData, setFormData] = useState<Omit<Treatment, 'id' | 'createdAt' | 'updatedAt'>>({
+const DURATION_OPTIONS_MINUTES = [
+    { value: 30, label: '30 minutos' },
+    { value: 60, label: '1 hora' },
+    { value: 90, label: '1 hora 30 minutos' },
+    { value: 120, label: '2 horas' },
+    { value: 150, label: '2 horas 30 minutos' },
+    { value: 180, label: '3 horas' },
+    { value: 210, label: '3 horas 30 minutos' },
+    { value: 240, label: '4 horas' },
+];
+
+const PRESET_DURATIONS = new Set(DURATION_OPTIONS_MINUTES.map(o => o.value));
+
+function buildFormData(treatment?: Treatment): Omit<Treatment, 'id' | 'createdAt' | 'updatedAt'> {
+    if (treatment) {
+        return {
+            name: treatment.name,
+            shortDescription: treatment.shortDescription,
+            fullDescription: treatment.fullDescription || '',
+            category: treatment.category,
+            prices: treatment.prices || [],
+            contraindications: treatment.contraindications || [],
+            benefits: treatment.benefits || [],
+            results: treatment.results || [],
+            preCare: treatment.preCare || [],
+            postCare: treatment.postCare || [],
+        };
+    }
+    return {
         name: '',
         shortDescription: '',
         fullDescription: '',
@@ -31,36 +57,27 @@ export function TreatmentForm({ isOpen, onClose, onSubmit, treatment }: Treatmen
         results: [],
         preCare: [],
         postCare: [],
+    };
+}
+
+function buildCustomDurations(treatment?: Treatment): Record<number, boolean> {
+    const map: Record<number, boolean> = {};
+    (treatment?.prices || []).forEach((p, i) => {
+        if (p.duration !== undefined && !PRESET_DURATIONS.has(p.duration)) {
+            map[i] = true;
+        }
     });
+    return map;
+}
+
+export function TreatmentForm({ isOpen, onClose, onSubmit, treatment }: TreatmentFormProps) {
+    const [loading, setLoading] = useState(false);
+    const [customDurationRows, setCustomDurationRows] = useState<Record<number, boolean>>(() => buildCustomDurations(treatment));
+    const [formData, setFormData] = useState<Omit<Treatment, 'id' | 'createdAt' | 'updatedAt'>>(() => buildFormData(treatment));
 
     useEffect(() => {
-        if (treatment) {
-            setFormData({
-                name: treatment.name,
-                shortDescription: treatment.shortDescription,
-                fullDescription: treatment.fullDescription || '',
-                category: treatment.category,
-                prices: treatment.prices,
-                contraindications: treatment.contraindications || [],
-                benefits: treatment.benefits || [],
-                results: treatment.results || [],
-                preCare: treatment.preCare || [],
-                postCare: treatment.postCare || [],
-            });
-        } else {
-            setFormData({
-                name: '',
-                shortDescription: '',
-                fullDescription: '',
-                category: 'Facial',
-                prices: [],
-                contraindications: [],
-                benefits: [],
-                results: [],
-                preCare: [],
-                postCare: [],
-            });
-        }
+        setFormData(buildFormData(treatment));
+        setCustomDurationRows(buildCustomDurations(treatment));
     }, [treatment, isOpen]);
 
     const handleAddPrice = () => {
@@ -75,6 +92,15 @@ export function TreatmentForm({ isOpen, onClose, onSubmit, treatment }: Treatmen
             ...prev,
             prices: prev.prices.filter((_, i) => i !== index)
         }));
+        setCustomDurationRows(prev => {
+            const next: Record<number, boolean> = {};
+            Object.entries(prev).forEach(([k, v]) => {
+                const ki = parseInt(k);
+                if (ki < index) next[ki] = v;
+                else if (ki > index) next[ki - 1] = v;
+            });
+            return next;
+        });
     };
 
     const handlePriceChange = (index: number, field: keyof TreatmentPrice, value: any) => {
@@ -82,6 +108,19 @@ export function TreatmentForm({ isOpen, onClose, onSubmit, treatment }: Treatmen
             ...prev,
             prices: prev.prices.map((p, i) => i === index ? { ...p, [field]: value } : p)
         }));
+    };
+
+    const handleDurationSelectChange = (index: number, value: string) => {
+        if (value === 'custom') {
+            setCustomDurationRows(prev => ({ ...prev, [index]: true }));
+            handlePriceChange(index, 'duration', undefined);
+        } else if (value === '') {
+            setCustomDurationRows(prev => ({ ...prev, [index]: false }));
+            handlePriceChange(index, 'duration', undefined);
+        } else {
+            setCustomDurationRows(prev => ({ ...prev, [index]: false }));
+            handlePriceChange(index, 'duration', parseInt(value));
+        }
     };
 
     const handleListChange = (field: 'contraindications' | 'benefits' | 'results' | 'preCare' | 'postCare', value: string) => {
@@ -157,48 +196,75 @@ export function TreatmentForm({ isOpen, onClose, onSubmit, treatment }: Treatmen
 
                     <div className="space-y-3">
                         {formData.prices.map((p, index) => (
-                            <div key={index} className="flex flex-col md:flex-row gap-3 md:items-end bg-gray-50 p-4 rounded-2xl border border-gray-100 animate-in slide-in-from-right-4 relative">
-                                <div className="flex-1">
-                                    <Input
-                                        label="Zona"
-                                        value={p.zone}
-                                        onChange={(e) => handlePriceChange(index, 'zone', e.target.value)}
-                                        placeholder="Ej: Rostro"
-                                        className="bg-white"
-                                    />
-                                </div>
-                                <div className="grid grid-cols-2 gap-3 min-w-full md:min-w-0">
-                                    <div className="flex-1">
+                            <div key={index} className="space-y-3 bg-gray-50 p-4 rounded-2xl border border-gray-100 animate-in slide-in-from-right-4">
+                                {/* Zona ocupa fila completa en mobile, 1/3 en desktop junto a Precio, Género y Eliminar */}
+                                <div className="grid grid-cols-[1fr_1fr_auto] md:grid-cols-[1fr_1fr_1fr_auto] gap-3 items-end">
+                                    <div className="col-span-3 md:col-span-1">
                                         <Input
-                                            label="Precio ($)"
-                                            type="number"
-                                            value={p.price || ''}
-                                            onChange={(e) => handlePriceChange(index, 'price', parseFloat(e.target.value) || 0)}
-                                            placeholder="0"
+                                            label="Zona"
+                                            value={p.zone}
+                                            onChange={(e) => handlePriceChange(index, 'zone', e.target.value)}
+                                            placeholder="Ej: Rostro"
                                             className="bg-white"
                                         />
                                     </div>
+                                    <Input
+                                        label="Precio ($)"
+                                        type="number"
+                                        value={p.price || ''}
+                                        onChange={(e) => handlePriceChange(index, 'price', parseFloat(e.target.value) || 0)}
+                                        placeholder="0"
+                                        className="bg-white"
+                                    />
+                                    <Select
+                                        label="Género"
+                                        value={p.gender || 'both'}
+                                        onChange={(e) => handlePriceChange(index, 'gender', e.target.value)}
+                                        options={[
+                                            { value: 'female', label: 'Fem.' },
+                                            { value: 'male', label: 'Masc.' },
+                                            { value: 'both', label: 'Ambos' },
+                                        ]}
+                                        className="bg-white"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => handleRemovePrice(index)}
+                                        aria-label="Eliminar zona"
+                                        className="p-3 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all self-end"
+                                    >
+                                        <Trash2 className="w-5 h-5" />
+                                    </button>
+                                </div>
+
+                                <div className="flex gap-3 items-end">
                                     <div className="flex-1">
                                         <Select
-                                            label="Género"
-                                            value={p.gender || 'both'}
-                                            onChange={(e) => handlePriceChange(index, 'gender', e.target.value)}
+                                            label="Duración"
+                                            value={customDurationRows[index] ? 'custom' : (p.duration?.toString() || '')}
+                                            onChange={(e) => handleDurationSelectChange(index, e.target.value)}
                                             options={[
-                                                { value: 'female', label: 'Fem.' },
-                                                { value: 'male', label: 'Masc.' },
-                                                { value: 'both', label: 'Ambos' },
+                                                { value: '', label: 'Sin especificar' },
+                                                ...DURATION_OPTIONS_MINUTES.map(o => ({ value: o.value.toString(), label: o.label })),
+                                                { value: 'custom', label: 'Otro...' },
                                             ]}
                                             className="bg-white"
                                         />
                                     </div>
+                                    {customDurationRows[index] && (
+                                        <div className="flex-1">
+                                            <Input
+                                                label="Minutos"
+                                                type="number"
+                                                value={p.duration || ''}
+                                                onChange={(e) => handlePriceChange(index, 'duration', parseInt(e.target.value) || undefined)}
+                                                placeholder="Ej: 45"
+                                                min={1}
+                                                className="bg-white"
+                                            />
+                                        </div>
+                                    )}
                                 </div>
-                                <button
-                                    type="button"
-                                    onClick={() => handleRemovePrice(index)}
-                                    className="absolute md:relative top-2 right-2 md:top-0 md:right-0 p-3 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
-                                >
-                                    <Trash2 className="w-5 h-5" />
-                                </button>
                             </div>
                         ))}
                     </div>
@@ -206,8 +272,9 @@ export function TreatmentForm({ isOpen, onClose, onSubmit, treatment }: Treatmen
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <label className="block text-sm font-bold text-gray-700 mb-2 ml-1 italic">Contraindicaciones (una por línea)</label>
+                        <label htmlFor="contraindications" className="block text-sm font-bold text-gray-700 mb-2 ml-1 italic">Contraindicaciones (una por línea)</label>
                         <textarea
+                            id="contraindications"
                             value={formData.contraindications?.join('\n')}
                             onChange={(e) => handleListChange('contraindications', e.target.value)}
                             rows={3}
@@ -215,8 +282,9 @@ export function TreatmentForm({ isOpen, onClose, onSubmit, treatment }: Treatmen
                         />
                     </div>
                     <div>
-                        <label className="block text-sm font-bold text-gray-700 mb-2 ml-1 italic">Beneficios (uno por línea)</label>
+                        <label htmlFor="benefits" className="block text-sm font-bold text-gray-700 mb-2 ml-1 italic">Beneficios (uno por línea)</label>
                         <textarea
+                            id="benefits"
                             value={formData.benefits?.join('\n')}
                             onChange={(e) => handleListChange('benefits', e.target.value)}
                             rows={3}

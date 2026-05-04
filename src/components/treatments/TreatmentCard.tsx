@@ -33,12 +33,14 @@ export function TreatmentCard({ treatment, isAdmin, onEdit, onDelete, onClick }:
                     {isAdmin && (
                         <div className="flex gap-1 md:gap-2">
                             <button
+                                aria-label="Editar tratamiento"
                                 onClick={(e) => { e.stopPropagation(); onEdit?.(treatment); }}
                                 className="p-1.5 md:p-2 bg-gray-50 text-gray-400 hover:text-[#34baab] hover:bg-teal-50 rounded-lg md:rounded-xl transition-all"
                             >
                                 <Edit2 className="w-3 h-3 md:w-4 md:h-4" />
                             </button>
                             <button
+                                aria-label="Eliminar tratamiento"
                                 onClick={(e) => { e.stopPropagation(); onDelete?.(treatment.id); }}
                                 className="p-1.5 md:p-2 bg-gray-50 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg md:rounded-xl transition-all"
                             >
@@ -67,7 +69,7 @@ export function TreatmentCard({ treatment, isAdmin, onEdit, onDelete, onClick }:
                         <span className="text-sm md:text-lg font-black text-gray-900">{formatCurrencyWithSymbol(minPrice)}</span>
                     </div>
                     <div className="w-8 h-8 md:w-10 md:h-10 rounded-lg md:rounded-xl bg-gray-50 flex items-center justify-center group-hover:bg-[#34baab] group-hover:text-white transition-all text-gray-400">
-                        <ChevronRight className="w-4 h-4 md:w-5 h-5" />
+                        <ChevronRight className="w-4 h-4 md:w-5 md:h-5" />
                     </div>
                 </div>
             </div>
