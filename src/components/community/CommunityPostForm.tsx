@@ -138,6 +138,7 @@ export function CommunityPostForm({ onSuccess, onCancel }: CommunityPostFormProp
                                 </div>
                                 <button
                                     type="button"
+                                    aria-label="Eliminar imagen"
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         removeImage(index);
@@ -181,8 +182,9 @@ export function CommunityPostForm({ onSuccess, onCancel }: CommunityPostFormProp
                 />
 
                 <div className="space-y-1">
-                    <label className="block text-sm font-bold text-gray-700">Tu Comentario</label>
+                    <label htmlFor="post-content" className="block text-sm font-bold text-gray-700">Tu Comentario</label>
                     <textarea
+                        id="post-content"
                         value={content}
                         onChange={(e) => setContent(e.target.value)}
                         placeholder="Contanos qué te pareció el resultado..."

@@ -423,6 +423,7 @@ export function AppointmentModal({
                     disabled={loading}
                     className="bg-[#34baab] hover:bg-[#2da699] text-white p-2 rounded-xl md:hidden shadow-lg"
                     title="Guardar"
+                    aria-label="Guardar"
                 >
                     <Save className="w-6 h-6" />
                 </Button>
@@ -710,7 +711,7 @@ export function AppointmentModal({
                 {/* Status and Price Section */}
                 <div className="space-y-6 border-t border-gray-100 pt-4">
                     <div className="space-y-3">
-                        <label className="block text-sm font-bold text-gray-700 uppercase tracking-widest text-[10px]">Estado del Turno</label>
+                        <p className="block text-sm font-bold text-gray-700 uppercase tracking-widest text-[10px]">Estado del Turno</p>
                         <div className="grid grid-cols-3 gap-2">
                             {[
                                 { id: 'pending', label: 'Pendiente', icon: Clock, color: 'text-orange-600', bg: 'bg-orange-50', border: 'border-orange-200' },
@@ -777,6 +778,7 @@ export function AppointmentModal({
                                     <span className="text-sm font-bold text-gray-900">$ {p.amount.toLocaleString('es-AR')}</span>
                                     <button
                                         type="button"
+                                        aria-label="Eliminar pago"
                                         onClick={() => removePayment(p.id)}
                                         className="text-gray-300 hover:text-red-500 transition-colors"
                                     >
@@ -796,8 +798,9 @@ export function AppointmentModal({
                                     onChange={(val) => setNewPayment({ ...newPayment, amount: val })}
                                 />
                                 <div className="space-y-1">
-                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">Fecha</label>
+                                    <label htmlFor="apt-payment-date" className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">Fecha</label>
                                     <input
+                                        id="apt-payment-date"
                                         type="date"
                                         value={newPayment.date}
                                         onChange={(e) => setNewPayment({ ...newPayment, date: e.target.value })}
@@ -830,8 +833,9 @@ export function AppointmentModal({
                                     />
                                 ) : (
                                     <div className="space-y-1">
-                                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">Etiqueta</label>
+                                        <label htmlFor="apt-payment-label-cash" className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">Etiqueta</label>
                                         <select
+                                            id="apt-payment-label-cash"
                                             value={newPayment.label}
                                             onChange={(e) => setNewPayment({ ...newPayment, label: e.target.value })}
                                             className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#34baab]"
@@ -846,8 +850,9 @@ export function AppointmentModal({
                             </div>
                             {newPayment.method !== 'cash' && (
                                 <div className="space-y-1">
-                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">Etiqueta</label>
+                                    <label htmlFor="apt-payment-label-transfer" className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">Etiqueta</label>
                                     <select
+                                        id="apt-payment-label-transfer"
                                         value={newPayment.label}
                                         onChange={(e) => setNewPayment({ ...newPayment, label: e.target.value })}
                                         className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#34baab]"
@@ -900,6 +905,7 @@ export function AppointmentModal({
                         </div>
                         <button
                             type="button"
+                            aria-label="Activar comisión personalizada"
                             onClick={() => {
                                 const newValue = !useCustomCommission;
                                 setUseCustomCommission(newValue);
@@ -942,10 +948,11 @@ export function AppointmentModal({
                 </div>
 
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label htmlFor="apt-notes" className="block text-sm font-medium text-gray-700 mb-1">
                         Notas (opcional)
                     </label>
                     <textarea
+                        id="apt-notes"
                         value={formData.notes || ''}
                         onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                         placeholder="Notas adicionales..."

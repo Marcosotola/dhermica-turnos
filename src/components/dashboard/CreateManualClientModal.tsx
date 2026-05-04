@@ -96,7 +96,8 @@ export function CreateManualClientModal({ isOpen, onClose, onCreated }: CreateMa
                             <p className="text-xs text-gray-400 font-medium">Registro de clientes asistido por administración</p>
                         </div>
                     </div>
-                    <button 
+                    <button
+                        aria-label="Cerrar"
                         onClick={onClose}
                         className="p-2 hover:bg-white/10 rounded-full transition-colors"
                     >
@@ -179,37 +180,32 @@ export function CreateManualClientModal({ isOpen, onClose, onCreated }: CreateMa
                         </div>
 
                         <div className="flex flex-wrap gap-6 mb-6">
-                            <label className="flex items-center gap-3 cursor-pointer group">
-                                <div 
-                                    onClick={() => setFormData({ ...formData, hasTattoos: !formData.hasTattoos })}
-                                    className={`w-12 h-6 rounded-full transition-all relative ${formData.hasTattoos ? 'bg-[#34baab]' : 'bg-gray-300'}`}
-                                >
+                            <div className="flex items-center gap-3 cursor-pointer group" onClick={() => setFormData({ ...formData, hasTattoos: !formData.hasTattoos })}>
+                                <div className={`w-12 h-6 rounded-full transition-all relative ${formData.hasTattoos ? 'bg-[#34baab]' : 'bg-gray-300'}`}>
                                     <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${formData.hasTattoos ? 'left-7' : 'left-1'}`} />
                                 </div>
                                 <span className="text-sm font-bold text-gray-700">¿Tiene Tatuajes?</span>
-                            </label>
+                            </div>
 
                             {formData.sex === 'female' && (
-                                <label className="flex items-center gap-3 cursor-pointer group">
-                                    <div 
-                                        onClick={() => setFormData({ ...formData, isPregnant: !formData.isPregnant })}
-                                        className={`w-12 h-6 rounded-full transition-all relative ${formData.isPregnant ? 'bg-pink-500' : 'bg-gray-300'}`}
-                                    >
+                                <div className="flex items-center gap-3 cursor-pointer group" onClick={() => setFormData({ ...formData, isPregnant: !formData.isPregnant })}>
+                                    <div className={`w-12 h-6 rounded-full transition-all relative ${formData.isPregnant ? 'bg-pink-500' : 'bg-gray-300'}`}>
                                         <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${formData.isPregnant ? 'left-7' : 'left-1'}`} />
                                     </div>
                                     <span className="text-sm font-bold text-gray-700">¿Embarazada?</span>
-                                </label>
+                                </div>
                             )}
                         </div>
 
                         <div className="space-y-2">
-                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-1">
+                            <label htmlFor="manual-medical-info" className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-1">
                                 Información Médica Relevante
                             </label>
                             <textarea
+                                id="manual-medical-info"
                                 value={formData.relevantMedicalInfo}
                                 onChange={(e) => setFormData({ ...formData, relevantMedicalInfo: e.target.value })}
-                                className="w-full p-4 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#34baab]/20 focus:border-[#34baab] transition-all min-h-[100px] text-sm"
+                                className="w-full p-4 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#34baab]/20 focus:border-[#34baab] transition-all min-h-25 text-sm"
                                 placeholder="Alergias, enfermedades, cirugías recientes, etc..."
                             />
                         </div>

@@ -91,6 +91,7 @@ export function CreateClientModal({ isOpen, onClose, onCreated }: CreateClientMo
                         <h2 className="text-xl font-black text-gray-900 uppercase tracking-widest">Nuevo Registro</h2>
                     </div>
                     <button
+                        aria-label="Cerrar"
                         onClick={onClose}
                         className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-400 hover:text-gray-600"
                     >
@@ -185,13 +186,14 @@ export function CreateClientModal({ isOpen, onClose, onCreated }: CreateClientMo
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                        <label htmlFor="client-medical-info" className="block text-sm font-medium text-gray-700 mb-1">
                             Información Médica Relevante
                         </label>
                         <textarea
+                            id="client-medical-info"
                             value={formData.relevantMedicalInfo}
                             onChange={(e) => setFormData({ ...formData, relevantMedicalInfo: e.target.value })}
-                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent min-h-[100px] resize-none text-sm"
+                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent min-h-25 resize-none text-sm"
                             placeholder="Alergias, enfermedades crónicas, medicación..."
                         />
                     </div>
