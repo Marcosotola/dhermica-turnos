@@ -443,8 +443,9 @@ export default function EgresosPage() {
                         <div className="space-y-4 overflow-y-auto pr-2 custom-scrollbar">
                             {/* Fecha */}
                             <div>
-                                <label className="text-xs font-black uppercase tracking-widest text-gray-500 mb-1 block">Fecha *</label>
+                                <label htmlFor="egreso-date" className="text-xs font-black uppercase tracking-widest text-gray-500 mb-1 block">Fecha *</label>
                                 <input
+                                    id="egreso-date"
                                     type="date"
                                     value={form.date}
                                     onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
@@ -454,8 +455,9 @@ export default function EgresosPage() {
 
                             {/* Categoría */}
                             <div>
-                                <label className="text-xs font-black uppercase tracking-widest text-gray-500 mb-1 block">Categoría *</label>
+                                <label htmlFor="egreso-category" className="text-xs font-black uppercase tracking-widest text-gray-500 mb-1 block">Categoría *</label>
                                 <select
+                                    id="egreso-category"
                                     value={form.category}
                                     onChange={e => setForm(f => ({ ...f, category: e.target.value as EgresoCategory }))}
                                     className="w-full border border-gray-200 rounded-2xl px-4 py-3 text-gray-900 font-medium focus:outline-none focus:ring-2 focus:ring-[#34baab] bg-gray-50"
@@ -468,10 +470,11 @@ export default function EgresosPage() {
 
                             {/* Monto */}
                             <div>
-                                <label className="text-xs font-black uppercase tracking-widest text-gray-500 mb-1 block">Monto *</label>
+                                <label htmlFor="egreso-amount" className="text-xs font-black uppercase tracking-widest text-gray-500 mb-1 block">Monto *</label>
                                 <div className="relative">
                                     <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                                     <input
+                                        id="egreso-amount"
                                         type="number"
                                         min="0"
                                         step="0.01"
@@ -503,6 +506,7 @@ export default function EgresosPage() {
                                         <div key={p.id} className="bg-gray-50 rounded-2xl p-4 border border-gray-100 relative group">
                                             {form.payments.length > 1 && (
                                                 <button
+                                                    aria-label="Eliminar pago"
                                                     onClick={() => setForm(f => ({
                                                         ...f,
                                                         payments: f.payments.filter(pay => pay.id !== p.id)
@@ -512,11 +516,12 @@ export default function EgresosPage() {
                                                     <X className="w-3 h-3" />
                                                 </button>
                                             )}
-                                            
+
                                             <div className="grid grid-cols-2 gap-3">
                                                 <div>
-                                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1 block">Medio</label>
+                                                    <label htmlFor={`egreso-method-${idx}`} className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1 block">Medio</label>
                                                     <select
+                                                        id={`egreso-method-${idx}`}
                                                         value={p.method}
                                                         onChange={e => {
                                                             const newPayments = [...form.payments];
@@ -532,8 +537,9 @@ export default function EgresosPage() {
                                                     </select>
                                                 </div>
                                                 <div>
-                                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1 block">Monto</label>
+                                                    <label htmlFor={`egreso-pay-amount-${idx}`} className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1 block">Monto</label>
                                                     <input
+                                                        id={`egreso-pay-amount-${idx}`}
                                                         type="number"
                                                         value={p.amount}
                                                         onChange={e => {
@@ -549,8 +555,9 @@ export default function EgresosPage() {
 
                                             {p.method !== 'cash' && (
                                                 <div className="mt-3">
-                                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1 block">Cuenta</label>
+                                                    <label htmlFor={`egreso-account-${idx}`} className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1 block">Cuenta</label>
                                                     <select
+                                                        id={`egreso-account-${idx}`}
                                                         value={p.bankAccount || 'cuenta1'}
                                                         onChange={e => {
                                                             const newPayments = [...form.payments];
@@ -572,8 +579,9 @@ export default function EgresosPage() {
 
                             {/* Descripción */}
                             <div>
-                                <label className="text-xs font-black uppercase tracking-widest text-gray-500 mb-1 block">Descripción (opcional)</label>
+                                <label htmlFor="egreso-description" className="text-xs font-black uppercase tracking-widest text-gray-500 mb-1 block">Descripción (opcional)</label>
                                 <textarea
+                                    id="egreso-description"
                                     rows={2}
                                     placeholder="Detalle del gasto..."
                                     value={form.description}

@@ -299,8 +299,9 @@ export default function AparatosPage() {
                         </h2>
 
                         <div>
-                            <label className="text-xs font-black uppercase tracking-widest text-gray-500 mb-1 block">Fecha *</label>
+                            <label htmlFor="aparato-date" className="text-xs font-black uppercase tracking-widest text-gray-500 mb-1 block">Fecha *</label>
                             <input
+                                id="aparato-date"
                                 type="date"
                                 value={form.date}
                                 onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
@@ -309,8 +310,9 @@ export default function AparatosPage() {
                         </div>
 
                         <div>
-                            <label className="text-xs font-black uppercase tracking-widest text-gray-500 mb-1 block">Tratamiento *</label>
+                            <label htmlFor="aparato-treatment" className="text-xs font-black uppercase tracking-widest text-gray-500 mb-1 block">Tratamiento *</label>
                             <select
+                                id="aparato-treatment"
                                 value={form.treatment}
                                 onChange={e => setForm(f => ({ ...f, treatment: e.target.value as AparatoTreatment }))}
                                 className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-amber-400 outline-none font-medium bg-white"
@@ -322,8 +324,9 @@ export default function AparatosPage() {
                         </div>
 
                         <div>
-                            <label className="text-xs font-black uppercase tracking-widest text-gray-500 mb-1 block">Profesional *</label>
+                            <label htmlFor="aparato-professional" className="text-xs font-black uppercase tracking-widest text-gray-500 mb-1 block">Profesional *</label>
                             <select
+                                id="aparato-professional"
                                 value={form.professionalId}
                                 onChange={e => handleProfessionalChange(e.target.value)}
                                 className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-amber-400 outline-none font-medium bg-white"
@@ -336,10 +339,11 @@ export default function AparatosPage() {
                         </div>
 
                         <div>
-                            <label className="text-xs font-black uppercase tracking-widest text-gray-500 mb-1 block">Monto Fijo del Profesional</label>
+                            <label htmlFor="aparato-fixed-fee" className="text-xs font-black uppercase tracking-widest text-gray-500 mb-1 block">Monto Fijo del Profesional</label>
                             <div className="relative">
                                 <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                                 <input
+                                    id="aparato-fixed-fee"
                                     type="number"
                                     min="0"
                                     value={form.fixedFee}
@@ -351,8 +355,9 @@ export default function AparatosPage() {
                         </div>
 
                         <div>
-                            <label className="text-xs font-black uppercase tracking-widest text-gray-500 mb-1 block">Método de Pago</label>
+                            <label htmlFor="aparato-payment-method" className="text-xs font-black uppercase tracking-widest text-gray-500 mb-1 block">Método de Pago</label>
                             <select
+                                id="aparato-payment-method"
                                 value={form.paymentMethod}
                                 onChange={e => setForm(f => ({ ...f, paymentMethod: e.target.value as typeof form.paymentMethod }))}
                                 className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-amber-400 outline-none font-medium bg-white"
@@ -364,8 +369,9 @@ export default function AparatosPage() {
                         </div>
 
                         <div>
-                            <label className="text-xs font-black uppercase tracking-widest text-gray-500 mb-1 block">Notas</label>
+                            <label htmlFor="aparato-notes" className="text-xs font-black uppercase tracking-widest text-gray-500 mb-1 block">Notas</label>
                             <textarea
+                                id="aparato-notes"
                                 value={form.notes}
                                 onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
                                 rows={2}
