@@ -75,7 +75,7 @@ export function TreatmentSelectorSheet({ isOpen, onClose, onAdd }: Props) {
     return (
         <>
             <div className="fixed inset-0 bg-black/40 z-[200]" onClick={onClose} />
-            <div className="fixed bottom-0 left-0 right-0 z-[201] bg-white rounded-t-3xl shadow-2xl max-h-[85vh] flex flex-col animate-in slide-in-from-bottom duration-300">
+            <div className="fixed top-0 left-0 right-0 z-[201] bg-white rounded-b-3xl shadow-2xl max-h-[92vh] flex flex-col animate-in slide-in-from-top duration-300">
 
                 <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-gray-100">
                     <h2 className="text-sm font-black text-gray-900 uppercase tracking-wider">Seleccionar Tratamiento</h2>
@@ -97,11 +97,13 @@ export function TreatmentSelectorSheet({ isOpen, onClose, onAdd }: Props) {
                     </div>
                 </div>
 
-                <div className="flex gap-2 px-5 pb-3 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                <div className="flex gap-3 px-5 pb-4 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden min-h-[56px] items-center">
                     <button
                         type="button"
                         onClick={() => setActiveCategory(null)}
-                        className={`shrink-0 px-3 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-wider transition-all ${!activeCategory ? 'bg-[#34baab] text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+                        className={`shrink-0 px-5 h-10 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all duration-200 flex items-center justify-center ${!activeCategory 
+                            ? 'bg-[#34baab] text-white shadow-lg shadow-[#34baab]/30 ring-4 ring-[#34baab]/10' 
+                            : 'bg-gray-50/50 text-gray-400 border border-gray-100 hover:bg-gray-100'}`}
                     >
                         Todos
                     </button>
@@ -110,7 +112,9 @@ export function TreatmentSelectorSheet({ isOpen, onClose, onAdd }: Props) {
                             key={cat}
                             type="button"
                             onClick={() => setActiveCategory(prev => prev === cat ? null : cat)}
-                            className={`shrink-0 px-3 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-wider transition-all ${activeCategory === cat ? 'bg-[#34baab] text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+                            className={`shrink-0 px-5 h-10 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all duration-200 flex items-center justify-center ${activeCategory === cat 
+                                ? 'bg-[#34baab] text-white shadow-lg shadow-[#34baab]/30 ring-4 ring-[#34baab]/10' 
+                                : 'bg-gray-50/50 text-gray-400 border border-gray-100 hover:bg-gray-100'}`}
                         >
                             {cat}
                         </button>
