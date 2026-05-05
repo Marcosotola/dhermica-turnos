@@ -137,7 +137,7 @@ export function CreateManualClientModal({ isOpen, onClose, onCreated }: CreateMa
                                 required
                             />
                             <Input
-                                label="Email (Opcional)"
+                                label="Email"
                                 type="email"
                                 value={formData.email}
                                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}

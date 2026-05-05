@@ -176,7 +176,6 @@ export function EditProfileModal({ isOpen, onClose, user, onUpdate, isNewUser = 
                                 type="email"
                                 value={formData.email}
                                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                required
                                 disabled={!user.isManual && !isNewUser}
                                 className={!user.isManual && !isNewUser ? 'bg-gray-100' : ''}
                             />
@@ -201,7 +200,6 @@ export function EditProfileModal({ isOpen, onClose, user, onUpdate, isNewUser = 
                                 label="Fecha de Nacimiento"
                                 value={formData.birthDate}
                                 onChange={(e) => setFormData({ ...formData, birthDate: e.target.value })}
-                                required
                             />
                         </div>
 

@@ -136,7 +136,7 @@ export function CreateClientModal({ isOpen, onClose, onCreated }: CreateClientMo
                         </div>
 
                         <Input
-                            label="Email (Opcional)"
+                            label="Email"
                             type="email"
                             placeholder="cliente@ejemplo.com"
                             value={formData.email}

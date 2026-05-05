@@ -6,7 +6,7 @@ export interface UserProfile {
     fullName: string;
     firstName?: string;
     lastName?: string;
-    birthDate: string; // ISO format YYYY-MM-DD
+    birthDate?: string; // ISO format YYYY-MM-DD
     phone: string; // Format: (3523908198)
     hasTattoos: boolean;
     isPregnant: boolean;

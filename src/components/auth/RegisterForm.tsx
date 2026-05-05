@@ -202,7 +202,6 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
                                 type="date"
                                 value={formData.birthDate}
                                 onChange={(e) => setFormData({ ...formData, birthDate: e.target.value })}
-                                required
                             />
                             <PhoneInput
                                 label="WhatsApp"

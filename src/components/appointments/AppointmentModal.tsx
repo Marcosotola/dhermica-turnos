@@ -703,7 +703,7 @@ export function AppointmentModal({
                                 />
                             )}
                             <Input
-                                label="Email (Opcional)"
+                                label="Email"
                                 type="email"
                                 value={formData.clientEmail || ''}
                                 onChange={(e) => setFormData({ ...formData, clientEmail: e.target.value })}
