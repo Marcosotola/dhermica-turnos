@@ -8,8 +8,11 @@ export interface AparatoSession {
     treatment: AparatoTreatment;
     professionalId: string;
     professionalName: string;
-    fixedFee: number; // Monto fijo que cobra el profesional ese día
-    paymentMethod: 'cash' | 'transfer' | 'debit' | 'credit' | 'qr';
+    status: 'pending' | 'completed';
+    fixedFee?: number; // Monto fijo que cobra el profesional ese día
+    paymentMethod?: 'cash' | 'transfer' | 'debit' | 'credit' | 'qr';
+    bankAccount?: 'cuenta1' | 'cuenta2' | null;
+    expenseId?: string;
     notes?: string;
     createdAt: Date;
     updatedAt: Date;

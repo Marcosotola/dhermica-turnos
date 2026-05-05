@@ -317,18 +317,33 @@ export async function getFinanceOverview(startDate: string, endDate: string, tar
 
     // 6. Consolidar Comisiones
     overview.totalProfCommissions = 0;
+    
+    // Calcular cuánto de los fees de aparatos ya está en 'egresos' (manuales)
+    const registeredAparatoFees: Record<string, number> = {};
+    aparatos.forEach(s => {
+        if (s.expenseId && s.fixedFee) {
+            const profName = idToName[s.professionalId] || s.professionalId;
+            registeredAparatoFees[profName] = (registeredAparatoFees[profName] || 0) + Number(s.fixedFee);
+        }
+    });
+
     Object.values(overview.byProfessional).forEach((data) => {
+        // La comisión virtual a pagar es: (Servicios + Productos + Alquiler + Aparato) - (Aparato ya pagado como Egreso)
+        const alreadyPaid = registeredAparatoFees[data.name] || 0;
         data.totalCommission = data.serviceCommission + data.productCommission + data.rentalCommission + data.aparatoFee;
-        if (data.totalCommission > 0) {
-            overview.totalProfCommissions += data.totalCommission;
+        
+        const virtualCommissionToPay = data.totalCommission - alreadyPaid;
+
+        if (virtualCommissionToPay > 0) {
+            overview.totalProfCommissions += virtualCommissionToPay;
             allMovements.push({
                 id: `comm_${data.name.replace(/\s+/g, '_')}`,
                 date: endDate,
                 type: 'egreso',
                 category: 'sueldos',
-                description: `Comisión: ${data.name}`,
+                description: `Comisión (Pendiente): ${data.name}`,
                 method: 'cash',
-                amount: data.totalCommission
+                amount: virtualCommissionToPay
             });
         }
     });

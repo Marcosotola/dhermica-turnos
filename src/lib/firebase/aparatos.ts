@@ -20,6 +20,7 @@ function mapDoc(d: any): AparatoSession {
     return {
         id: d.id,
         ...data,
+        status: data.status || 'completed', // Legacy sessions are completed
         createdAt: data.createdAt?.toDate() || new Date(),
         updatedAt: data.updatedAt?.toDate() || new Date(),
     } as AparatoSession;
@@ -34,6 +35,7 @@ export async function createAparatoSession(
     const now = Timestamp.now();
     const docRef = await addDoc(collection(db, APARATOS_COLLECTION), {
         ...data,
+        status: data.status || 'pending',
         createdAt: now,
         updatedAt: now,
     });
