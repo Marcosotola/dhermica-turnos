@@ -6,7 +6,10 @@ import {
     GoogleAuthProvider,
     signInWithPopup,
     sendPasswordResetEmail,
-    User
+    User,
+    RecaptchaVerifier,
+    signInWithPhoneNumber,
+    ConfirmationResult
 } from 'firebase/auth';
 import { auth } from './config';
 
@@ -28,3 +31,24 @@ export const resetPassword = (email: string) =>
 
 export const onAuthChange = (callback: (user: User | null) => void) =>
     onAuthStateChanged(auth, callback);
+
+/**
+ * Setup reCAPTCHA verifier for phone auth
+ */
+export const setupRecaptcha = (containerId: string) => {
+    return new RecaptchaVerifier(auth, containerId, {
+        size: 'invisible',
+        callback: (response: any) => {
+            // reCAPTCHA solved - will proceed with submitPhoneNumber
+        },
+        'expired-callback': () => {
+            // Response expired. Ask user to solve reCAPTCHA again.
+        }
+    });
+};
+
+/**
+ * Sign in with phone number
+ */
+export const signInWithPhone = (phoneNumber: string, appVerifier: any): Promise<ConfirmationResult> =>
+    signInWithPhoneNumber(auth, phoneNumber, appVerifier);

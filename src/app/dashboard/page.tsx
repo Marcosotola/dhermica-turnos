@@ -101,7 +101,7 @@ export default function DashboardPage() {
                             uid: user.uid,
                             email: user.email || '',
                             fullName: user.displayName || '',
-                            phone: '',
+                            phone: user.phoneNumber || '',
                             birthDate: '',
                             hasTattoos: false,
                             isPregnant: false,

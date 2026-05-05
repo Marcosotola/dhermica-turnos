@@ -1,16 +1,19 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
-import { registerWithEmail, loginWithGoogle } from '@/lib/firebase/auth';
+import { registerWithEmail, loginWithGoogle, setupRecaptcha, signInWithPhone } from '@/lib/firebase/auth';
 import { createUserProfile, formatPhone } from '@/lib/firebase/users';
 import { toast } from 'sonner';
 import { UserProfile } from '@/lib/types/user';
 import { useNotifications } from '@/lib/hooks/useNotifications';
 import { Checkbox } from '@/components/ui/Checkbox';
 import { PhoneInput } from '@/components/ui/PhoneInput';
+import { Phone, Mail, ChevronLeft } from 'lucide-react';
+import { ConfirmationResult } from 'firebase/auth';
+import { useAuth } from '@/lib/contexts/AuthContext';
 
 interface RegisterFormProps {
     onToggleMode: () => void;
@@ -18,8 +21,10 @@ interface RegisterFormProps {
 
 export function RegisterForm({ onToggleMode }: RegisterFormProps) {
     const [step, setStep] = useState(1);
+    const [authOption, setAuthOption] = useState<'options' | 'email' | 'phone_number' | 'phone_otp'>('options');
     const [loading, setLoading] = useState(false);
     const { requestPermission } = useNotifications();
+    const { user: currentUser } = useAuth();
     const [formData, setFormData] = useState({
         email: '',
         password: '',
@@ -36,6 +41,9 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
         wantNotifications: true,
     });
     const [countryCode, setCountryCode] = useState('+54');
+    const [otp, setOtp] = useState('');
+    const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
+    const [resendTimer, setResendTimer] = useState(0);
 
     const handleNext = () => {
         if (step === 1) {
@@ -106,7 +114,10 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
         setLoading(true);
         try {
             await loginWithGoogle();
-            toast.success('¡Bienvenido con Google!');
+            toast.success('¡Autenticado con Google!');
+            // After Google login, AuthContext will update 'user'. 
+            // If they don't have a profile, we stay in RegisterForm but move to step 2.
+            setStep(2);
         } catch (error: any) {
             if (error.code === 'auth/cancelled-popup-request') return;
             console.error('Google login error:', error);
@@ -116,6 +127,63 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
         }
     };
 
+    const handleSendOtp = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!formData.phone) {
+            toast.error('Ingresa tu número de teléfono.');
+            return;
+        }
+
+        setLoading(true);
+        try {
+            const finalPhone = formatPhone(`${countryCode}${formData.phone}`);
+            const appVerifier = setupRecaptcha('recaptcha-container-register');
+            const result = await signInWithPhone(finalPhone, appVerifier);
+            setConfirmationResult(result);
+            setAuthOption('phone_otp');
+            setResendTimer(60);
+            toast.success('Código enviado correctamente.');
+        } catch (error: any) {
+            console.error('Phone register error:', error);
+            toast.error('Error al enviar el código. Revisa el número.');
+            const container = document.getElementById('recaptcha-container-register');
+            if (container) container.innerHTML = '';
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleVerifyOtp = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!otp || otp.length !== 6) {
+            toast.error('Ingresa el código de 6 dígitos.');
+            return;
+        }
+
+        setLoading(true);
+        try {
+            if (!confirmationResult) throw new Error('No confirmation result');
+            await confirmationResult.confirm(otp);
+            toast.success('¡Teléfono verificado!');
+            setStep(2);
+        } catch (error: any) {
+            console.error('OTP verification error:', error);
+            toast.error('Código incorrecto o expirado.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        let interval: any;
+        if (resendTimer > 0) {
+            interval = setInterval(() => {
+                setResendTimer((prev) => prev - 1);
+            }, 1000);
+        }
+        return () => clearInterval(interval);
+    }, [resendTimer]);
+
     return (
         <div className="space-y-6 animate-in fade-in duration-300">
             <div className="text-center">
@@ -124,61 +192,162 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
             </div>
 
             {step === 1 && (
-                <>
-                    <Button
-                        type="button"
-                        variant="secondary"
-                        onClick={handleGoogleLogin}
-                        disabled={loading}
-                        className="w-full py-4 rounded-xl font-bold flex items-center justify-center gap-2 border-gray-200"
-                    >
-                        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-5 h-5" />
-                        Continuar con Google
-                    </Button>
+                <div className="space-y-6">
+                    <div id="recaptcha-container-register"></div>
 
-                    <div className="relative my-6">
-                        <div className="absolute inset-0 flex items-center">
-                            <span className="w-full border-t border-gray-200" />
+                    {authOption === 'options' && (
+                        <div className="space-y-4">
+                            <Button
+                                type="button"
+                                variant="secondary"
+                                onClick={handleGoogleLogin}
+                                disabled={loading}
+                                className="w-full py-4 rounded-xl font-bold flex items-center justify-center gap-2 border-gray-200"
+                            >
+                                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-5 h-5" />
+                                Continuar con Google
+                            </Button>
+
+                            <Button
+                                type="button"
+                                variant="secondary"
+                                onClick={() => setAuthOption('phone_number')}
+                                disabled={loading}
+                                className="w-full py-4 rounded-xl font-bold flex items-center justify-center gap-2 border-gray-200"
+                            >
+                                <Phone className="w-5 h-5 text-[#34baab]" />
+                                Continuar con Teléfono
+                            </Button>
+
+                            <div className="relative my-6">
+                                <div className="absolute inset-0 flex items-center">
+                                    <span className="w-full border-t border-gray-200" />
+                                </div>
+                                <div className="relative flex justify-center text-xs uppercase">
+                                    <span className="bg-white px-2 text-gray-500 font-bold">O usa tu email</span>
+                                </div>
+                            </div>
+
+                            <Button
+                                type="button"
+                                onClick={() => setAuthOption('email')}
+                                className="w-full py-4 rounded-xl font-bold bg-gray-100 hover:bg-gray-200 text-gray-900"
+                            >
+                                <Mail className="w-5 h-5 mr-2 inline" />
+                                Registrarse con Email
+                            </Button>
                         </div>
-                        <div className="relative flex justify-center text-xs uppercase">
-                            <span className="bg-white px-2 text-gray-500 font-bold">O regístrate con email</span>
+                    )}
+
+                    {authOption === 'email' && (
+                        <div className="space-y-4 animate-in slide-in-from-right-4 duration-300">
+                            <button
+                                onClick={() => setAuthOption('options')}
+                                className="flex items-center text-sm font-bold text-gray-500 hover:text-gray-700 transition-colors"
+                            >
+                                <ChevronLeft className="w-4 h-4 mr-1" />
+                                Volver
+                            </button>
+                            <Input
+                                label="Email"
+                                type="email"
+                                value={formData.email}
+                                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                placeholder="tu@email.com"
+                                required
+                            />
+                            <Input
+                                label="Contraseña"
+                                type="password"
+                                value={formData.password}
+                                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                                placeholder="••••••••"
+                                required
+                            />
+                            <Input
+                                label="Confirmar Contraseña"
+                                type="password"
+                                value={formData.confirmPassword}
+                                onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                                placeholder="••••••••"
+                                required
+                            />
+                            <Button type="button" onClick={handleNext} className="w-full py-4 rounded-xl font-bold">
+                                Continuar
+                            </Button>
                         </div>
-                    </div>
-                </>
+                    )}
+
+                    {authOption === 'phone_number' && (
+                        <div className="space-y-4 animate-in slide-in-from-right-4 duration-300">
+                            <button
+                                onClick={() => setAuthOption('options')}
+                                className="flex items-center text-sm font-bold text-gray-500 hover:text-gray-700 transition-colors"
+                            >
+                                <ChevronLeft className="w-4 h-4 mr-1" />
+                                Volver
+                            </button>
+                            <form onSubmit={handleSendOtp} className="space-y-6">
+                                <PhoneInput
+                                    label="Número de Teléfono"
+                                    countryCode={countryCode}
+                                    onCountryCodeChange={setCountryCode}
+                                    phoneNumber={formData.phone}
+                                    onPhoneNumberChange={(num) => setFormData({ ...formData, phone: num })}
+                                    required
+                                />
+                                <Button type="submit" disabled={loading} className="w-full py-4 rounded-xl font-bold">
+                                    {loading ? 'Enviando...' : 'Enviar Código'}
+                                </Button>
+                            </form>
+                        </div>
+                    )}
+
+                    {authOption === 'phone_otp' && (
+                        <div className="space-y-4 animate-in slide-in-from-right-4 duration-300">
+                            <button
+                                onClick={() => setAuthOption('phone_number')}
+                                className="flex items-center text-sm font-bold text-gray-500 hover:text-gray-700 transition-colors"
+                            >
+                                <ChevronLeft className="w-4 h-4 mr-1" />
+                                Cambiar número
+                            </button>
+                            <form onSubmit={handleVerifyOtp} className="space-y-6">
+                                <Input
+                                    label="Código de Verificación"
+                                    type="text"
+                                    value={otp}
+                                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                                    placeholder="123456"
+                                    className="text-center text-2xl tracking-[1rem] font-black"
+                                    required
+                                />
+                                <Button type="submit" disabled={loading} className="w-full py-4 rounded-xl font-bold">
+                                    {loading ? 'Verificando...' : 'Verificar y Continuar'}
+                                </Button>
+
+                                <div className="text-center">
+                                    {resendTimer > 0 ? (
+                                        <p className="text-sm text-gray-500">
+                                            Reenviar código en {resendTimer}s
+                                        </p>
+                                    ) : (
+                                        <button
+                                            type="button"
+                                            onClick={handleSendOtp}
+                                            className="text-sm font-bold text-[#34baab] hover:underline"
+                                        >
+                                            Reenviar código
+                                        </button>
+                                    )}
+                                </div>
+                            </form>
+                        </div>
+                    )}
+                </div>
             )}
-
-            <form onSubmit={handleRegister} className="space-y-4">
-                {step === 1 ? (
-                    <div className="space-y-4 animate-in slide-in-from-right-4 duration-300">
-                        <Input
-                            label="Email"
-                            type="email"
-                            value={formData.email}
-                            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                            placeholder="tu@email.com"
-                            required
-                        />
-                        <Input
-                            label="Contraseña"
-                            type="password"
-                            value={formData.password}
-                            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                            placeholder="••••••••"
-                            required
-                        />
-                        <Input
-                            label="Confirmar Contraseña"
-                            type="password"
-                            value={formData.confirmPassword}
-                            onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                            placeholder="••••••••"
-                            required
-                        />
-                        <Button type="button" onClick={handleNext} className="w-full py-4 rounded-xl font-bold">
-                            Continuar
-                        </Button>
-                    </div>
-                ) : (
+            {step === 2 && (
+                <form onSubmit={handleRegister} className="space-y-4">
                     <div className="space-y-4 animate-in slide-in-from-right-4 duration-300">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <Input
@@ -295,8 +464,8 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
                             </Button>
                         </div>
                     </div>
-                )}
-            </form>
+                </form>
+            )}
 
             <div className="pt-6 border-t border-gray-100">
                 <p className="text-center text-sm text-gray-500">
