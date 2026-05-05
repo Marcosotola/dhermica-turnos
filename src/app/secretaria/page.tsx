@@ -183,6 +183,16 @@ export default function SecretariaPage() {
                         <h2 className="text-xl font-bold text-gray-900">Egresos</h2>
                         <p className="hidden md:block text-sm text-gray-500 mt-2">Gestionar gastos del local</p>
                     </button>
+
+                    {/* Usuarios */}
+                    <button
+                        onClick={() => router.push('/usuarios')}
+                        className="flex flex-col items-center justify-center bg-white rounded-3xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-all text-center group"
+                    >
+                        <Users className="w-10 h-10 text-indigo-600 group-hover:scale-110 transition-transform mb-4" />
+                        <h2 className="text-xl font-bold text-gray-900">Usuarios</h2>
+                        <p className="hidden md:block text-sm text-gray-500 mt-2">Gestionar roles y permisos</p>
+                    </button>
                 </div>
             </div>
             {profile && (

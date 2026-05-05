@@ -28,7 +28,7 @@ export default function UsuariosPage() {
         if (!authLoading && !user) {
             router.push('/');
         }
-        if (!authLoading && profile?.role !== 'admin') {
+        if (!authLoading && !['admin', 'secretary'].includes(profile?.role || '')) {
             router.push('/dashboard');
         }
     }, [user, profile, authLoading, router]);
@@ -50,8 +50,8 @@ export default function UsuariosPage() {
     };
 
     const handleRoleChange = async (uid: string, newRole: UserRole) => {
-        if (profile?.role !== 'admin') {
-            toast.error('Solo el administrador puede gestionar roles.');
+        if (!['admin', 'secretary'].includes(profile?.role || '')) {
+            toast.error('No tienes permisos para gestionar roles.');
             return;
         }
         try {
@@ -86,8 +86,8 @@ export default function UsuariosPage() {
     };
 
     const handleDelete = async (user: UserProfile) => {
-        if (profile?.role !== 'admin') {
-            toast.error('Solo el administrador puede eliminar usuarios.');
+        if (!['admin', 'secretary'].includes(profile?.role || '')) {
+            toast.error('No tienes permisos para eliminar usuarios.');
             return;
         }
         if (!window.confirm(`¿Estás seguro de que quieres eliminar al usuario ${user.fullName}? Esta acción no se puede deshacer.`)) {
@@ -222,7 +222,7 @@ export default function UsuariosPage() {
                                         </td>
                                         <td className="px-6 py-4">
                                             <div className="flex items-center justify-center gap-2">
-                                                {profile?.role === 'admin' && (
+                                                {['admin', 'secretary'].includes(profile?.role || '') && (
                                                     <Select
                                                         value={user.role}
                                                         onChange={(e) => handleRoleChange(user.uid, e.target.value as UserRole)}
@@ -244,7 +244,7 @@ export default function UsuariosPage() {
                                                 >
                                                     <Pencil className="w-4 h-4" />
                                                 </button>
-                                                {profile?.role === 'admin' && (
+                                                {['admin', 'secretary'].includes(profile?.role || '') && (
                                                     <button
                                                         onClick={() => handleDelete(user)}
                                                         className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"

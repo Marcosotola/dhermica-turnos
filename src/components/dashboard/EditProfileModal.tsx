@@ -47,6 +47,7 @@ export function EditProfileModal({ isOpen, onClose, user, onUpdate, isNewUser = 
             isPregnant: user.isPregnant || false,
             relevantMedicalInfo: user.relevantMedicalInfo || '',
             wantNotifications: user.notificationsEnabled ?? true,
+            email: user.email || '',
         };
     });
 
@@ -78,6 +79,7 @@ export function EditProfileModal({ isOpen, onClose, user, onUpdate, isNewUser = 
                 isPregnant: user.isPregnant || false,
                 relevantMedicalInfo: user.relevantMedicalInfo || '',
                 wantNotifications: user.notificationsEnabled ?? true,
+                email: user.email || '',
             });
         }
     }, [user.uid, isOpen]);
@@ -167,6 +169,24 @@ export function EditProfileModal({ isOpen, onClose, user, onUpdate, isNewUser = 
                                 required
                             />
                         </div>
+
+                        <div className="space-y-1">
+                            <Input
+                                label="Email"
+                                type="email"
+                                value={formData.email}
+                                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                required
+                                disabled={!user.isManual && !isNewUser}
+                                className={!user.isManual && !isNewUser ? 'bg-gray-100' : ''}
+                            />
+                            {!user.isManual && !isNewUser && (
+                                <p className="text-[10px] text-amber-600 font-medium px-1">
+                                    Usuario ya registrado. El email de acceso no se puede cambiar desde aquí.
+                                </p>
+                            )}
+                        </div>
+
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <PhoneInput
                                 label="WhatsApp"
