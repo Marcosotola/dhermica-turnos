@@ -33,9 +33,9 @@ export function BirthdayModal({ user }: BirthdayModalProps) {
 
         const checkBirthday = () => {
             const today = new Date();
-            // birthDate is YYYY-MM-DD string. 
-            // We want to compare strictly the numeric month and day components
-            const [bYear, bMonth, bDay] = user.birthDate.split('-').map(Number);
+            const birthDate = user.birthDate;
+            if (!birthDate) return;
+            const [bYear, bMonth, bDay] = birthDate.split('-').map(Number);
 
             // today.getMonth() is 0-indexed (0=Jan, 11=Dec)
             // bMonth from parsing '2000-01-01' -> 1 (Jan)

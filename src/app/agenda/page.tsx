@@ -355,6 +355,7 @@ export default function AgendaPage() {
                                                                 <p className="text-[10px] text-gray-400 font-black uppercase mb-1">F. Nacimiento</p>
                                                                 <p className="font-bold text-gray-900">
                                                                     {(() => {
+                                                                        if (!selectedUser.birthDate) return 'No registrada';
                                                                         const parts = selectedUser.birthDate.split('-');
                                                                         if (parts.length === 3) {
                                                                             const [year, month, day] = parts;

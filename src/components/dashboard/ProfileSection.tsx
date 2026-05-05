@@ -62,7 +62,8 @@ export function ProfileSection({ profile, onEditClick, className = '' }: Profile
                             <p className="text-[9px] text-gray-500 font-black uppercase mb-0.5 tracking-wider">Cumpleaños</p>
                             <p className="font-extrabold text-gray-900 text-sm">
                                 {profile.birthDate ? (() => {
-                                    const [y, m, d] = profile.birthDate.split('-');
+                                    const bDate = profile.birthDate!;
+                                    const [y, m, d] = bDate.split('-');
                                     return `${d}/${m}/${y}`;
                                 })() : 'No registrada'}
                             </p>
