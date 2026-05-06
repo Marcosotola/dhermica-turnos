@@ -231,9 +231,9 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
                             <Button
                                 type="button"
                                 onClick={() => setAuthOption('email')}
-                                className="w-full py-4 rounded-xl font-bold bg-gray-100 hover:bg-gray-200 text-gray-900"
+                                className="w-full py-4 rounded-xl font-bold bg-[#484450] hover:bg-[#3a3642] text-white flex items-center justify-center gap-2 shadow-md shadow-[#484450]/20 transition-all"
                             >
-                                <Mail className="w-5 h-5 mr-2 inline" />
+                                <Mail className="w-5 h-5" />
                                 Registrarse con Email
                             </Button>
                         </div>

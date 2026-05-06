@@ -148,13 +148,22 @@ export default function UsuariosPage() {
                             </h1>
                             <p className="text-gray-300 font-medium">Asigna roles, edita datos y gestiona permisos de la plataforma.</p>
                         </div>
-                        <Button
-                            onClick={() => setIsCreateModalOpen(true)}
-                            className="bg-[#34baab] hover:bg-[#2da698] text-white px-8 py-4 rounded-2xl shadow-lg shadow-[#34baab]/20 flex items-center gap-2 group"
-                        >
-                            <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform" />
-                            <span className="font-bold">Nuevo Cliente</span>
-                        </Button>
+                        <div className="flex flex-col md:flex-row gap-3">
+                            <Button
+                                onClick={() => router.push('/registro')}
+                                className="bg-[#34baab] hover:bg-[#2da698] text-white px-8 py-4 rounded-2xl shadow-lg shadow-[#34baab]/20 flex items-center gap-2 group"
+                            >
+                                <Users className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                                <span className="font-bold">Registrar Cliente</span>
+                            </Button>
+                            <Button
+                                onClick={() => setIsCreateModalOpen(true)}
+                                className="bg-[#34baab] hover:bg-[#2da698] text-white px-8 py-4 rounded-2xl shadow-lg shadow-[#34baab]/20 flex items-center gap-2 group"
+                            >
+                                <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform" />
+                                <span className="font-bold">Nuevo Cliente</span>
+                            </Button>
+                        </div>
                     </div>
                 </div>
             </div>

@@ -33,18 +33,36 @@ export const onAuthChange = (callback: (user: User | null) => void) =>
     onAuthStateChanged(auth, callback);
 
 /**
- * Setup reCAPTCHA verifier for phone auth
+ * Singleton reCAPTCHA verifier — avoids recreating on the same container
+ * which causes auth/invalid-app-credential errors.
  */
-export const setupRecaptcha = (containerId: string) => {
-    return new RecaptchaVerifier(auth, containerId, {
+let recaptchaVerifierInstance: RecaptchaVerifier | null = null;
+
+export const setupRecaptcha = (containerId: string): RecaptchaVerifier => {
+    // Clear any existing instance before creating a new one
+    if (recaptchaVerifierInstance) {
+        try {
+            recaptchaVerifierInstance.clear();
+        } catch (_) { /* ignore */ }
+        recaptchaVerifierInstance = null;
+    }
+
+    // Also clear the container DOM to avoid Firebase reuse errors
+    const container = document.getElementById(containerId);
+    if (container) container.innerHTML = '';
+
+    recaptchaVerifierInstance = new RecaptchaVerifier(auth, containerId, {
         size: 'invisible',
-        callback: (response: any) => {
-            // reCAPTCHA solved - will proceed with submitPhoneNumber
+        callback: () => {
+            // reCAPTCHA solved
         },
         'expired-callback': () => {
-            // Response expired. Ask user to solve reCAPTCHA again.
-        }
+            // Token expired — will be cleared on next call
+            recaptchaVerifierInstance = null;
+        },
     });
+
+    return recaptchaVerifierInstance;
 };
 
 /**
