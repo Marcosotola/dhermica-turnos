@@ -67,19 +67,31 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
         e.preventDefault();
         setLoading(true);
         try {
-            // 1. Create user in Firebase Auth
-            const userCredential = await registerWithEmail(formData.email, formData.password);
-            const user = userCredential.user;
+            let uid: string;
+            let email: string;
 
-            // 2. Create user profile in Firestore
-            const finalPhone = formatPhone(`${countryCode}${formData.phone}`);
+            if (currentUser) {
+                // User already authenticated via phone or Google — skip email registration
+                uid = currentUser.uid;
+                email = currentUser.email || formData.email || `phone_${currentUser.uid}@dhermica.internal`;
+            } else {
+                // Email/password flow — create Firebase Auth account
+                const userCredential = await registerWithEmail(formData.email, formData.password);
+                uid = userCredential.user.uid;
+                email = formData.email;
+            }
+
+            // Build Firestore profile
+            const finalPhone = formData.phone
+                ? formatPhone(`${countryCode}${formData.phone}`)
+                : (currentUser?.phoneNumber || '');
 
             const fullName = `${formData.firstName} ${formData.lastName}`.trim();
 
             await createUserProfile({
-                uid: user.uid,
-                email: formData.email,
-                fullName: fullName,
+                uid,
+                email,
+                fullName,
                 firstName: formData.firstName,
                 lastName: formData.lastName,
                 birthDate: formData.birthDate,
@@ -88,11 +100,11 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
                 sex: formData.sex as 'male' | 'female',
                 isPregnant: formData.sex === 'male' ? false : formData.isPregnant,
                 relevantMedicalInfo: formData.relevantMedicalInfo,
-                role: 'client', // Default role
+                role: 'client',
                 notificationsEnabled: formData.wantNotifications,
             });
 
-            // 3. Request push notification permission if requested
+            // Request push notification permission if requested
             if (formData.wantNotifications) {
                 await requestPermission();
             }
@@ -318,7 +330,7 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
                                     type="text"
                                     value={otp}
                                     onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                                    placeholder="123456"
+                                    placeholder="· · · · · ·"
                                     className="text-center text-2xl tracking-[1rem] font-black"
                                     required
                                 />
