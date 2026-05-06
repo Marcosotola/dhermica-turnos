@@ -24,3 +24,49 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Global Input & Text Reset - Fixes visibility issues across browsers/devices */
+input, 
+textarea, 
+select {
+  color: #1a1a1a !important; /* Force readable dark text */
+  background-color: #ffffff !important; /* Force white background */
+  font-family: inherit;
+  font-size: 16px !important; /* Prevents auto-zoom on iOS and ensures readability */
+  opacity: 1 !important; /* Ensure no transparency issues */
+  -webkit-text-fill-color: #1a1a1a !important; /* Specific for Safari/iOS */
+}
+
+/* Base text elements - ensures standard text is also visible */
+p, span, h1, h2, h3, h4, h5, h6, label {
+  color: inherit; /* Inherits from body/parent */
+}
+
+/* Specific fix for disabled/readonly inputs which often default to light gray */
+input:disabled,
+textarea:disabled,
+input:read-only,
+textarea:read-only {
+  color: #4b5563 !important;
+  -webkit-text-fill-color: #4b5563 !important;
+  background-color: #f9fafb !important;
+  cursor: not-allowed;
+}
+
+/* Placeholder styling - more visible than browser defaults */
+input::placeholder,
+textarea::placeholder {
+  color: #9ca3af !important; /* gray-400 */
+  opacity: 1;
+  -webkit-text-fill-color: #9ca3af !important;
+}
+
+/* Ensure text is visible and bold when focused */
+input:focus,
+textarea:focus,
+select:focus {
+  color: #000000 !important;
+  -webkit-text-fill-color: #000000 !important;
+  background-color: #ffffff !important;
+  outline: none;
+}
