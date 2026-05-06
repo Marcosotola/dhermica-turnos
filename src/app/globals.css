@@ -3,6 +3,7 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  color-scheme: light; /* Forces browser to treat this as a light-themed app */
 }
 
 @theme inline {
@@ -12,12 +13,16 @@
   --font-mono: var(--font-geist-mono);
 }
 
+/* We disable the automatic dark mode for now to avoid light text on white backgrounds */
+/* 
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
     --foreground: #ededed;
   }
 }
+*/
+
 
 body {
   background: var(--background);
@@ -37,10 +42,6 @@ select {
   -webkit-text-fill-color: #1a1a1a !important; /* Specific for Safari/iOS */
 }
 
-/* Base text elements - ensures standard text is also visible */
-p, span, h1, h2, h3, h4, h5, h6, label {
-  color: inherit; /* Inherits from body/parent */
-}
 
 /* Specific fix for disabled/readonly inputs which often default to light gray */
 input:disabled,
