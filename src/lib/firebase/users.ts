@@ -150,26 +150,26 @@ export async function updateUserProfile(uid: string, data: Partial<UserProfile>)
 }
 
 export async function addFcmToken(uid: string, token: string): Promise<void> {
-    await updateDoc(doc(db, USERS_COLLECTION, uid), {
+    await setDoc(doc(db, USERS_COLLECTION, uid), {
         fcmTokens: arrayUnion(token),
         notificationsEnabled: true,
         updatedAt: Timestamp.now(),
-    });
+    }, { merge: true });
 }
 
 export async function clearFcmTokens(uid: string): Promise<void> {
-    await updateDoc(doc(db, USERS_COLLECTION, uid), {
+    await setDoc(doc(db, USERS_COLLECTION, uid), {
         fcmTokens: [],
         notificationsEnabled: false,
         updatedAt: Timestamp.now(),
-    });
+    }, { merge: true });
 }
 
 export async function removeFcmToken(uid: string, token: string): Promise<void> {
-    await updateDoc(doc(db, USERS_COLLECTION, uid), {
+    await setDoc(doc(db, USERS_COLLECTION, uid), {
         fcmTokens: arrayRemove(token),
         updatedAt: Timestamp.now(),
-    });
+    }, { merge: true });
 }
 
 export async function deleteUserProfile(uid: string): Promise<void> {

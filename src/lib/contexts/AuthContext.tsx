@@ -1,8 +1,9 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { User } from 'firebase/auth';
+import { User, initializeRecaptchaConfig } from 'firebase/auth';
 import { onAuthChange, logout as firebaseLogout } from '@/lib/firebase/auth';
+import { auth } from '@/lib/firebase/config';
 import { getUserProfile } from '@/lib/firebase/users';
 import { UserProfile } from '@/lib/types/user';
 
@@ -26,6 +27,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        initializeRecaptchaConfig(auth).catch(() => {});
+
         const unsubscribe = onAuthChange(async (firebaseUser) => {
             setLoading(true); // Always set loading to true when state changes
             setUser(firebaseUser);

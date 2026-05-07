@@ -893,3 +893,38 @@ export async function backfillFutureAppointments(startDate: string): Promise<{ u
         throw error;
     }
 }
+
+export interface UnpaidAppointment extends Appointment {
+    totalPaid: number;
+    amountDue: number;
+}
+
+/**
+ * Obtiene turnos completados con saldo pendiente de cobro desde una fecha dada.
+ * Solo busca en la colección principal (no legacy).
+ */
+export async function getUnpaidAppointmentsFromDate(fromDate: string): Promise<UnpaidAppointment[]> {
+    const q = query(
+        collection(db, APPOINTMENTS_COLLECTION),
+        where('date', '>=', fromDate),
+        orderBy('date', 'desc')
+    );
+
+    const snap = await getDocs(q);
+    const result: UnpaidAppointment[] = [];
+
+    for (const docSnap of snap.docs) {
+        const apt = mapLegacyAppointment(docSnap.id, docSnap.data());
+        if (apt.status !== 'completed') continue;
+
+        const totalPaid = apt.payments.reduce((sum, p) => sum + p.amount, 0);
+        const totalPrice = apt.price ?? apt.treatments?.reduce((sum, t) => sum + t.price, 0) ?? 0;
+        const amountDue = totalPrice - totalPaid;
+
+        if (totalPrice > 0 && amountDue > 0.01) {
+            result.push({ ...apt, totalPaid, amountDue });
+        }
+    }
+
+    return result;
+}

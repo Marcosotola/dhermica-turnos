@@ -51,14 +51,14 @@ export function PhoneInput({
                         <select
                             value={countryCode}
                             onChange={(e) => onCountryCodeChange(e.target.value)}
-                            className="absolute inset-0 opacity-0 cursor-pointer w-full"
+                            className="absolute inset-0 cursor-pointer w-full opacity-0 appearance-none"
                         >
-                            <option value="+54">🇦🇷 Argentina (+54)</option>
-                            <option value="+598">🇺🇾 Uruguay (+598)</option>
-                            <option value="+56">🇨🇱 Chile (+56)</option>
-                            <option value="+55">🇧🇷 Brasil (+55)</option>
-                            <option value="+34">🇪🇸 España (+34)</option>
-                            <option value="+1">🇺🇸 USA (+1)</option>
+                            <option value="+54">AR +54</option>
+                            <option value="+598">UY +598</option>
+                            <option value="+56">CL +56</option>
+                            <option value="+55">BR +55</option>
+                            <option value="+34">ES +34</option>
+                            <option value="+1">US +1</option>
                         </select>
                     </div>
 
