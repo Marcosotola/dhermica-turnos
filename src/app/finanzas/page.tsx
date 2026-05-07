@@ -521,17 +521,16 @@ export default function FinanzasPage() {
                             </div>
 
                             <div className="overflow-x-auto -mx-6 px-6">
-                                <table className="w-full text-left table-fixed min-w-[1000px]">
+                                <table className="w-full text-left table-fixed min-w-[620px]">
                                     <thead>
-                                        <tr className="text-gray-400 text-[8px] font-black uppercase tracking-[0.2em] border-b border-gray-50">
-                                            <th className="w-[100px] px-2 py-3">Fecha</th>
-                                            <th className="w-[60px] px-2 py-3">ID</th>
-                                            <th className="w-[80px] px-2 py-3">Tipo</th>
-                                            <th className="w-[100px] px-2 py-3">Categoría</th>
-                                            <th className="w-auto px-2 py-3">Descripción</th>
-                                            <th className="w-[100px] px-2 py-3">Cuenta</th>
-                                            <th className="w-[120px] px-2 py-3 text-right">Monto</th>
-                                            <th className="w-[120px] px-2 py-3 text-right">Saldo</th>
+                                        <tr className="text-gray-400 text-[10px] font-black uppercase tracking-widest border-b border-gray-100">
+                                            <th className="w-[90px] px-2 py-3">Fecha</th>
+                                            <th className="w-[72px] px-2 py-3">Tipo</th>
+                                            <th className="w-[96px] px-2 py-3">Categoría</th>
+                                            <th className="w-[150px] px-2 py-3">Descripción</th>
+                                            <th className="w-[80px] px-2 py-3">Cuenta</th>
+                                            <th className="w-[110px] px-2 py-3 text-right">Monto</th>
+                                            <th className="w-[110px] px-2 py-3 text-right">Saldo</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-50">
@@ -539,47 +538,44 @@ export default function FinanzasPage() {
                                             .filter(m => typeFilter === 'all' || m.type === typeFilter)
                                             .slice(0, visibleMovements)
                                             .map((m, idx) => (
-                                            <tr key={m.id + idx} className="hover:bg-gray-50 transition-colors group">
-                                                <td className="px-2 py-2">
-                                                    <span className="text-[11px] font-bold text-gray-600">{m.date.split('-').reverse().join('/')}</span>
+                                            <tr key={m.id + idx} className="hover:bg-gray-50 transition-colors">
+                                                <td className="px-2 py-3">
+                                                    <span className="text-xs font-bold text-gray-700">{m.date.split('-').reverse().join('/')}</span>
                                                 </td>
-                                                <td className="px-2 py-2">
-                                                    <span className="text-[9px] font-mono text-gray-400">#{m.id.slice(-4)}</span>
-                                                </td>
-                                                <td className="px-2 py-2">
-                                                    <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${
+                                                <td className="px-2 py-3">
+                                                    <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-lg ${
                                                         m.type === 'ingreso' ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'
                                                     }`}>
-                                                        {m.type}
+                                                        {m.type === 'ingreso' ? 'Ingr.' : 'Egr.'}
                                                     </span>
                                                 </td>
-                                                <td className="px-2 py-2">
-                                                    <span className="text-[10px] font-bold text-gray-700 capitalize truncate block">{m.category}</span>
+                                                <td className="px-2 py-3">
+                                                    <span className="text-xs font-bold text-gray-700 capitalize truncate block" title={m.category}>{m.category}</span>
                                                 </td>
-                                                <td className="px-2 py-2">
-                                                    <span className="text-[10px] text-gray-500 font-medium truncate block pr-4 group-hover:whitespace-normal group-hover:overflow-visible group-hover:relative group-hover:z-10 group-hover:bg-gray-50 group-hover:shadow-sm" title={m.description}>
+                                                <td className="px-2 py-3">
+                                                    <span className="text-xs text-gray-500 font-medium truncate block" title={m.description}>
                                                         {m.description}
                                                     </span>
                                                 </td>
-                                                <td className="px-2 py-2">
-                                                    <div className="flex flex-col leading-[1.1]">
-                                                        <span className="text-[9px] font-bold text-gray-600 uppercase">
-                                                            {m.method === 'cash' ? 'Efectivo' : m.method === 'transfer' ? 'Transf.' : m.method === 'qr' ? 'Digital' : m.method}
+                                                <td className="px-2 py-3">
+                                                    <div className="flex flex-col leading-tight">
+                                                        <span className="text-xs font-bold text-gray-600 uppercase">
+                                                            {m.method === 'cash' ? 'Efect.' : m.method === 'transfer' ? 'Transf.' : m.method === 'qr' ? 'Digital' : m.method}
                                                         </span>
                                                         {m.bankAccount && (
-                                                            <span className="text-[8px] font-black text-[#34baab] uppercase">
+                                                            <span className="text-[10px] font-black text-[#34baab] uppercase">
                                                                 {m.bankAccount === 'cuenta1' ? 'Cta 1' : 'Cta 2'}
                                                             </span>
                                                         )}
                                                     </div>
                                                 </td>
-                                                <td className="px-2 py-2 text-right">
-                                                    <span className={`text-[11px] font-black ${m.type === 'ingreso' ? 'text-emerald-600' : 'text-red-600'}`}>
-                                                        {m.type === 'ingreso' ? '+' : '-'} {formatCurrency(m.amount)}
+                                                <td className="px-2 py-3 text-right">
+                                                    <span className={`text-xs font-black ${m.type === 'ingreso' ? 'text-emerald-600' : 'text-red-600'}`}>
+                                                        {m.type === 'ingreso' ? '+' : '-'}{formatCurrency(m.amount)}
                                                     </span>
                                                 </td>
-                                                <td className="px-2 py-2 text-right">
-                                                    <span className="text-[11px] font-black text-gray-900">{formatCurrency(m.balance || 0)}</span>
+                                                <td className="px-2 py-3 text-right">
+                                                    <span className="text-xs font-black text-gray-900">{formatCurrency(m.balance || 0)}</span>
                                                 </td>
                                             </tr>
                                         ))}
