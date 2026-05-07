@@ -11,7 +11,7 @@ interface ProfessionalsStore {
 
 export const useProfessionalsStore = create<ProfessionalsStore>((set) => ({
     professionals: [],
-    setProfessionals: (professionals) => set({ professionals }),
+    setProfessionals: (professionals) => set({ professionals: [...professionals].sort((a, b) => a.order - b.order) }),
     addProfessional: (professional) =>
         set((state) => ({
             professionals: [...state.professionals, professional].sort((a, b) => a.order - b.order),
