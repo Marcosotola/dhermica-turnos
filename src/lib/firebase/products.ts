@@ -7,6 +7,7 @@ import {
     getDocs,
     query,
     orderBy,
+    limit,
     serverTimestamp,
     getDoc
 } from 'firebase/firestore';
@@ -23,7 +24,7 @@ import { Product } from '../types/product';
 const COLLECTION_NAME = 'products';
 
 export const getProducts = async (): Promise<Product[]> => {
-    const q = query(collection(db, COLLECTION_NAME), orderBy('createdAt', 'desc'));
+    const q = query(collection(db, COLLECTION_NAME), orderBy('createdAt', 'desc'), limit(500));
     const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(doc => ({
         id: doc.id,

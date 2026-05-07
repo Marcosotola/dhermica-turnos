@@ -7,6 +7,7 @@ import {
     query,
     where,
     orderBy,
+    limit,
     onSnapshot,
     Timestamp,
     getDocs,
@@ -82,7 +83,8 @@ export async function getRentalsByDateRange(startDate: string, endDate: string):
 export async function getRentals(): Promise<Rental[]> {
     const q = query(
         collection(db, RENTALS_COLLECTION),
-        orderBy('date', 'desc')
+        orderBy('date', 'desc'),
+        limit(500)
     );
 
     const snapshot = await getDocs(q);
@@ -103,7 +105,8 @@ export async function getRentals(): Promise<Rental[]> {
 export function subscribeToRentals(callback: (rentals: Rental[]) => void): () => void {
     const q = query(
         collection(db, RENTALS_COLLECTION),
-        orderBy('date', 'desc')
+        orderBy('date', 'desc'),
+        limit(500)
     );
 
     return onSnapshot(q, (snapshot) => {

@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
-import { getAllUsers } from '@/lib/firebase/users';
+import { getUsersByRole } from '@/lib/firebase/users';
 import { UserProfile } from '@/lib/types/user';
 import { Toaster } from 'sonner';
 import { BookOpen, Search, User as UserIcon, Phone, Calendar, Heart, AlertCircle, Info, CalendarCheck, ChevronDown, Loader2, ArrowLeft, CheckCircle2, Clock, XCircle } from 'lucide-react';
@@ -71,12 +71,15 @@ export default function AgendaPage() {
     const loadRegisteredClients = useCallback(async () => {
         setLoading(true);
         try {
-            const all = await getAllUsers();
-            const clients = all
-                .filter(u => u.role === 'client' || u.role === 'promotor')
-                .sort((a, b) => a.fullName.localeCompare(b.fullName, 'es'));
-            setRegisteredClients(clients);
-            setUsers(clients);
+            const [clients, promotors] = await Promise.all([
+                getUsersByRole('client'),
+                getUsersByRole('promotor'),
+            ]);
+            const sorted = [...clients, ...promotors].sort((a, b) =>
+                a.fullName.localeCompare(b.fullName, 'es')
+            );
+            setRegisteredClients(sorted);
+            setUsers(sorted);
         } catch (error) {
             console.error('Error loading clients:', error);
         } finally {

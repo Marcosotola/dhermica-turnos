@@ -7,6 +7,7 @@ import {
     getDocs,
     query,
     orderBy,
+    limit,
     Timestamp,
     arrayUnion,
     arrayRemove,
@@ -28,7 +29,7 @@ const COLLECTION_NAME = 'community_posts';
  * Fetch all community posts ordered by creation date
  */
 export const getCommunityPosts = async (): Promise<CommunityPost[]> => {
-    const q = query(collection(db, COLLECTION_NAME), orderBy('createdAt', 'desc'));
+    const q = query(collection(db, COLLECTION_NAME), orderBy('createdAt', 'desc'), limit(50));
     const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(doc => ({
         id: doc.id,

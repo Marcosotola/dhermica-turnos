@@ -313,31 +313,28 @@ export async function updateAppointment(
         console.log(`[Update] Turno no encontrado en appointments, buscando en colecciones legacy...`);
         const professionals = await getActiveProfessionals();
 
-        let found = false;
-        for (const prof of professionals) {
-            if (prof.legacyCollectionName) {
+        const legacyProfs = professionals.filter(p => p.legacyCollectionName);
+        const results = await Promise.all(
+            legacyProfs.map(async (prof) => {
                 try {
-                    const legacyDocRef = doc(db, prof.legacyCollectionName, id);
+                    const legacyDocRef = doc(db, prof.legacyCollectionName!, id);
                     const legacySnap = await getDoc(legacyDocRef);
-
-                    if (legacySnap.exists()) {
-                        await updateDoc(legacyDocRef, {
-                            ...mapToLegacy(data),
-                            updatedAt: Timestamp.now(),
-                        });
-                        console.log(`[Update] Turno actualizado en ${prof.legacyCollectionName}`);
-                        found = true;
-                        break;
-                    }
-                } catch (error) {
-                    console.error(`[Update] Error buscando en ${prof.legacyCollectionName}:`, error);
+                    return legacySnap.exists() ? legacyDocRef : null;
+                } catch {
+                    return null;
                 }
-            }
-        }
+            })
+        );
 
-        if (!found) {
+        const foundRef = results.find(r => r !== null);
+        if (!foundRef) {
             throw new Error(`No se encontró el turno ${id} en ninguna colección`);
         }
+        await updateDoc(foundRef, {
+            ...mapToLegacy(data),
+            updatedAt: Timestamp.now(),
+        });
+        console.log(`[Update] Turno actualizado en colección legacy`);
     }
 }
 
@@ -391,21 +388,23 @@ export async function deleteAppointment(id: string): Promise<void> {
         console.log(`[Delete] Turno sin professionalId, buscando en colecciones legacy...`);
         const professionals = await getActiveProfessionals();
 
-        for (const prof of professionals) {
-            if (prof.legacyCollectionName) {
+        const legacyProfs = professionals.filter(p => p.legacyCollectionName);
+        const results = await Promise.all(
+            legacyProfs.map(async (prof) => {
                 try {
-                    const legacyDocRef = doc(db, prof.legacyCollectionName, id);
+                    const legacyDocRef = doc(db, prof.legacyCollectionName!, id);
                     const legacySnap = await getDoc(legacyDocRef);
-
-                    if (legacySnap.exists()) {
-                        await deleteDoc(legacyDocRef);
-                        console.log(`[Delete] Turno eliminado de ${prof.legacyCollectionName}`);
-                        break; // Ya lo encontramos y eliminamos, salimos del loop
-                    }
-                } catch (error) {
-                    console.error(`[Delete] Error buscando en ${prof.legacyCollectionName}:`, error);
+                    return legacySnap.exists() ? legacyDocRef : null;
+                } catch {
+                    return null;
                 }
-            }
+            })
+        );
+
+        const foundRef = results.find(r => r !== null);
+        if (foundRef) {
+            await deleteDoc(foundRef);
+            console.log(`[Delete] Turno eliminado de colección legacy`);
         }
     }
 }
@@ -853,36 +852,36 @@ export async function backfillFutureAppointments(startDate: string): Promise<{ u
         const querySnapshot = await getDocs(q);
         console.log(`[Backfill] Se encontraron ${querySnapshot.docs.length} turnos futuros en total.`);
         
+        const missingPhoneDocs = querySnapshot.docs.filter(d => {
+            const d2 = d.data();
+            return d2.clientId && !d2.clientPhone;
+        });
+
+        // Pre-fetch all unique users in parallel
+        const uniqueClientIds = [...new Set(missingPhoneDocs.map(d => d.data().clientId as string))];
+        const userDocs = await Promise.all(
+            uniqueClientIds.map(uid => getDoc(doc(db, 'users', uid)))
+        );
         const userCache: Record<string, any> = {};
+        userDocs.forEach(userDoc => {
+            if (userDoc.exists()) userCache[userDoc.id] = userDoc.data();
+        });
 
-        for (const docSnap of querySnapshot.docs) {
+        for (const docSnap of missingPhoneDocs) {
             const data = docSnap.data();
-            
-            // Si tiene clientId pero no tiene clientPhone
-            if (data.clientId && !data.clientPhone) {
-                try {
-                    let userData = userCache[data.clientId];
-                    
-                    if (!userData) {
-                        const userDoc = await getDoc(doc(db, 'users', data.clientId));
-                        if (userDoc.exists()) {
-                            userData = userDoc.data();
-                            userCache[data.clientId] = userData;
-                        }
-                    }
-
-                    if (userData && userData.phone) {
-                        await updateDoc(docSnap.ref, {
-                            clientPhone: userData.phone,
-                            clientEmail: userData.email || '',
-                            updatedAt: serverTimestamp()
-                        });
-                        updatedCount++;
-                    }
-                } catch (e) {
-                    console.error(`[Backfill] Error actualizando turno ${docSnap.id}:`, e);
-                    errorCount++;
+            try {
+                const userData = userCache[data.clientId];
+                if (userData?.phone) {
+                    await updateDoc(docSnap.ref, {
+                        clientPhone: userData.phone,
+                        clientEmail: userData.email || '',
+                        updatedAt: serverTimestamp()
+                    });
+                    updatedCount++;
                 }
+            } catch (e) {
+                console.error(`[Backfill] Error actualizando turno ${docSnap.id}:`, e);
+                errorCount++;
             }
         }
 
