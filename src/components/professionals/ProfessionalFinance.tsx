@@ -10,7 +10,8 @@ import {
     Loader2,
     ShoppingBag,
     Briefcase,
-    Zap
+    Zap,
+    Home
 } from 'lucide-react';
 import { formatDate } from '@/lib/utils/time';
 
@@ -153,7 +154,7 @@ export function ProfessionalFinance({ professional }: ProfessionalFinanceProps) 
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                 {/* Total Commission Card */}
                 <div className="bg-[#484450] text-white p-6 rounded-[32px] shadow-lg relative overflow-hidden group">
                     <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
@@ -174,7 +175,10 @@ export function ProfessionalFinance({ professional }: ProfessionalFinanceProps) 
                     </div>
                     <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">Servicios</p>
                     <h4 className="text-2xl font-black text-gray-900">{formatCurrency(profData?.serviceIncome || 0)}</h4>
-                    <p className="text-[10px] font-bold text-violet-500 mt-1">Comisión: {formatCurrency(profData?.serviceCommission || 0)}</p>
+                    <div className="mt-2 pt-2 border-t border-gray-100">
+                        <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">Comisión</p>
+                        <p className="text-base font-black text-violet-500">{formatCurrency(profData?.serviceCommission || 0)}</p>
+                    </div>
                 </div>
 
                 {/* Product Income */}
@@ -184,7 +188,23 @@ export function ProfessionalFinance({ professional }: ProfessionalFinanceProps) 
                     </div>
                     <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">Productos</p>
                     <h4 className="text-2xl font-black text-gray-900">{formatCurrency(profData?.productIncome || 0)}</h4>
-                    <p className="text-[10px] font-bold text-blue-500 mt-1">Comisión: {formatCurrency(profData?.productCommission || 0)}</p>
+                    <div className="mt-2 pt-2 border-t border-gray-100">
+                        <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">Comisión</p>
+                        <p className="text-base font-black text-blue-500">{formatCurrency(profData?.productCommission || 0)}</p>
+                    </div>
+                </div>
+
+                {/* Rental Income */}
+                <div className="bg-white p-6 rounded-[32px] border border-gray-100 shadow-sm">
+                    <div className="w-10 h-10 bg-emerald-50 rounded-2xl flex items-center justify-center mb-4">
+                        <Home className="w-5 h-5 text-emerald-500" />
+                    </div>
+                    <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">Alquileres</p>
+                    <h4 className="text-2xl font-black text-gray-900">{formatCurrency(profData?.rentalIncome || 0)}</h4>
+                    <div className="mt-2 pt-2 border-t border-gray-100">
+                        <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">Comisión</p>
+                        <p className="text-base font-black text-emerald-500">{formatCurrency(profData?.rentalCommission || 0)}</p>
+                    </div>
                 </div>
 
                 {/* Aparatos / Fix Fee */}
@@ -194,7 +214,10 @@ export function ProfessionalFinance({ professional }: ProfessionalFinanceProps) 
                     </div>
                     <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">Aparatos / Fijos</p>
                     <h4 className="text-2xl font-black text-gray-900">{formatCurrency(profData?.aparatoIncome || 0)}</h4>
-                    <p className="text-[10px] font-bold text-amber-500 mt-1">Monto Fijo Acumulado</p>
+                    <div className="mt-2 pt-2 border-t border-gray-100">
+                        <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">Monto Fijo</p>
+                        <p className="text-base font-black text-amber-500">{formatCurrency(profData?.aparatoFee || 0)}</p>
+                    </div>
                 </div>
             </div>
 

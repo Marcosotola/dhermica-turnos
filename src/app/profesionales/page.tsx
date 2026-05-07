@@ -5,37 +5,24 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useRouter } from 'next/navigation';
 import { Modal } from '@/components/ui/Modal';
-import {
-    getProfessionals,
-    createProfessional,
-    updateProfessional,
-    toggleProfessionalStatus,
-    deleteProfessional
-} from '@/lib/firebase/professionals';
+import { getProfessionals, createProfessional } from '@/lib/firebase/professionals';
 import { Professional } from '@/lib/types/professional';
-import { Plus, Edit2, Check, X, Shield, ShieldOff, Palette, ArrowLeft, Trash2, History, Users } from 'lucide-react';
+import { Plus, ArrowLeft, Users, ChevronRight } from 'lucide-react';
 import { toast, Toaster } from 'sonner';
-import Link from 'next/link';
-import { ProfessionalHistoryModal } from '@/components/professionals/ProfessionalHistoryModal';
 
 export default function ProfesionalesPage() {
     const router = useRouter();
     const [professionals, setProfessionals] = useState<Professional[]>([]);
     const [loading, setLoading] = useState(true);
     const [modalOpen, setModalOpen] = useState(false);
-    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-    const [editingProfessional, setEditingProfessional] = useState<Professional | null>(null);
-    const [professionalToDelete, setProfessionalToDelete] = useState<Professional | null>(null);
-    const [professionalHistory, setProfessionalHistory] = useState<Professional | null>(null);
-    const [historyModalOpen, setHistoryModalOpen] = useState(false);
+    const [submitting, setSubmitting] = useState(false);
 
-    // Form states
     const [name, setName] = useState('');
     const [color, setColor] = useState('#6366f1');
     const [order, setOrder] = useState(0);
     const [legacyCollectionName, setLegacyCollectionName] = useState('');
     const [serviceCommissionPercentage, setServiceCommissionPercentage] = useState(0);
-    const [submitting, setSubmitting] = useState(false);
+    const [productCommissionPercentage, setProductCommissionPercentage] = useState(0);
 
     useEffect(() => {
         loadProfessionals();
@@ -54,22 +41,13 @@ export default function ProfesionalesPage() {
         }
     };
 
-    const handleOpenModal = (prof?: Professional) => {
-        if (prof) {
-            setEditingProfessional(prof);
-            setName(prof.name);
-            setColor(prof.color);
-            setOrder(prof.order);
-            setLegacyCollectionName(prof.legacyCollectionName || '');
-            setServiceCommissionPercentage(prof.serviceCommissionPercentage || 0);
-        } else {
-            setEditingProfessional(null);
-            setName('');
-            setColor('#6366f1');
-            setOrder(professionals.length);
-            setLegacyCollectionName('');
-            setServiceCommissionPercentage(0);
-        }
+    const handleOpenModal = () => {
+        setName('');
+        setColor('#6366f1');
+        setOrder(professionals.length);
+        setLegacyCollectionName('');
+        setServiceCommissionPercentage(0);
+        setProductCommissionPercentage(0);
         setModalOpen(true);
     };
 
@@ -77,70 +55,21 @@ export default function ProfesionalesPage() {
         e.preventDefault();
         setSubmitting(true);
         try {
-            if (editingProfessional) {
-                await updateProfessional(editingProfessional.id, {
-                    name,
-                    color,
-                    order,
-                    legacyCollectionName,
-                    serviceCommissionPercentage
-                });
-                toast.success('Profesional actualizado');
-            } else {
-                await createProfessional({
-                    name,
-                    color,
-                    order,
-                    active: true,
-                    legacyCollectionName,
-                    serviceCommissionPercentage
-                });
-                toast.success('Profesional creado');
-            }
+            await createProfessional({
+                name,
+                color,
+                order,
+                active: true,
+                legacyCollectionName,
+                serviceCommissionPercentage,
+                productCommissionPercentage,
+            });
+            toast.success('Profesional creado');
             setModalOpen(false);
             loadProfessionals();
         } catch (error) {
-            console.error('Error saving professional:', error);
+            console.error('Error creating professional:', error);
             toast.error('Error al guardar');
-        } finally {
-            setSubmitting(false);
-        }
-    };
-
-    const handleToggleStatus = async (id: string, currentStatus: boolean) => {
-        try {
-            await toggleProfessionalStatus(id, !currentStatus);
-            toast.success(currentStatus ? 'Profesional desactivado' : 'Profesional activado');
-            loadProfessionals();
-        } catch (error) {
-            console.error('Error toggling status:', error);
-            toast.error('Error al cambiar estado');
-        }
-    };
-
-    const handleDeleteClick = (prof: Professional) => {
-        setProfessionalToDelete(prof);
-        setDeleteDialogOpen(true);
-    };
-
-    const handleHistoryClick = (prof: Professional) => {
-        setProfessionalHistory(prof);
-        setHistoryModalOpen(true);
-    };
-
-    const handleConfirmDelete = async () => {
-        if (!professionalToDelete) return;
-
-        setSubmitting(true);
-        try {
-            await deleteProfessional(professionalToDelete.id);
-            toast.success('Profesional eliminado correctamente');
-            setDeleteDialogOpen(false);
-            setProfessionalToDelete(null);
-            loadProfessionals();
-        } catch (error) {
-            console.error('Error deleting professional:', error);
-            toast.error('Error al eliminar el profesional');
         } finally {
             setSubmitting(false);
         }
@@ -150,16 +79,17 @@ export default function ProfesionalesPage() {
         <div className="min-h-screen bg-gray-50 pb-24">
             <Toaster position="top-center" richColors />
 
-            {/* Header Section */}
+            {/* Header */}
             <div className="bg-[#484450] text-white overflow-hidden relative">
                 <div className="absolute top-0 right-0 w-64 h-64 bg-violet-500/10 rounded-full -mr-32 -mt-32 blur-3xl animate-pulse" />
                 <div className="max-w-7xl mx-auto px-4 py-12 relative z-10">
                     <button
+                        type="button"
                         onClick={() => router.back()}
                         className="flex items-center gap-2 mb-6 text-gray-400 hover:text-white transition-colors group px-4 py-2 bg-white/5 rounded-xl border border-white/10 w-fit"
                     >
                         <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-                        <span className="text-sm font-black uppercase tracking-widest">Volver</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest">Volver</span>
                     </button>
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                         <div>
@@ -169,10 +99,10 @@ export default function ProfesionalesPage() {
                                 </div>
                                 Gestión de Profesionales
                             </h1>
-                            <p className="text-gray-300 font-medium">Configura quiénes aparecen en la tabla de turnos y su orden.</p>
+                            <p className="text-gray-300 font-medium">Gestiona el equipo y accede al panel individual de cada profesional.</p>
                         </div>
                         <Button
-                            onClick={() => handleOpenModal()}
+                            onClick={handleOpenModal}
                             className="bg-[#34baab] hover:bg-[#2aa89a] border-none rounded-2xl py-4 px-8 shadow-lg shadow-[#34baab]/20 transform hover:-translate-y-1 transition-all font-black uppercase tracking-widest text-xs"
                         >
                             <Plus className="w-5 h-5 mr-2" /> Nuevo Profesional
@@ -182,105 +112,99 @@ export default function ProfesionalesPage() {
             </div>
 
             <div className="max-w-7xl mx-auto px-4 -mt-8 relative z-20">
-
                 {loading ? (
-                    <div className="flex justify-center py-12">
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#45a049]"></div>
+                    <div className="flex justify-center py-16">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#34baab]" />
+                    </div>
+                ) : professionals.length === 0 ? (
+                    <div className="bg-white rounded-[32px] border border-dashed border-gray-200 p-16 text-center shadow-sm">
+                        <Users className="w-12 h-12 text-gray-200 mx-auto mb-4" />
+                        <p className="text-gray-400 font-medium italic">No hay profesionales registrados.</p>
+                        <button
+                            type="button"
+                            onClick={handleOpenModal}
+                            className="mt-4 text-[10px] font-black uppercase tracking-widest text-[#34baab] hover:underline"
+                        >
+                            + Agregar el primero
+                        </button>
                     </div>
                 ) : (
-                    <div className="bg-white rounded-xl shadow-md overflow-x-auto">
-                        <table className="w-full border-collapse min-w-[600px]">
-                            <thead>
-                                <tr className="bg-[#f2f2f2] text-[#484450] border-b">
-                                    <th className="px-6 py-4 text-left font-semibold w-20">#</th>
-                                    <th className="px-6 py-4 text-left font-semibold text-xs uppercase tracking-wider">Profesional</th>
-                                    <th className="px-6 py-4 text-left font-semibold text-xs uppercase tracking-wider">Colección Legacy</th>
-                                    <th className="px-6 py-4 text-left font-semibold text-xs uppercase tracking-wider">Estado</th>
-                                    <th className="px-6 py-4 text-right font-semibold text-xs uppercase tracking-wider">Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {professionals.map((prof) => (
-                                    <tr key={prof.id} className="border-b hover:bg-gray-50 transition-colors">
-                                        <td className="px-6 py-4 text-gray-600 font-medium">#{prof.order}</td>
-                                        <td className="px-6 py-4">
-                                            <div
-                                                className="flex items-center gap-3 cursor-pointer group/name"
-                                                onClick={() => router.push(`/profesionales/${prof.id}`)}
-                                            >
-                                                <div
-                                                    className="w-4 h-4 rounded-full shadow-sm group-hover/name:scale-110 transition-transform"
-                                                    style={{ backgroundColor: prof.color }}
-                                                />
-                                                <span className="font-semibold text-gray-900 group-hover/name:text-[#34baab] transition-colors">{prof.name}</span>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {professionals.map((prof) => (
+                            <div
+                                key={prof.id}
+                                onClick={() => router.push(`/profesionales/${prof.id}`)}
+                                className="bg-white rounded-[32px] border border-gray-100 shadow-sm overflow-hidden cursor-pointer hover:shadow-lg hover:-translate-y-1 transition-all group"
+                            >
+                                <div className="h-1.5" style={{ backgroundColor: prof.color }} />
+                                <div className="p-6">
+                                    <div className="flex items-center gap-4 mb-5">
+                                        <div
+                                            className="w-14 h-14 rounded-[18px] flex items-center justify-center text-2xl font-black text-white shadow-lg flex-shrink-0"
+                                            style={{ backgroundColor: prof.color }}
+                                        >
+                                            {prof.name.charAt(0)}
+                                        </div>
+                                        <div className="min-w-0">
+                                            <h3 className="font-black text-gray-900 text-lg truncate group-hover:text-[#34baab] transition-colors">
+                                                {prof.name}
+                                            </h3>
+                                            <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest ${prof.active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                                    {prof.active ? 'Activo' : 'Inactivo'}
+                                                </span>
+                                                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">
+                                                    Pos. #{prof.order}
+                                                </span>
                                             </div>
-                                        </td>
-                                        <td className="px-6 py-4 text-sm text-gray-500 font-mono">
-                                            {prof.legacyCollectionName || <span className="text-gray-300">Ninguna</span>}
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <span className={`px-3 py-1 rounded-full text-xs font-bold ${prof.active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                                                }`}>
-                                                {prof.active ? 'Activo' : 'Inactivo'}
+                                        </div>
+                                    </div>
+
+                                    {(prof.serviceCommissionPercentage || prof.productCommissionPercentage) ? (
+                                        <div className="grid grid-cols-2 gap-3 mb-5">
+                                            <div className="bg-violet-50 rounded-2xl p-3">
+                                                <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">Servicios</p>
+                                                <p className="text-xl font-black text-violet-500">{prof.serviceCommissionPercentage ?? 0}%</p>
+                                            </div>
+                                            <div className="bg-blue-50 rounded-2xl p-3">
+                                                <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">Productos</p>
+                                                <p className="text-xl font-black text-blue-500">{prof.productCommissionPercentage ?? 0}%</p>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="mb-5 px-3 py-2 bg-gray-50 rounded-xl border border-gray-100">
+                                            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest italic">Sin comisiones configuradas</p>
+                                        </div>
+                                    )}
+
+                                    <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                                        {prof.legacyCollectionName ? (
+                                            <span className="text-[10px] text-gray-400 font-mono bg-gray-50 px-2 py-1 rounded-lg border border-gray-100 truncate max-w-[120px]">
+                                                {prof.legacyCollectionName}
                                             </span>
-                                        </td>
-                                        <td className="px-6 py-4 text-right">
-                                            <div className="flex justify-end gap-2">
-                                                <button
-                                                    onClick={() => handleHistoryClick(prof)}
-                                                    className="p-2 hover:bg-blue-50 text-blue-600 rounded-lg transition-colors"
-                                                    title="Ver Historial"
-                                                >
-                                                    <History className="w-5 h-5" />
-                                                </button>
-                                                <button
-                                                    onClick={() => handleToggleStatus(prof.id, prof.active)}
-                                                    className={`p-2 rounded-lg transition-colors ${prof.active ? 'hover:bg-red-50 text-red-600' : 'hover:bg-green-50 text-green-600'
-                                                        }`}
-                                                    title={prof.active ? 'Desactivar' : 'Activar'}
-                                                >
-                                                    {prof.active ? <ShieldOff className="w-5 h-5" /> : <Shield className="w-5 h-5" />}
-                                                </button>
-                                                <button
-                                                    onClick={() => handleOpenModal(prof)}
-                                                    className="p-2 hover:bg-gray-100 rounded-lg text-blue-600 transition-colors"
-                                                    title="Editar"
-                                                >
-                                                    <Edit2 className="w-5 h-5" />
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDeleteClick(prof)}
-                                                    className="p-2 hover:bg-red-50 text-red-600 rounded-lg transition-colors"
-                                                    title="Eliminar"
-                                                >
-                                                    <Trash2 className="w-5 h-5" />
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                                {professionals.length === 0 && (
-                                    <tr>
-                                        <td colSpan={5} className="px-6 py-12 text-center text-gray-500 italic">
-                                            No hay profesionales registrados.
-                                        </td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
+                                        ) : (
+                                            <span />
+                                        )}
+                                        <div className="flex items-center gap-1 text-[10px] text-[#34baab] font-black uppercase tracking-widest group-hover:translate-x-1 transition-transform">
+                                            Ver Panel <ChevronRight className="w-3 h-3" />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 )}
             </div>
 
-            {/* Create/Edit Modal */}
+            {/* Create Modal */}
             <Modal
                 isOpen={modalOpen}
                 onClose={() => setModalOpen(false)}
-                title={editingProfessional ? 'Editar Profesional' : 'Nuevo Profesional'}
+                title="Nuevo Profesional"
             >
                 <form onSubmit={handleSubmit} className="space-y-4 pt-4">
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
+                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Nombre</label>
                         <Input
                             value={name}
                             onChange={(e) => setName(e.target.value)}
@@ -290,7 +214,7 @@ export default function ProfesionalesPage() {
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Color Identificador</label>
+                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Color Identificador</label>
                             <div className="flex gap-2">
                                 <Input
                                     type="color"
@@ -307,7 +231,7 @@ export default function ProfesionalesPage() {
                             </div>
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Orden de Visualización</label>
+                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Orden</label>
                             <Input
                                 type="number"
                                 value={order}
@@ -318,30 +242,40 @@ export default function ProfesionalesPage() {
                         </div>
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Colección Legacy (Opcional)</label>
+                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Colección Legacy (Opcional)</label>
                         <Input
                             value={legacyCollectionName}
                             onChange={(e) => setLegacyCollectionName(e.target.value)}
                             placeholder="Ej: turnosLuciana"
                         />
-                        <p className="text-xs text-gray-500 mt-1">Nombre de la colección en Firebase de donde extraer datos históricos.</p>
                     </div>
-
                     <div className="grid grid-cols-2 gap-4 pt-2">
-                        <div className="space-y-1">
-                            <label className="text-[10px] text-gray-400 font-black uppercase tracking-widest ml-1">Comisión Servicios (%)</label>
+                        <div>
+                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Comisión Servicios (%)</label>
                             <div className="relative">
                                 <Input
                                     type="number"
                                     value={serviceCommissionPercentage || ''}
                                     onChange={(e) => setServiceCommissionPercentage(e.target.value === '' ? 0 : parseFloat(e.target.value))}
-                                    min={0}
-                                    max={100}
-                                    step={0.5}
+                                    min={0} max={100} step={0.5}
                                     placeholder="Ej: 50"
                                     className="pl-9 font-bold"
                                 />
                                 <div className="absolute left-3 top-1/2 -translate-y-1/2 text-violet-500 font-black">%</div>
+                            </div>
+                        </div>
+                        <div>
+                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Comisión Productos (%)</label>
+                            <div className="relative">
+                                <Input
+                                    type="number"
+                                    value={productCommissionPercentage || ''}
+                                    onChange={(e) => setProductCommissionPercentage(e.target.value === '' ? 0 : parseFloat(e.target.value))}
+                                    min={0} max={100} step={0.5}
+                                    placeholder="Ej: 10"
+                                    className="pl-9 font-bold"
+                                />
+                                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-500 font-black">%</div>
                             </div>
                         </div>
                     </div>
@@ -350,48 +284,11 @@ export default function ProfesionalesPage() {
                             Cancelar
                         </Button>
                         <Button type="submit" className="bg-[#45a049] hover:bg-[#3d8b40] text-white" disabled={submitting}>
-                            {submitting ? 'Guardando...' : 'Guardar Profesional'}
+                            {submitting ? 'Guardando...' : 'Crear Profesional'}
                         </Button>
                     </div>
                 </form>
             </Modal>
-
-            {/* Confirmation Dialog */}
-            <Modal
-                isOpen={deleteDialogOpen}
-                onClose={() => setDeleteDialogOpen(false)}
-                title="Eliminar Profesional"
-                size="sm"
-            >
-                <div className="pt-4">
-                    <p className="text-gray-600 mb-6">
-                        ¿Estás seguro de que deseas eliminar a <span className="font-bold text-gray-900">{professionalToDelete?.name}</span>? Esta acción no se puede deshacer.
-                    </p>
-                    <div className="flex justify-end gap-3">
-                        <Button
-                            variant="ghost"
-                            onClick={() => setDeleteDialogOpen(false)}
-                            disabled={submitting}
-                        >
-                            Cancelar
-                        </Button>
-                        <Button
-                            variant="danger"
-                            onClick={handleConfirmDelete}
-                            disabled={submitting}
-                        >
-                            {submitting ? 'Eliminando...' : 'Eliminar'}
-                        </Button>
-                    </div>
-                </div>
-            </Modal>
-
-            {/* History Modal */}
-            <ProfessionalHistoryModal
-                isOpen={historyModalOpen}
-                onClose={() => setHistoryModalOpen(false)}
-                professional={professionalHistory}
-            />
         </div>
     );
 }

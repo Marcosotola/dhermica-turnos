@@ -141,7 +141,7 @@ export function ProfessionalAppointments({ professional }: ProfessionalAppointme
     return (
         <div className="space-y-6">
             {/* Filters */}
-            <div className="bg-white p-6 rounded-[32px] border border-gray-100 shadow-sm flex flex-col md:flex-row gap-4 items-center">
+            <div className="bg-white p-6 rounded-[32px] border border-gray-100 shadow-sm flex flex-col md:flex-row gap-4 md:items-center">
                 <div className="relative flex-1 w-full">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
                     <Input
@@ -151,7 +151,7 @@ export function ProfessionalAppointments({ professional }: ProfessionalAppointme
                         className="pl-12 h-12 bg-gray-50 border-none rounded-2xl font-medium focus:ring-2 focus:ring-[#34baab]/20"
                     />
                 </div>
-                <div className="flex gap-2 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
+                <div className="flex gap-2 w-full min-w-0 md:w-auto overflow-x-auto pb-1 md:pb-0">
                     {(['all', 'pending', 'completed', 'cancelled'] as const).map(status => (
                         <button
                             key={status}
@@ -168,8 +168,8 @@ export function ProfessionalAppointments({ professional }: ProfessionalAppointme
             </div>
 
             {/* Date Filters */}
-            <div className="flex flex-col sm:flex-row gap-4 items-center justify-between bg-white p-4 rounded-3xl border border-gray-100 shadow-sm -mt-2">
-                <div className="flex gap-2 overflow-x-auto pb-2 sm:pb-0 no-scrollbar">
+            <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between bg-white p-4 rounded-3xl border border-gray-100 shadow-sm -mt-2">
+                <div className="flex gap-2 overflow-x-auto pb-1 sm:pb-0 w-full min-w-0">
                     {(['all', 'today', 'week', 'month', 'custom'] as const).map(filter => (
                         <button
                             key={filter}

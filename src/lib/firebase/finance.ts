@@ -38,6 +38,8 @@ export interface FinanceOverview {
     saldo: number;
     egresosByCategory: Record<string, number>;
     byMethod: Record<string, number>;
+    incomeByMethodDetailed: Record<string, number>;
+    egresosByMethod: Record<string, number>;
     byProfessional: Record<string, {
         serviceIncome: number;
         productIncome: number;
@@ -59,10 +61,15 @@ export interface FinanceOverview {
     movements: FinanceMovement[];
 }
 
+function resolveMethodKey(method: string, bankAccount?: string | null): string {
+    if (method === 'transfer') return bankAccount === 'cuenta2' ? 'cuenta2' : 'cuenta1';
+    return method || 'cash';
+}
+
 export async function getFinanceOverview(startDate: string, endDate: string, targetProfessionalId?: string): Promise<FinanceOverview> {
-    const [appointments, sales, rentals, aparatos, egresos, allProfessionals, admins, secretaries, promotors] = await Promise.all([
-        (targetProfessionalId 
-            ? getAppointmentsByProfessionalId(targetProfessionalId).then(apts => 
+    const [appointments, sales, rentals, aparatos, egresos, allProfessionals, admins, secretaries, promotors, profUsers] = await Promise.all([
+        (targetProfessionalId
+            ? getAppointmentsByProfessionalId(targetProfessionalId).then(apts =>
                 apts.filter(a => a.date >= startDate && a.date <= endDate)
               )
             : getAppointmentsByDateRange(startDate, endDate)).catch(() => []),
@@ -73,7 +80,8 @@ export async function getFinanceOverview(startDate: string, endDate: string, tar
         getProfessionals().catch(() => []),
         getUsersByRole('admin').catch(() => []),
         getUsersByRole('secretary').catch(() => []),
-        getUsersByRole('promotor').catch(() => [])
+        getUsersByRole('promotor').catch(() => []),
+        getUsersByRole('professional').catch(() => [])
     ]);
 
     const overview: FinanceOverview = {
@@ -89,6 +97,8 @@ export async function getFinanceOverview(startDate: string, endDate: string, tar
         saldo: 0,
         egresosByCategory: {},
         byMethod: { cash: 0, transfer: 0, debit: 0, credit: 0, qr: 0 },
+        incomeByMethodDetailed: { cash: 0, cuenta1: 0, cuenta2: 0, debit: 0, credit: 0, qr: 0 },
+        egresosByMethod: { cash: 0, cuenta1: 0, cuenta2: 0, debit: 0, credit: 0, qr: 0 },
         byProfessional: {},
         byProduct: {},
         movements: []
@@ -116,6 +126,21 @@ export async function getFinanceOverview(startDate: string, endDate: string, tar
     [...admins, ...secretaries, ...promotors].forEach(u => {
         const nameKey = u.fullName.trim();
         if (u.uid) idToName[u.uid] = nameKey;
+        if (!overview.byProfessional[nameKey]) {
+            overview.byProfessional[nameKey] = {
+                serviceIncome: 0, productIncome: 0, rentalIncome: 0, aparatoIncome: 0,
+                serviceCommission: 0, productCommission: 0, rentalCommission: 0, aparatoFee: 0,
+                totalCommission: 0, name: nameKey, userId: u.uid
+            };
+        }
+    });
+
+    // Ensure professional users whose UID isn't already mapped (no userId in professionals collection)
+    // can still be attributed rentals and sales commissions
+    profUsers.forEach(u => {
+        if (!u.uid || idToName[u.uid]) return;
+        const nameKey = u.fullName.trim();
+        idToName[u.uid] = nameKey;
         if (!overview.byProfessional[nameKey]) {
             overview.byProfessional[nameKey] = {
                 serviceIncome: 0, productIncome: 0, rentalIncome: 0, aparatoIncome: 0,
@@ -358,10 +383,14 @@ export async function getFinanceOverview(startDate: string, endDate: string, tar
             else if (m.category === 'Alquiler') overview.totalRentalIncome += m.amount;
             else if (m.category === 'Aparato') overview.totalAparatoIncome += m.amount;
             if (m.method && overview.byMethod[m.method] !== undefined) overview.byMethod[m.method] += m.amount;
+            const mKeyInc = resolveMethodKey(m.method, m.bankAccount);
+            if (mKeyInc in overview.incomeByMethodDetailed) overview.incomeByMethodDetailed[mKeyInc] += m.amount;
         } else {
             if (!m.id.startsWith('comm_')) {
                 overview.totalEgresos += m.amount;
                 if (m.category) overview.egresosByCategory[m.category] = (overview.egresosByCategory[m.category] || 0) + m.amount;
+                const mKeyExp = resolveMethodKey(m.method, m.bankAccount);
+                if (mKeyExp in overview.egresosByMethod) overview.egresosByMethod[mKeyExp] += m.amount;
             }
             if (m.method && overview.byMethod[m.method] !== undefined) overview.byMethod[m.method] -= m.amount;
         }

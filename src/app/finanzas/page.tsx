@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { getFinanceOverview, FinanceOverview } from '@/lib/firebase/finance';
+import { getUnpaidAppointmentsFromDate, UnpaidAppointment } from '@/lib/firebase/appointments';
 import { getTodayDate, formatDate } from '@/lib/utils/time';
 import {
     DollarSign,
@@ -14,6 +15,7 @@ import {
     Calendar as CalendarIcon,
     ChevronLeft,
     ChevronRight,
+    ChevronDown,
     ArrowUpRight,
     ArrowDownRight,
     Loader2,
@@ -22,7 +24,8 @@ import {
     Zap,
     BookText,
     Filter,
-    ArrowUpDown
+    ArrowUpDown,
+    AlertCircle
 } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 import { useRouter } from 'next/navigation';
@@ -43,6 +46,10 @@ export default function FinanzasPage() {
     const [expandedMetric, setExpandedMetric] = useState<string | null>(null);
     const [visibleMovements, setVisibleMovements] = useState(20);
     const [typeFilter, setTypeFilter] = useState<'all' | 'ingreso' | 'egreso'>('all');
+    const [unpaidAppointments, setUnpaidAppointments] = useState<UnpaidAppointment[]>([]);
+    const [showUnpaid, setShowUnpaid] = useState(false);
+
+    const UNPAID_FROM_DATE = '2026-05-01';
 
     const isAdmin = profile?.role === 'admin';
     const isSecretary = profile?.role === 'secretary';
@@ -54,6 +61,13 @@ export default function FinanzasPage() {
         setVisibleMovements(20);
         setTypeFilter('all');
     }, [dateRange, currentDate, customRange, profile]);
+
+    useEffect(() => {
+        if (!isAdmin && !isSecretary) return;
+        getUnpaidAppointmentsFromDate(UNPAID_FROM_DATE)
+            .then(setUnpaidAppointments)
+            .catch(() => {});
+    }, [isAdmin, isSecretary]);
 
     const loadData = async () => {
         if (!profile) return;
@@ -123,6 +137,18 @@ export default function FinanzasPage() {
     const personalData = profile?.uid && overview?.byProfessional ? (
         Object.values(overview.byProfessional).find(p => p.userId === profile.uid) || null
     ) : null;
+
+    const totalUnpaid = unpaidAppointments.reduce((sum, a) => sum + a.amountDue, 0);
+
+    const methodLabels: Record<string, string> = {
+        cash: 'Efectivo',
+        cuenta1: 'Cuenta 1',
+        cuenta2: 'Cuenta 2',
+        debit: 'Débito',
+        credit: 'Crédito',
+        qr: 'QR / Digital',
+        transfer: 'Transferencia',
+    };
 
     return (
         <div className="min-h-screen bg-gray-50 pb-24 font-sans">
@@ -212,13 +238,73 @@ export default function FinanzasPage() {
                     </div>
                 </div>
 
+                {/* Deuda Pendiente - fija, independiente del rango de fechas */}
+                {(isAdmin || isSecretary) && (
+                    <div className="mt-6 mb-2">
+                        <button
+                            onClick={() => setShowUnpaid(prev => !prev)}
+                            className={`w-full bg-white rounded-2xl p-4 shadow-sm border transition-all flex items-center gap-4 text-left ${showUnpaid ? 'border-orange-400 ring-1 ring-orange-400/20' : unpaidAppointments.length > 0 ? 'border-orange-200 hover:shadow-md' : 'border-gray-100 hover:shadow-md'}`}
+                        >
+                            <div className={`p-2.5 rounded-xl ${unpaidAppointments.length > 0 ? 'bg-orange-50 text-orange-500' : 'bg-gray-50 text-gray-400'}`}>
+                                <AlertCircle className="w-5 h-5" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <h3 className="text-gray-400 font-black uppercase tracking-widest text-[9px] mb-0.5">Turnos sin cobrar</h3>
+                                <div className="flex items-baseline gap-2">
+                                    <p className={`text-lg font-black ${unpaidAppointments.length > 0 ? 'text-orange-600' : 'text-gray-400'}`}>
+                                        {formatCurrency(totalUnpaid)}
+                                    </p>
+                                    <span className="text-[10px] font-bold text-gray-400">
+                                        {unpaidAppointments.length} turno{unpaidAppointments.length !== 1 ? 's' : ''}
+                                    </span>
+                                </div>
+                            </div>
+                            <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform flex-shrink-0 ${showUnpaid ? 'rotate-180' : ''}`} />
+                        </button>
+
+                        {showUnpaid && (
+                            <div className="mt-2 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden animate-in slide-in-from-top-2 duration-200">
+                                {unpaidAppointments.length === 0 ? (
+                                    <p className="p-6 text-center text-sm text-gray-400 font-medium">Sin deudas pendientes desde mayo 2026</p>
+                                ) : (
+                                    <div className="divide-y divide-gray-50 max-h-[400px] overflow-y-auto">
+                                        {unpaidAppointments.map(apt => (
+                                            <div key={apt.id} className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors">
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-sm font-bold text-gray-800 truncate">{apt.clientName}</p>
+                                                    <p className="text-[10px] text-gray-400 mt-0.5">
+                                                        {apt.date.split('-').reverse().join('/')} · {apt.time} · {apt.treatment}
+                                                    </p>
+                                                    <p className="text-[10px] text-gray-500 mt-0.5">
+                                                        Pagó {formatCurrency(apt.totalPaid)} de {formatCurrency(apt.price ?? 0)}
+                                                    </p>
+                                                </div>
+                                                <div className="text-right flex-shrink-0">
+                                                    <p className="text-sm font-black text-orange-600">{formatCurrency(apt.amountDue)}</p>
+                                                    <button
+                                                        onClick={() => router.push('/turnos?date=' + apt.date)}
+                                                        className="text-[9px] font-bold text-[#34baab] hover:underline uppercase tracking-wide mt-0.5 block"
+                                                    >
+                                                        Ver turno
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                )}
+
                 <div className="space-y-6 mt-8">
                     {/* 1. Top Metrics Bar - Interactive Tiles */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 items-start">
                         {/* Saldo Neto */}
                         {isAdmin && (
                             <div className="space-y-2">
-                                <button 
+                                <button
+                                    type="button"
                                     onClick={() => toggleMetric('saldo')}
                                     className={`w-full bg-white rounded-2xl md:rounded-3xl p-3 md:p-5 shadow-sm border transition-all flex items-center gap-3 md:gap-4 text-left ${expandedMetric === 'saldo' ? 'border-[#34baab] shadow-md ring-1 ring-[#34baab]/20' : 'border-gray-100 hover:shadow-md'}`}
                                 >
@@ -233,27 +319,37 @@ export default function FinanzasPage() {
                                     </div>
                                     <ArrowUpDown className={`w-3 h-3 text-gray-300 transition-transform flex-shrink-0 ${expandedMetric === 'saldo' ? 'rotate-180' : ''}`} />
                                 </button>
-                                {expandedMetric === 'saldo' && (
-                                    <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 animate-in slide-in-from-top-2 duration-200">
-                                        <div className="space-y-2">
-                                            <div className="flex justify-between items-center text-[10px]">
-                                                <span className="text-gray-400 font-bold uppercase">Total Ingresos:</span>
-                                                <span className="text-emerald-600 font-black">{formatCurrency(overview?.totalIncome || 0)}</span>
-                                            </div>
-                                            <div className="flex justify-between items-center text-[10px]">
-                                                <span className="text-gray-400 font-bold uppercase">Total Egresos:</span>
-                                                <span className="text-red-500 font-black">{formatCurrency(overview?.totalEgresosGeneral || 0)}</span>
-                                            </div>
+                                {expandedMetric === 'saldo' && (() => {
+                                    const saldoByMethod = Object.keys(overview?.incomeByMethodDetailed || {}).reduce((acc, key) => {
+                                        // commissions are virtual egresos assigned to cash — subtract them from cash bucket so totals match
+                                        const commAdj = key === 'cash' ? (overview!.totalProfCommissions || 0) : 0;
+                                        const net = (overview!.incomeByMethodDetailed[key] || 0) - (overview!.egresosByMethod[key] || 0) - commAdj;
+                                        if (net !== 0) acc[key] = net;
+                                        return acc;
+                                    }, {} as Record<string, number>);
+                                    return (
+                                        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 animate-in slide-in-from-top-2 duration-200 space-y-2.5">
+                                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest pb-1">Saldo disponible por lugar:</p>
+                                            {Object.entries(saldoByMethod).map(([key, val]) => (
+                                                <div key={key} className="flex justify-between items-center">
+                                                    <span className="text-xs font-medium text-gray-600">{methodLabels[key] || key}</span>
+                                                    <span className={`text-sm font-black ${val >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>{formatCurrency(val)}</span>
+                                                </div>
+                                            ))}
+                                            {Object.keys(saldoByMethod).length === 0 && (
+                                                <p className="text-xs text-gray-400 italic">Sin movimientos en este período</p>
+                                            )}
                                         </div>
-                                    </div>
-                                )}
+                                    );
+                                })()}
                             </div>
                         )}
 
                         {/* Ingresos Totales */}
                         {canSeeIncome && (
                             <div className="space-y-2">
-                                <button 
+                                <button
+                                    type="button"
                                     onClick={() => toggleMetric('ingresos')}
                                     className={`w-full bg-[#484450] rounded-2xl md:rounded-3xl p-3 md:p-5 shadow-sm border transition-all flex items-center gap-3 md:gap-4 text-left ${expandedMetric === 'ingresos' ? 'border-[#34baab] ring-1 ring-[#34baab]/50' : 'border-white/5 hover:shadow-lg'}`}
                                 >
@@ -267,30 +363,28 @@ export default function FinanzasPage() {
                                     <ArrowUpDown className={`w-3 h-3 text-gray-500 transition-transform flex-shrink-0 ${expandedMetric === 'ingresos' ? 'rotate-180' : ''}`} />
                                 </button>
                                 {expandedMetric === 'ingresos' && (
-                                    <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 animate-in slide-in-from-top-2 duration-200 space-y-4">
-                                        <div className="grid grid-cols-2 gap-x-4 gap-y-2 pb-4 border-b border-gray-50">
+                                    <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 animate-in slide-in-from-top-2 duration-200 space-y-3">
+                                        <div className="space-y-2 pb-3 border-b border-gray-100">
                                             {[
                                                 { label: 'Servicios', val: overview?.totalServiceIncome },
-                                                { label: 'Parciales', val: overview?.totalPartialIncome },
+                                                { label: 'Señas / Parciales', val: overview?.totalPartialIncome },
                                                 { label: 'Productos', val: overview?.totalProductIncome },
                                                 { label: 'Alquileres', val: overview?.totalRentalIncome }
                                             ].map(i => (
-                                                <div key={i.label} className="flex flex-col">
-                                                    <span className="text-[8px] font-black text-gray-400 uppercase">{i.label}</span>
-                                                    <span className="text-[10px] font-black text-gray-700">{formatCurrency(i.val || 0)}</span>
+                                                <div key={i.label} className="flex justify-between items-center">
+                                                    <span className="text-xs font-bold text-gray-500 uppercase">{i.label}</span>
+                                                    <span className="text-sm font-black text-gray-700">{formatCurrency(i.val || 0)}</span>
                                                 </div>
                                             ))}
                                         </div>
-                                        <div>
-                                            <h4 className="text-[9px] font-black text-gray-400 uppercase mb-2">Por Método:</h4>
-                                            <div className="space-y-1">
-                                                {Object.entries(overview?.byMethod || {}).map(([m, val]) => val > 0 && (
-                                                    <div key={m} className="flex justify-between text-[10px]">
-                                                        <span className="text-gray-500 capitalize">{m === 'cash' ? 'Efectivo' : m}</span>
-                                                        <span className="font-bold text-gray-700">{formatCurrency(val)}</span>
-                                                    </div>
-                                                ))}
-                                            </div>
+                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Por Método de Pago:</p>
+                                        <div className="space-y-2">
+                                            {Object.entries(overview?.incomeByMethodDetailed || {}).map(([key, val]) => val > 0 && (
+                                                <div key={key} className="flex justify-between items-center">
+                                                    <span className="text-xs font-medium text-gray-600">{methodLabels[key] || key}</span>
+                                                    <span className="text-sm font-black text-emerald-600">{formatCurrency(val)}</span>
+                                                </div>
+                                            ))}
                                         </div>
                                     </div>
                                 )}
@@ -300,7 +394,8 @@ export default function FinanzasPage() {
                         {/* Egresos Totales */}
                         {isAdmin && (
                             <div className="space-y-2">
-                                <button 
+                                <button
+                                    type="button"
                                     onClick={() => toggleMetric('egresos')}
                                     className={`w-full bg-white rounded-2xl md:rounded-3xl p-3 md:p-5 shadow-sm border transition-all flex items-center gap-3 md:gap-4 text-left ${expandedMetric === 'egresos' ? 'border-red-500 ring-1 ring-red-500/20' : 'border-gray-100 hover:shadow-md'}`}
                                 >
@@ -314,27 +409,36 @@ export default function FinanzasPage() {
                                     <ArrowUpDown className={`w-3 h-3 text-gray-300 transition-transform flex-shrink-0 ${expandedMetric === 'egresos' ? 'rotate-180' : ''}`} />
                                 </button>
                                 {expandedMetric === 'egresos' && (
-                                    <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 animate-in slide-in-from-top-2 duration-200 space-y-4">
-                                        <div className="space-y-2">
-                                            <div className="flex justify-between items-center text-[10px]">
-                                                <span className="text-gray-400 font-bold uppercase">Manuales:</span>
-                                                <span className="text-gray-700 font-black">{formatCurrency(overview?.totalEgresos || 0)}</span>
+                                    <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 animate-in slide-in-from-top-2 duration-200 space-y-3">
+                                        <div className="space-y-2 pb-3 border-b border-gray-100">
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-xs font-bold text-gray-500 uppercase">Gastos</span>
+                                                <span className="text-sm font-black text-gray-700">{formatCurrency(overview?.totalEgresos || 0)}</span>
                                             </div>
-                                            <div className="flex justify-between items-center text-[10px]">
-                                                <span className="text-gray-400 font-bold uppercase">Comisiones:</span>
-                                                <span className="text-gray-700 font-black">{formatCurrency(overview?.totalProfCommissions || 0)}</span>
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-xs font-bold text-gray-500 uppercase">Comisiones</span>
+                                                <span className="text-sm font-black text-gray-700">{formatCurrency(overview?.totalProfCommissions || 0)}</span>
                                             </div>
                                         </div>
-                                        <div>
-                                            <h4 className="text-[9px] font-black text-gray-400 uppercase mb-2">Categorías:</h4>
-                                            <div className="max-h-[120px] overflow-y-auto pr-1 space-y-1 custom-scrollbar">
-                                                {Object.entries(overview?.egresosByCategory || {}).map(([cat, val]) => (
-                                                    <div key={cat} className="flex justify-between text-[10px]">
-                                                        <span className="text-gray-500 truncate pr-2">{EGRESO_CATEGORY_LABEL[cat as EgresoCategory] || cat}</span>
-                                                        <span className="font-bold text-gray-700">{formatCurrency(val)}</span>
-                                                    </div>
-                                                ))}
-                                            </div>
+                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Por Método de Pago:</p>
+                                        <div className="space-y-2 pb-3 border-b border-gray-100">
+                                            {Object.entries(overview?.egresosByMethod || {}).filter(([, val]) => val > 0).length === 0 ? (
+                                                <p className="text-xs text-gray-400 italic">Sin egresos manuales en este período</p>
+                                            ) : Object.entries(overview?.egresosByMethod || {}).map(([key, val]) => val > 0 && (
+                                                <div key={key} className="flex justify-between items-center">
+                                                    <span className="text-xs font-medium text-gray-600">{methodLabels[key] || key}</span>
+                                                    <span className="text-sm font-black text-red-500">{formatCurrency(val)}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Por Categoría:</p>
+                                        <div className="max-h-[160px] overflow-y-auto pr-1 space-y-2 custom-scrollbar">
+                                            {Object.entries(overview?.egresosByCategory || {}).map(([cat, val]) => (
+                                                <div key={cat} className="flex justify-between items-center">
+                                                    <span className="text-xs font-medium text-gray-600 truncate pr-2">{EGRESO_CATEGORY_LABEL[cat as EgresoCategory] || cat}</span>
+                                                    <span className="text-sm font-black text-gray-700">{formatCurrency(val)}</span>
+                                                </div>
+                                            ))}
                                         </div>
                                     </div>
                                 )}
@@ -343,7 +447,8 @@ export default function FinanzasPage() {
 
                         {/* Comisiones/Ganancias */}
                         <div className="space-y-2">
-                            <button 
+                            <button
+                                type="button"
                                 onClick={() => toggleMetric('comisiones')}
                                 className={`w-full rounded-2xl md:rounded-3xl p-3 md:p-5 shadow-sm border transition-all flex items-center gap-3 md:gap-4 text-left ${isAdmin ? (expandedMetric === 'comisiones' ? 'bg-white border-amber-500 ring-1 ring-amber-500/20' : 'bg-white border-gray-100 hover:shadow-md') : 'bg-[#34baab] border-none shadow-md text-white'}`}
                             >
@@ -362,14 +467,19 @@ export default function FinanzasPage() {
                             </button>
                             {isAdmin && expandedMetric === 'comisiones' && (
                                 <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 animate-in slide-in-from-top-2 duration-200">
-                                    <div className="max-h-[250px] overflow-y-auto pr-1 space-y-3 custom-scrollbar">
+                                    <div className="max-h-[300px] overflow-y-auto pr-1 space-y-3 custom-scrollbar">
                                         {Object.entries(overview?.byProfessional || {}).map(([id, data]) => data.totalCommission > 0 && (
-                                            <div key={id} className="flex justify-between items-start pb-2 border-b border-gray-50 last:border-0">
-                                                <div className="flex flex-col">
-                                                    <span className="text-[10px] font-bold text-gray-800">{data.name}</span>
-                                                    <span className="text-[8px] text-gray-400 uppercase">Serv: {formatCurrency(data.serviceCommission)} | Prod: {formatCurrency(data.productCommission)}</span>
+                                            <div key={id} className="pb-3 border-b border-gray-100 last:border-0">
+                                                <div className="flex justify-between items-center mb-1">
+                                                    <span className="text-sm font-bold text-gray-800">{data.name}</span>
+                                                    <span className="text-sm font-black text-amber-600">{formatCurrency(data.totalCommission)}</span>
                                                 </div>
-                                                <span className="text-xs font-black text-amber-600">{formatCurrency(data.totalCommission)}</span>
+                                                <div className="flex flex-wrap gap-x-3 gap-y-1">
+                                                    {data.serviceCommission > 0 && <span className="text-xs text-gray-500">Serv: <span className="font-bold text-gray-700">{formatCurrency(data.serviceCommission)}</span></span>}
+                                                    {data.productCommission > 0 && <span className="text-xs text-gray-500">Prod: <span className="font-bold text-gray-700">{formatCurrency(data.productCommission)}</span></span>}
+                                                    {data.rentalCommission > 0 && <span className="text-xs text-gray-500">Alq: <span className="font-bold text-gray-700">{formatCurrency(data.rentalCommission)}</span></span>}
+                                                    {data.aparatoFee > 0 && <span className="text-xs text-gray-500">Ap: <span className="font-bold text-gray-700">{formatCurrency(data.aparatoFee)}</span></span>}
+                                                </div>
                                             </div>
                                         ))}
                                     </div>
@@ -479,7 +589,8 @@ export default function FinanzasPage() {
 
                             {overview && overview.movements.length > visibleMovements && (
                                 <div className="mt-8 flex justify-center">
-                                    <button 
+                                    <button
+                                        type="button"
                                         onClick={() => setVisibleMovements(prev => prev + 20)}
                                         className="px-6 py-2 bg-gray-100 text-gray-600 text-xs font-black uppercase tracking-widest rounded-xl hover:bg-[#34baab] hover:text-white transition-all shadow-sm"
                                     >

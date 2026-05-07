@@ -7,24 +7,21 @@ import { getProfessionalById } from '@/lib/firebase/professionals';
 import { Professional } from '@/lib/types/professional';
 import {
     ChevronLeft,
-    Settings,
     DollarSign,
     Calendar,
     Clock,
     User,
-    Briefcase,
     Loader2,
-    Save,
-    Plus,
-    X,
     TrendingUp,
-    Check
+    Check,
+    Settings2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { toast, Toaster } from 'sonner';
 import { ProfessionalFinance } from '@/components/professionals/ProfessionalFinance';
 import { ProfessionalAppointments } from '@/components/professionals/ProfessionalAppointments';
 import { ProfessionalSchedule } from '@/components/professionals/ProfessionalSchedule';
+import { ProfessionalConfig } from '@/components/professionals/ProfessionalConfig';
 import { getFinanceOverview } from '@/lib/firebase/finance';
 import { formatCurrencyWithSymbol } from '@/lib/utils/currency';
 import { ChevronDown, ChevronUp } from 'lucide-react';
@@ -35,7 +32,7 @@ export default function ProfessionalDetailPage() {
     const { profile } = useAuth();
     const [professional, setProfessional] = useState<Professional | null>(null);
     const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState<'overview' | 'finance' | 'appointments' | 'schedule'>('overview');
+    const [activeTab, setActiveTab] = useState<'overview' | 'finance' | 'appointments' | 'schedule' | 'config'>('finance');
 
     // UI Expandable States
     const [isTreatmentsExpanded, setIsTreatmentsExpanded] = useState(false);
@@ -157,18 +154,6 @@ export default function ProfessionalDetailPage() {
             <div className="max-w-7xl mx-auto px-4 -mt-8 relative z-20">
                 <div className="bg-white rounded-3xl shadow-2xl p-2.5 flex flex-wrap gap-2 border border-gray-100/50 backdrop-blur-sm">
                     <button
-                        onClick={() => setActiveTab('overview')}
-                        className={`flex-1 min-w-[140px] flex items-center justify-center gap-3 py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all ${activeTab === 'overview' ? 'bg-[#484450] text-white shadow-lg' : 'text-gray-400 hover:bg-gray-50'}`}
-                    >
-                        <User className="w-4 h-4" /> Resumen
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('schedule')}
-                        className={`flex-1 min-w-[140px] flex items-center justify-center gap-3 py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all ${activeTab === 'schedule' ? 'bg-[#484450] text-white shadow-lg' : 'text-gray-400 hover:bg-gray-50'}`}
-                    >
-                        <Clock className="w-4 h-4" /> Agenda & Horarios
-                    </button>
-                    <button
                         onClick={() => setActiveTab('finance')}
                         className={`flex-1 min-w-[140px] flex items-center justify-center gap-3 py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all ${activeTab === 'finance' ? 'bg-[#484450] text-white shadow-lg' : 'text-gray-400 hover:bg-gray-50'}`}
                     >
@@ -180,6 +165,27 @@ export default function ProfessionalDetailPage() {
                     >
                         <Calendar className="w-4 h-4" /> Historial Turnos
                     </button>
+                    <button
+                        onClick={() => setActiveTab('schedule')}
+                        className={`flex-1 min-w-[140px] flex items-center justify-center gap-3 py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all ${activeTab === 'schedule' ? 'bg-[#484450] text-white shadow-lg' : 'text-gray-400 hover:bg-gray-50'}`}
+                    >
+                        <Clock className="w-4 h-4" /> Agenda & Horarios
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('overview')}
+                        className={`flex-1 min-w-[140px] flex items-center justify-center gap-3 py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all ${activeTab === 'overview' ? 'bg-[#484450] text-white shadow-lg' : 'text-gray-400 hover:bg-gray-50'}`}
+                    >
+                        <User className="w-4 h-4" /> Resumen
+                    </button>
+                    {profile?.role === 'admin' && (
+                        <button
+                            type="button"
+                            onClick={() => setActiveTab('config')}
+                            className={`flex-1 min-w-[140px] flex items-center justify-center gap-3 py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all ${activeTab === 'config' ? 'bg-[#484450] text-white shadow-lg' : 'text-gray-400 hover:bg-gray-50'}`}
+                        >
+                            <Settings2 className="w-4 h-4" /> Configuración
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -313,6 +319,10 @@ export default function ProfessionalDetailPage() {
 
                 {activeTab === 'appointments' && (
                     <ProfessionalAppointments professional={professional} />
+                )}
+
+                {activeTab === 'config' && profile?.role === 'admin' && (
+                    <ProfessionalConfig professional={professional} onUpdate={fetchProfessional} />
                 )}
             </div>
         </div>
