@@ -299,7 +299,7 @@ export default function EgresosPage() {
                 </div>
             </div>
 
-            <div className="max-w-4xl mx-auto px-4 -mt-10 relative z-20 pb-16">
+            <div className="max-w-4xl mx-auto px-4 -mt-10 relative z-20 pb-28">
                 {/* Filters */}
                 <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-5 mb-8 flex flex-col md:flex-row items-center justify-between gap-4">
                     <div className="flex bg-gray-100 p-1.5 rounded-2xl w-full md:w-auto">
