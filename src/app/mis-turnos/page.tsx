@@ -6,13 +6,16 @@ import { useEffect, useState } from 'react';
 import {
     CalendarCheck,
     Clock,
-    DollarSign,
     ClipboardList,
     ChevronLeft,
+    ChevronDown,
+    ChevronUp,
     Loader2,
     CheckCircle2,
     XCircle,
-    Wallet,
+    Gift,
+    AlertCircle,
+    DollarSign,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Appointment } from '@/lib/types/appointment';
@@ -22,13 +25,18 @@ import { Toaster } from 'sonner';
 import { ClientCredit } from '@/lib/types/clientCredit';
 import { getClientCredits } from '@/lib/firebase/clientCredits';
 import { ClientLedger } from '@/components/clients/ClientLedger';
+import { GiftCard } from '@/lib/types/giftCard';
+import { getGiftCardsByClient } from '@/lib/firebase/giftCards';
+import { getClientLedgerSummary } from '@/lib/utils/clientLedger';
 
 export default function MisTurnosPage() {
     const { user, profile, loading } = useAuth();
     const router = useRouter();
     const [appointments, setAppointments] = useState<Appointment[]>([]);
     const [credits, setCredits] = useState<ClientCredit[]>([]);
+    const [giftCards, setGiftCards] = useState<GiftCard[]>([]);
     const [historyLoading, setHistoryLoading] = useState(true);
+    const [turnosOpen, setTurnosOpen] = useState(false);
 
     useEffect(() => {
         if (!loading && (!user || profile?.role !== 'client')) {
@@ -41,12 +49,14 @@ export default function MisTurnosPage() {
             if (!user || !profile) return;
             setHistoryLoading(true);
             try {
-                const [apts, creds] = await Promise.all([
+                const [apts, creds, gcs] = await Promise.all([
                     getAppointmentsByClientId(user.uid, profile.fullName),
                     getClientCredits(user.uid, profile.fullName),
+                    getGiftCardsByClient(user.uid, profile.fullName),
                 ]);
                 setAppointments(apts);
                 setCredits(creds);
+                setGiftCards(gcs);
             } catch (error) {
                 console.error('Error fetching history:', error);
             } finally {
@@ -67,20 +77,23 @@ export default function MisTurnosPage() {
         );
     }
 
+    const summary = getClientLedgerSummary(appointments, credits);
+    const activeGiftCards = giftCards.filter(g => g.status === 'active');
+
     return (
         <div className="min-h-screen bg-gray-50 pb-24">
             <Toaster position="top-center" richColors />
             <div className="container mx-auto px-4 py-8">
-                {/* Header Section */}
-                <div className="bg-[#484450] rounded-3xl p-8 mb-8 shadow-lg text-white">
+                {/* Header */}
+                <div className="bg-[#484450] rounded-3xl p-6 mb-6 shadow-lg text-white">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4">
-                            <div className="w-14 h-14 bg-[#34baab] rounded-2xl flex items-center justify-center shadow-lg">
-                                <ClipboardList className="w-8 h-8 text-white" />
+                            <div className="w-12 h-12 bg-[#34baab] rounded-2xl flex items-center justify-center shadow-lg">
+                                <ClipboardList className="w-7 h-7 text-white" />
                             </div>
                             <div>
-                                <h1 className="text-3xl font-black tracking-tight">Mis Turnos</h1>
-                                <p className="text-gray-300 font-medium">Historial completo de tus sesiones.</p>
+                                <h1 className="text-2xl font-black tracking-tight">Mis Turnos</h1>
+                                <p className="text-gray-300 text-sm font-medium">Tu historial y estado de cuenta.</p>
                             </div>
                         </div>
                         <Link href="/dashboard" className="hidden md:flex items-center gap-2 bg-white/10 hover:bg-white/20 transition-colors px-4 py-2 rounded-xl text-sm font-bold">
@@ -89,168 +102,157 @@ export default function MisTurnosPage() {
                     </div>
                 </div>
 
-                <div className="max-w-4xl mx-auto space-y-8">
-                    {/* Estado de Cuenta */}
-                    <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6">
-                        <h2 className="text-sm font-black text-gray-400 uppercase tracking-widest mb-6 flex items-center gap-2">
-                            <Wallet className="w-4 h-4 text-[#34baab]" /> Mi Estado de Cuenta
-                        </h2>
+                <div className="max-w-2xl mx-auto space-y-4">
+
+                    {/* Banner de estado */}
+                    {historyLoading ? null : summary.netBalance > 0 ? (
+                        <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-2xl px-4 py-4">
+                            <AlertCircle className="w-6 h-6 text-red-500 shrink-0" />
+                            <div>
+                                <p className="text-[10px] font-black text-red-400 uppercase tracking-widest">Saldo pendiente</p>
+                                <p className="text-xl font-black text-red-600">$ {formatArgentineCurrency(summary.netBalance)}</p>
+                            </div>
+                        </div>
+                    ) : summary.netBalance < 0 ? (
+                        <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-2xl px-4 py-4">
+                            <Gift className="w-6 h-6 text-amber-500 shrink-0" />
+                            <div>
+                                <p className="text-[10px] font-black text-amber-500 uppercase tracking-widest">Saldo a favor</p>
+                                <p className="text-xl font-black text-amber-600">$ {formatArgentineCurrency(Math.abs(summary.netBalance))}</p>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="flex items-center gap-3 bg-green-50 border border-green-200 rounded-2xl px-4 py-4">
+                            <CheckCircle2 className="w-6 h-6 text-green-500 shrink-0" />
+                            <div>
+                                <p className="text-[10px] font-black text-green-500 uppercase tracking-widest">Al día</p>
+                                <p className="text-sm font-bold text-green-700">No hay deuda pendiente</p>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Historial de Turnos colapsable */}
+                    <div className="border border-gray-100 rounded-2xl overflow-hidden bg-white shadow-sm">
+                        <button
+                            type="button"
+                            onClick={() => setTurnosOpen(v => !v)}
+                            className="w-full flex items-center justify-between p-4 bg-gray-50 hover:bg-gray-100 transition-colors"
+                        >
+                            <div className="flex items-center gap-2">
+                                <CalendarCheck className="w-4 h-4 text-[#34baab]" />
+                                <span className="font-bold text-gray-900 text-sm">Mis Turnos</span>
+                                <span className="text-xs text-gray-400 font-medium">({appointments.length})</span>
+                            </div>
+                            {turnosOpen ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+                        </button>
+
+                        {turnosOpen && (
+                            <div className="p-3 space-y-2 animate-in slide-in-from-top-2 duration-200">
+                                {historyLoading ? (
+                                    <div className="flex justify-center py-8">
+                                        <Loader2 className="w-8 h-8 text-[#34baab] animate-spin" />
+                                    </div>
+                                ) : appointments.length === 0 ? (
+                                    <div className="py-10 text-center">
+                                        <Clock className="w-10 h-10 text-gray-300 mx-auto mb-2" />
+                                        <p className="font-black text-gray-400 text-sm">No hay turnos registrados</p>
+                                        <p className="text-gray-400 text-xs mt-1">¡Te esperamos pronto!</p>
+                                    </div>
+                                ) : (
+                                    [...appointments]
+                                        .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
+                                        .map(apt => {
+                                            const totalPaid = (apt.payments || []).reduce((s, p) => s + p.amount, 0);
+                                            const balance = (apt.price || 0) - totalPaid;
+                                            const status = apt.status || 'pending';
+                                            return (
+                                                <div key={apt.id} className="p-3 rounded-2xl border border-gray-100 bg-gray-50/50">
+                                                    <div className="flex items-start justify-between gap-3">
+                                                        <div className="flex items-start gap-2 min-w-0">
+                                                            <div className="w-9 h-9 bg-white rounded-xl flex items-center justify-center shrink-0 border border-gray-100">
+                                                                <CalendarCheck className="w-4 h-4 text-[#34baab]" />
+                                                            </div>
+                                                            <div className="min-w-0">
+                                                                <p className="font-bold text-gray-900 text-sm truncate">{apt.treatment}</p>
+                                                                <p className="text-[11px] text-gray-500 flex items-center gap-1 mt-0.5">
+                                                                    <Clock className="w-3 h-3 shrink-0" />
+                                                                    {(() => { const [y, m, d] = apt.date.split('-'); return `${d}/${m}/${y}`; })()} — {apt.time}hs
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex flex-col items-end gap-1 shrink-0">
+                                                            <span className="text-sm font-black text-[#34baab]">$ {formatArgentineCurrency(apt.price || 0)}</span>
+                                                            {(status as string) === 'completed' || (status as string) === 'realizado' ? (
+                                                                <span className="px-2 py-0.5 bg-green-100 text-green-600 rounded-full text-[9px] uppercase font-black flex items-center gap-1">
+                                                                    <CheckCircle2 className="w-2.5 h-2.5" /> Realizado
+                                                                </span>
+                                                            ) : (status as string) === 'cancelled' || (status as string) === 'cancelado' ? (
+                                                                <span className="px-2 py-0.5 bg-red-100 text-red-600 rounded-full text-[9px] uppercase font-black flex items-center gap-1">
+                                                                    <XCircle className="w-2.5 h-2.5" /> Cancelado
+                                                                </span>
+                                                            ) : (
+                                                                <span className="px-2 py-0.5 bg-amber-100 text-amber-600 rounded-full text-[9px] uppercase font-black flex items-center gap-1">
+                                                                    <Clock className="w-2.5 h-2.5" /> Pendiente
+                                                                </span>
+                                                            )}
+                                                            {(apt.payments || []).length > 0 && balance === 0 && (
+                                                                <span className="text-[9px] font-black text-[#34baab]">Totalmente saldado</span>
+                                                            )}
+                                                            {(apt.payments || []).length > 0 && balance > 0 && (
+                                                                <span className="text-[9px] font-black text-red-500">Debe $ {formatArgentineCurrency(balance)}</span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                    {apt.notes && (
+                                                        <p className="mt-2 pt-2 border-t border-gray-100 text-[11px] italic text-gray-400">"{apt.notes}"</p>
+                                                    )}
+                                                </div>
+                                            );
+                                        })
+                                )}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Gift Cards activas */}
+                    {activeGiftCards.length > 0 && (
+                        <div className="space-y-2">
+                            <p className="text-xs font-black text-gray-400 uppercase tracking-widest px-1 flex items-center gap-2">
+                                <Gift className="w-3.5 h-3.5 text-[#34baab]" /> Mis Gift Cards
+                            </p>
+                            {activeGiftCards.map(gc => (
+                                <div key={gc.id} className="rounded-2xl bg-gradient-to-r from-teal-500 via-teal-400 to-cyan-400 p-4 shadow-sm">
+                                    <div className="flex items-start justify-between">
+                                        <div>
+                                            <p className="text-[10px] font-black text-white/70 uppercase tracking-widest mb-1">Gift Card activa</p>
+                                            <p className="text-2xl font-black text-white">$ {formatArgentineCurrency(gc.amount)}</p>
+                                            <p className="text-xs font-mono text-white/80 mt-1">{gc.code}</p>
+                                        </div>
+                                        {gc.expiryDate && (
+                                            <p className="text-[10px] text-white/70">
+                                                Vence {(() => { const [y, m, d] = gc.expiryDate!.split('-'); return `${d}/${m}/${y}`; })()}
+                                            </p>
+                                        )}
+                                    </div>
+                                    {gc.notes && <p className="text-[10px] text-white/70 mt-2 italic">"{gc.notes}"</p>}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    {/* Historial de Transacciones */}
+                    <div>
+                        <p className="text-xs font-black text-gray-400 uppercase tracking-widest px-1 mb-2 flex items-center gap-2">
+                            <DollarSign className="w-3.5 h-3.5 text-[#34baab]" /> Historial de Transacciones
+                        </p>
                         <ClientLedger
                             appointments={appointments}
                             credits={credits}
                             loading={historyLoading}
+                            hideSummary
                         />
                     </div>
 
-                    {/* Historial de Turnos */}
-                    <div>
-                        <h2 className="text-sm font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2 px-1">
-                            <CalendarCheck className="w-4 h-4 text-[#34baab]" /> Historial de Turnos
-                        </h2>
-                    {historyLoading ? (
-                        <div className="flex justify-center p-12">
-                            <Loader2 className="w-10 h-10 text-[#34baab] animate-spin" />
-                        </div>
-                    ) : appointments.length > 0 ? (
-                        <div className="space-y-4">
-                            {appointments
-                                .sort((a, b) => {
-                                    const dateA = a.date || '';
-                                    const dateB = b.date || '';
-                                    return dateB.localeCompare(dateA); // Lexicographical sort for YYYY-MM-DD
-                                })
-                                .map((apt) => (
-                                    <div key={apt.id} className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:border-[#34baab]/30 transition-all group relative overflow-hidden">
-                                        <div className="absolute top-0 right-0 w-24 h-24 bg-[#34baab]/5 rounded-full -mr-12 -mt-12" />
-                                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                                            <div className="flex items-start gap-4">
-                                                <div className="w-12 h-12 bg-gray-50 rounded-2xl flex items-center justify-center shadow-sm group-hover:bg-[#34baab]/10 transition-colors">
-                                                    <CalendarCheck className="w-6 h-6 text-[#34baab]" />
-                                                </div>
-                                                <div>
-                                                    <h3 className="text-xl font-black text-gray-900 mb-1">{apt.treatment}</h3>
-                                                    <div className="flex flex-wrap gap-4 text-sm font-medium text-gray-500">
-                                                        <span className="flex items-center gap-1.5 bg-gray-50 px-3 py-1 rounded-lg">
-                                                            <Clock className="w-4 h-4 text-[#34baab]" /> {(() => {
-                                                                const parts = apt.date.split('-');
-                                                                if (parts.length === 3) {
-                                                                    const [year, month, day] = parts;
-                                                                    return `${day}-${month}-${year}`;
-                                                                }
-                                                                return apt.date;
-                                                            })()} - {apt.time}hs
-                                                        </span>
-                                                        <span className="flex items-center gap-1.5 bg-gray-50 px-3 py-1 rounded-lg">
-                                                            <ClipboardList className="w-4 h-4 text-[#34baab]" /> {apt.duration} {apt.duration === 1 ? 'hora' : 'horas'}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <div className="flex flex-row md:flex-col items-center md:items-end justify-between md:justify-center gap-4 border-t md:border-t-0 pt-4 md:pt-0">
-                                                <div className="flex items-center gap-2 bg-[#34baab]/10 px-4 py-2 rounded-2xl border border-[#34baab]/20">
-                                                    <DollarSign className="w-5 h-5 text-[#34baab]" />
-                                                    <span className="text-xl font-black text-[#34baab]">$ {formatArgentineCurrency(apt.price || 0)}</span>
-                                                </div>
-                                                {(() => {
-                                                    const totalPaid = (apt.payments || []).reduce((sum, p) => sum + p.amount, 0);
-                                                    const balance = (apt.price || 0) - totalPaid;
-                                                    const status = apt.status || 'pending';
-
-                                                    return (
-                                                        <div className="flex flex-col items-end gap-1.5">
-                                                            {/* Status Badge */}
-                                                            {((status as any) === 'completed' || (status as any) === 'realizado') ? (
-                                                                <span className="px-2.5 py-1 bg-green-100 text-green-600 rounded-full text-[9px] uppercase font-black tracking-widest flex items-center gap-1 border border-green-200">
-                                                                    <CheckCircle2 className="w-3 h-3" /> Realizado
-                                                                </span>
-                                                            ) : ((status as any) === 'cancelled' || (status as any) === 'cancelado') ? (
-                                                                <span className="px-2.5 py-1 bg-red-100 text-red-600 rounded-full text-[9px] uppercase font-black tracking-widest flex items-center gap-1 border border-red-200">
-                                                                    <XCircle className="w-3 h-3" /> Cancelado
-                                                                </span>
-                                                            ) : (
-                                                                <span className="px-2.5 py-1 bg-amber-100 text-amber-600 rounded-full text-[9px] uppercase font-black tracking-widest flex items-center gap-1 border border-amber-200">
-                                                                    <Clock className="w-3 h-3" /> Pendiente
-                                                                </span>
-                                                            )}
-
-                                                            {/* Balance / Fully Paid Info */}
-                                                            {(apt.payments || []).length > 0 && (
-                                                                <div className="mt-1 flex flex-col items-end w-full">
-                                                                    {balance > 0 ? (
-                                                                        <div className="flex flex-col items-end w-full">
-                                                                            <span className="text-[12px] font-black text-red-500 uppercase tracking-tighter">
-                                                                                Saldo Pendiente: $ {formatArgentineCurrency(balance)}
-                                                                            </span>
-                                                                            {apt.payments && apt.payments.length > 0 && (
-                                                                                <div className="flex flex-col gap-1 mt-2 w-full">
-                                                                                    {apt.payments.map((p, i) => (
-                                                                                        <div key={i} className="text-[10px] bg-gray-50 text-gray-600 p-3 rounded-2xl border border-gray-100 flex flex-col shadow-sm">
-                                                                                            <span className="text-gray-400 uppercase text-[8px] mb-1">
-                                                                                                {(() => {
-                                                                                                    const parts = (p.date || '').split('-');
-                                                                                                    return parts.length === 3 ? `${parts[2]}-${parts[1]}-${parts[0]}` : p.date;
-                                                                                                })()} • {p.method === 'cash' ? 'Efectivo' : p.method === 'transfer' ? 'Transferencia' : p.method === 'debit' ? 'Débito' : p.method === 'credit' ? 'Crédito' : p.method}
-                                                                                            </span>
-                                                                                            <span className="font-bold text-gray-900">{p.label}: $ {formatArgentineCurrency(p.amount)}</span>
-                                                                                        </div>
-                                                                                    ))}
-                                                                                </div>
-                                                                            )}
-                                                                        </div>
-                                                                    ) : (
-                                                                        <div className="flex flex-col items-end w-full">
-                                                                            <span className="px-2.5 py-1 bg-[#34baab]/10 text-[#34baab] rounded-full text-[9px] uppercase font-black tracking-widest flex items-center gap-1 border border-[#34baab]/20">
-                                                                                Totalmente Saldado
-                                                                            </span>
-                                                                            {apt.payments && apt.payments.length > 0 && (
-                                                                                <div className="flex flex-col gap-1 mt-2 w-full">
-                                                                                    {apt.payments.map((p, i) => (
-                                                                                        <div key={i} className="text-[10px] bg-gray-50 text-gray-600 p-3 rounded-2xl border border-gray-100 flex flex-col shadow-sm">
-                                                                                            <span className="text-gray-400 uppercase text-[8px] mb-1">
-                                                                                                {(() => {
-                                                                                                    const parts = (p.date || '').split('-');
-                                                                                                    return parts.length === 3 ? `${parts[2]}-${parts[1]}-${parts[0]}` : p.date;
-                                                                                                })()} • {p.method === 'cash' ? 'Efectivo' : p.method === 'transfer' ? 'Transferencia' : p.method === 'debit' ? 'Débito' : p.method === 'credit' ? 'Crédito' : p.method}
-                                                                                            </span>
-                                                                                            <span className="font-bold text-gray-900">{p.label}: $ {formatArgentineCurrency(p.amount)}</span>
-                                                                                        </div>
-                                                                                    ))}
-                                                                                </div>
-                                                                            )}
-                                                                        </div>
-                                                                    )}
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    );
-                                                })()}
-                                            </div>
-                                        </div>
-
-                                        {apt.notes && (
-                                            <div className="mt-6 pt-6 border-t border-gray-50">
-                                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Observaciones</p>
-                                                <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 italic text-gray-600 text-sm">
-                                                    "{apt.notes}"
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                ))}
-                        </div>
-                    ) : (
-                        <div className="bg-white rounded-[40px] p-16 text-center border-2 border-dashed border-gray-200">
-                            <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-6">
-                                <Clock className="w-10 h-10 text-gray-300" />
-                            </div>
-                            <h3 className="text-2xl font-black text-gray-900 mb-2">No hay turnos registrados</h3>
-                            <p className="text-gray-500 max-w-xs mx-auto">
-                                Todavía no tienes sesiones en tu historial. ¡Te esperamos pronto!
-                            </p>
-                        </div>
-                    )}
-                    </div>
                 </div>
             </div>
         </div>
