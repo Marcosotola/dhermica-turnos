@@ -7,8 +7,11 @@ import { CurrencyInput } from '../ui/CurrencyInput';
 import { Select } from '../ui/Select';
 import { Appointment, AppointmentStatus, Payment } from '@/lib/types/appointment';
 import { GiftCard } from '@/lib/types/giftCard';
+import { ClientCredit } from '@/lib/types/clientCredit';
 import { updateAppointment } from '@/lib/firebase/appointments';
 import { getGiftCardsByClient, updateGiftCardStatus } from '@/lib/firebase/giftCards';
+import { getClientCredits, useCredit } from '@/lib/firebase/clientCredits';
+import { formatArgentineCurrency } from '@/lib/utils/currency';
 import { toast } from 'sonner';
 import {
     CheckCircle2,
@@ -18,8 +21,8 @@ import {
     Plus,
     Trash2,
     Gift,
+    Wallet,
 } from 'lucide-react';
-import { formatArgentineCurrency } from '@/lib/utils/currency';
 
 interface QuickPaymentModalProps {
     isOpen: boolean;
@@ -41,6 +44,8 @@ export function QuickPaymentModal({
     const [showPaymentForm, setShowPaymentForm] = useState(false);
     const [activeGiftCards, setActiveGiftCards] = useState<GiftCard[]>([]);
     const [selectedGiftCardId, setSelectedGiftCardId] = useState<string>('');
+    const [activeCredits, setActiveCredits] = useState<ClientCredit[]>([]);
+    const [selectedCreditId, setSelectedCreditId] = useState<string>('');
     const [newPayment, setNewPayment] = useState({
         amount: 0,
         method: 'cash' as Payment['method'],
@@ -65,6 +70,7 @@ export function QuickPaymentModal({
             });
             setShowPaymentForm(false);
             setSelectedGiftCardId('');
+            setSelectedCreditId('');
 
             const clientId = appointment.clientId || `legacy-${appointment.clientName?.replace(/\s+/g, '-').toLowerCase()}`;
             getGiftCardsByClient(clientId, appointment.clientName).then(cards => {
@@ -74,6 +80,13 @@ export function QuickPaymentModal({
             }).catch(err => {
                 console.error('[GiftCards] Error al buscar gift cards:', err);
                 setActiveGiftCards([]);
+            });
+
+            getClientCredits(clientId, appointment.clientName).then(credits => {
+                setActiveCredits(credits.filter(c => c.status === 'available'));
+            }).catch(err => {
+                console.error('[Credits] Error al buscar créditos:', err);
+                setActiveCredits([]);
             });
         }
     }, [appointment, isOpen]);
@@ -109,6 +122,31 @@ export function QuickPaymentModal({
             return;
         }
 
+        if (newPayment.method === 'client_credit') {
+            if (!selectedCreditId) {
+                toast.error('Seleccioná un crédito');
+                return;
+            }
+            const credit = activeCredits.find(c => c.id === selectedCreditId);
+            if (!credit) return;
+            const payment: Payment = {
+                id: Math.random().toString(36).substring(2, 9),
+                amount: credit.amount,
+                method: 'client_credit',
+                label: 'Saldo a Favor',
+                bankAccount: null,
+                creditId: credit.id,
+                date: newPayment.date,
+                createdAt: new Date().toISOString() as any
+            };
+            setPayments(prev => [...prev, payment]);
+            setActiveCredits(prev => prev.filter(c => c.id !== credit.id));
+            setSelectedCreditId('');
+            setShowPaymentForm(false);
+            toast.success(`Saldo a favor de $${formatArgentineCurrency(credit.amount)} aplicado`);
+            return;
+        }
+
         if (newPayment.amount <= 0) {
             toast.error('El monto debe ser mayor a 0');
             return;
@@ -136,12 +174,18 @@ export function QuickPaymentModal({
     const removePayment = (id: string) => {
         const removed = payments.find(p => p.id === id);
         setPayments(prev => prev.filter(p => p.id !== id));
-        // Restore gift card to available list if it was removed
         if (removed?.method === 'gift_card' && removed.giftCardId) {
             const clientId = appointment!.clientId || `legacy-${appointment!.clientName?.replace(/\s+/g, '-').toLowerCase()}`;
             getGiftCardsByClient(clientId, appointment!.clientName).then(cards => {
                 const restored = cards.find(c => c.id === removed.giftCardId && c.status === 'active' && (!c.expiryDate || c.expiryDate >= today));
                 if (restored) setActiveGiftCards(prev => [...prev, restored]);
+            }).catch(() => {});
+        }
+        if (removed?.method === 'client_credit' && removed.creditId) {
+            const clientId = appointment!.clientId || `legacy-${appointment!.clientName?.replace(/\s+/g, '-').toLowerCase()}`;
+            getClientCredits(clientId, appointment!.clientName).then(credits => {
+                const restored = credits.find(c => c.id === removed.creditId && c.status === 'available');
+                if (restored) setActiveCredits(prev => [...prev, restored]);
             }).catch(() => {});
         }
     };
@@ -175,6 +219,12 @@ export function QuickPaymentModal({
                     redeemedDate: today,
                     redeemedInAppointmentId: appointment.id,
                 })
+            ));
+
+            // Marcar créditos usados (crea crédito residual si se usó parcialmente)
+            const creditPayments = finalPayments.filter(p => p.method === 'client_credit' && p.creditId);
+            await Promise.all(creditPayments.map(p =>
+                useCredit(p.creditId!, p.amount, appointment.id, today)
             ));
 
             toast.success('Turno actualizado correctamente');
@@ -315,6 +365,58 @@ export function QuickPaymentModal({
                     )}
                 </div>
 
+                {/* Saldo a Favor disponible */}
+                {activeCredits.length > 0 && (
+                    <div className="space-y-2">
+                        <div className="flex items-center gap-2 mb-1">
+                            <Wallet className="w-4 h-4 text-amber-500" />
+                            <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest">Saldo a Favor Disponible</p>
+                        </div>
+                        {activeCredits.map(credit => {
+                            const amountToApply = balance > 0 ? Math.min(credit.amount, balance) : credit.amount;
+                            return (
+                                <button
+                                    key={credit.id}
+                                    type="button"
+                                    onClick={() => {
+                                        const payment: Payment = {
+                                            id: Math.random().toString(36).substring(2, 9),
+                                            amount: amountToApply,
+                                            method: 'client_credit',
+                                            label: 'Saldo a Favor',
+                                            bankAccount: null,
+                                            creditId: credit.id,
+                                            date: today,
+                                            createdAt: new Date().toISOString() as any,
+                                        };
+                                        setPayments(prev => [...prev, payment]);
+                                        setActiveCredits(prev => prev.filter(c => c.id !== credit.id));
+                                        setShowPaymentForm(false);
+                                        toast.success(`Saldo a favor de $${formatArgentineCurrency(amountToApply)} aplicado`);
+                                    }}
+                                    className="w-full flex items-center justify-between p-3 rounded-xl border-2 border-amber-200 bg-amber-50 hover:border-amber-400 hover:bg-amber-100 transition-all"
+                                >
+                                    <div className="flex flex-col items-start gap-0.5">
+                                        <div className="flex items-center gap-2">
+                                            <Wallet className="w-4 h-4 text-amber-500 shrink-0" />
+                                            <span className="text-xs font-bold text-amber-800">Aplicar Saldo a Favor</span>
+                                        </div>
+                                        {credit.sourceTreatmentName && (
+                                            <span className="text-[9px] text-gray-500 ml-6">{credit.sourceTreatmentName}</span>
+                                        )}
+                                        {amountToApply < credit.amount && (
+                                            <span className="text-[9px] text-amber-600 ml-6 font-bold">
+                                                Resta $ {formatArgentineCurrency(credit.amount - amountToApply)} de crédito
+                                            </span>
+                                        )}
+                                    </div>
+                                    <span className="font-black text-sm text-amber-700">$ {formatArgentineCurrency(amountToApply)}</span>
+                                </button>
+                            );
+                        })}
+                    </div>
+                )}
+
                 {/* Add Payment Form */}
                 {showPaymentForm ? (
                     <div className="bg-white p-4 rounded-xl border-2 border-[#34baab]/20 space-y-4 animate-in fade-in slide-in-from-top-2">
@@ -324,6 +426,7 @@ export function QuickPaymentModal({
                             onChange={(e) => {
                                 setNewPayment({ ...newPayment, method: e.target.value as Payment['method'] });
                                 setSelectedGiftCardId('');
+                                setSelectedCreditId('');
                             }}
                             options={[
                                 { value: 'cash', label: 'Efectivo' },
@@ -332,6 +435,7 @@ export function QuickPaymentModal({
                                 { value: 'credit', label: 'Crédito' },
                                 { value: 'qr', label: 'QR' },
                                 ...(activeGiftCards.length > 0 ? [{ value: 'gift_card', label: 'Gift Card' }] : []),
+                                ...(activeCredits.length > 0 ? [{ value: 'client_credit', label: 'Saldo a Favor' }] : []),
                             ]}
                         />
 
@@ -357,6 +461,33 @@ export function QuickPaymentModal({
                                             )}
                                         </div>
                                         <span className="font-black text-sm text-teal-700">$ {formatArgentineCurrency(gc.amount)}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        ) : newPayment.method === 'client_credit' ? (
+                            <div className="space-y-2">
+                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Saldo disponible</p>
+                                {activeCredits.map(credit => (
+                                    <button
+                                        key={credit.id}
+                                        type="button"
+                                        onClick={() => setSelectedCreditId(credit.id)}
+                                        className={`w-full flex items-center justify-between p-3 rounded-xl border-2 transition-all ${
+                                            selectedCreditId === credit.id
+                                                ? 'border-amber-400 bg-amber-50'
+                                                : 'border-gray-100 bg-white hover:border-amber-200'
+                                        }`}
+                                    >
+                                        <div className="flex flex-col items-start gap-0.5">
+                                            <div className="flex items-center gap-2">
+                                                <Wallet className="w-4 h-4 text-amber-500 shrink-0" />
+                                                <span className="text-xs font-bold text-gray-700">Seña / Crédito</span>
+                                            </div>
+                                            {credit.sourceTreatmentName && (
+                                                <span className="text-[9px] text-gray-400 ml-6">{credit.sourceTreatmentName}</span>
+                                            )}
+                                        </div>
+                                        <span className="font-black text-sm text-amber-700">$ {formatArgentineCurrency(credit.amount)}</span>
                                     </button>
                                 ))}
                             </div>

@@ -7,13 +7,14 @@ import { AppointmentTable } from '@/components/appointments/AppointmentTable';
 import { AppointmentModal } from '@/components/appointments/AppointmentModal';
 import { AppointmentDetailModal } from '@/components/appointments/AppointmentDetailModal';
 import { CancelAppointmentDialog, CreditAction } from '@/components/appointments/CancelAppointmentDialog';
+import { DeleteAppointmentDialog } from '@/components/appointments/DeleteAppointmentDialog';
 import { DatePicker } from '@/components/appointments/DatePicker';
 import { AppointmentSearch } from '@/components/appointments/AppointmentSearch';
 import { QuickPaymentModal } from '@/components/appointments/QuickPaymentModal';
 import { useAppointments } from '@/lib/hooks/useAppointments';
 import { useProfessionals } from '@/lib/hooks/useProfessionals';
 import { Appointment } from '@/lib/types/appointment';
-import { deleteAppointment } from '@/lib/firebase/appointments';
+import { cancelAppointment, deleteAppointment } from '@/lib/firebase/appointments';
 import { createClientCredit } from '@/lib/firebase/clientCredits';
 import { getTodayDate } from '@/lib/utils/time';
 import { toast, Toaster } from 'sonner';
@@ -42,6 +43,7 @@ function TurnosContent() {
     const [modalOpen, setModalOpen] = useState(false);
     const [detailModalOpen, setDetailModalOpen] = useState(false);
     const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
     const [defaultTime, setDefaultTime] = useState<string | undefined>();
     const [defaultProfessionalId, setDefaultProfessionalId] = useState<string | undefined>();
@@ -123,9 +125,14 @@ function TurnosContent() {
         setDetailModalOpen(true);
     };
 
-    const handleDeleteClick = (appointment: Appointment) => {
+    const handleCancelClick = (appointment: Appointment) => {
         setSelectedAppointment(appointment);
         setCancelDialogOpen(true);
+    };
+
+    const handleDeleteClick = (appointment: Appointment) => {
+        setSelectedAppointment(appointment);
+        setDeleteDialogOpen(true);
     };
 
     const handleQuickPaymentClick = (appointment: Appointment) => {
@@ -156,7 +163,7 @@ function TurnosContent() {
                 });
             }
 
-            await deleteAppointment(selectedAppointment.id);
+            await cancelAppointment(selectedAppointment.id);
 
             if (creditAction === 'retain' && totalPaid > 0) {
                 toast.success(`Turno cancelado. Crédito de $${totalPaid.toLocaleString('es-AR')} retenido a favor del cliente.`);
@@ -171,6 +178,23 @@ function TurnosContent() {
         } catch (error) {
             console.error('Error cancelling appointment:', error);
             toast.error('Error al cancelar el turno');
+        } finally {
+            setDeleting(false);
+        }
+    };
+
+    const handleConfirmHardDelete = async () => {
+        if (!selectedAppointment) return;
+
+        setDeleting(true);
+        try {
+            await deleteAppointment(selectedAppointment.id);
+            toast.success('Turno eliminado permanentemente.');
+            setDeleteDialogOpen(false);
+            setSelectedAppointment(null);
+        } catch (error) {
+            console.error('Error deleting appointment:', error);
+            toast.error('Error al eliminar el turno');
         } finally {
             setDeleting(false);
         }
@@ -299,7 +323,7 @@ function TurnosContent() {
                                         professionals={professionals}
                                         onCreateClick={handleCreateClick}
                                         onEditClick={handleEditClick}
-                                        onDeleteClick={handleDeleteClick}
+                                        onCancelClick={handleCancelClick}
                                         onDetailClick={handleDetailClick}
                                         onQuickPaymentClick={handleQuickPaymentClick}
                                     />
@@ -353,6 +377,7 @@ function TurnosContent() {
                 appointment={selectedAppointment}
                 professionals={professionals}
                 onEdit={handleEditClick}
+                onCancel={handleCancelClick}
                 onDelete={handleDeleteClick}
                 onQuickPayment={handleQuickPaymentClick}
             />
@@ -367,6 +392,14 @@ function TurnosContent() {
                 isOpen={cancelDialogOpen}
                 onClose={() => setCancelDialogOpen(false)}
                 onConfirm={handleConfirmCancel}
+                appointment={selectedAppointment}
+                loading={deleting}
+            />
+
+            <DeleteAppointmentDialog
+                isOpen={deleteDialogOpen}
+                onClose={() => setDeleteDialogOpen(false)}
+                onConfirm={handleConfirmHardDelete}
                 appointment={selectedAppointment}
                 loading={deleting}
             />

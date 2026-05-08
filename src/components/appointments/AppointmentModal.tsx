@@ -18,6 +18,8 @@ import { validateAppointment, checkOverlap } from '@/lib/utils/validation';
 import { createAppointment, updateAppointment } from '@/lib/firebase/appointments';
 import { GiftCard } from '@/lib/types/giftCard';
 import { getGiftCardsByClient, updateGiftCardStatus } from '@/lib/firebase/giftCards';
+import { ClientCredit } from '@/lib/types/clientCredit';
+import { getClientCredits, useCredit } from '@/lib/firebase/clientCredits';
 import { formatArgentineCurrency } from '@/lib/utils/currency';
 import { toast } from 'sonner';
 import { PhoneInput } from '../ui/PhoneInput';
@@ -76,6 +78,8 @@ export function AppointmentModal({
     const [showPaymentForm, setShowPaymentForm] = useState(false);
     const [activeGiftCards, setActiveGiftCards] = useState<GiftCard[]>([]);
     const [selectedGiftCardId, setSelectedGiftCardId] = useState<string>('');
+    const [activeCredits, setActiveCredits] = useState<ClientCredit[]>([]);
+    const [selectedCreditId, setSelectedCreditId] = useState<string>('');
     const [loading, setLoading] = useState(false);
     const today = new Date().toLocaleDateString('en-CA');
     const [clients, setClients] = useState<UserProfile[]>([]);
@@ -127,6 +131,16 @@ export function AppointmentModal({
         }).catch(err => {
             console.error('[GiftCards] Error al buscar gift cards:', err);
             setActiveGiftCards([]);
+        });
+    };
+
+    const fetchActiveCredits = (clientId: string, clientName?: string) => {
+        if (!clientId) { setActiveCredits([]); return; }
+        getClientCredits(clientId, clientName || '').then(credits => {
+            setActiveCredits(credits.filter(c => c.status === 'available'));
+        }).catch(err => {
+            console.error('[Credits] Error al buscar créditos:', err);
+            setActiveCredits([]);
         });
     };
 
@@ -236,6 +250,7 @@ export function AppointmentModal({
         setSearchQuery('');
         setShowSuggestions(false);
         setSelectedGiftCardId('');
+        setSelectedCreditId('');
         setNewPayment({
             amount: 0,
             method: 'cash',
@@ -246,8 +261,10 @@ export function AppointmentModal({
         setShowPaymentForm(false);
         if (appointment?.clientId) {
             fetchActiveGiftCards(appointment.clientId, appointment.clientName);
+            fetchActiveCredits(appointment.clientId, appointment.clientName);
         } else {
             setActiveGiftCards([]);
+            setActiveCredits([]);
         }
     }, [appointment, defaultTime, defaultProfessionalId, isOpen]);
 
@@ -278,6 +295,7 @@ export function AppointmentModal({
         setSearchQuery(client.fullName);
         setShowSuggestions(false);
         fetchActiveGiftCards(client.uid, client.fullName);
+        fetchActiveCredits(client.uid, client.fullName);
     };
 
     const handleAddPayment = () => {
@@ -300,6 +318,28 @@ export function AppointmentModal({
             setSelectedGiftCardId('');
             setShowPaymentForm(false);
             toast.success(`Gift Card ${gc.code} agregada`);
+            return;
+        }
+
+        if (newPayment.method === 'client_credit') {
+            if (!selectedCreditId) { toast.error('Seleccioná un crédito'); return; }
+            const credit = activeCredits.find(c => c.id === selectedCreditId);
+            if (!credit) return;
+            const payment: Payment = {
+                id: Math.random().toString(36).substring(2, 9),
+                amount: credit.amount,
+                method: 'client_credit',
+                label: 'Saldo a Favor',
+                bankAccount: null,
+                creditId: credit.id,
+                date: newPayment.date,
+                createdAt: new Date().toISOString() as any,
+            };
+            setFormData(prev => ({ ...prev, payments: [...prev.payments, payment] }));
+            setActiveCredits(prev => prev.filter(c => c.id !== credit.id));
+            setSelectedCreditId('');
+            setShowPaymentForm(false);
+            toast.success(`Saldo a favor de $${formatArgentineCurrency(credit.amount)} aplicado`);
             return;
         }
 
@@ -341,6 +381,13 @@ export function AppointmentModal({
             getGiftCardsByClient(clientId, formData.clientName).then(cards => {
                 const restored = cards.find(c => c.id === removed.giftCardId && c.status === 'active' && (!c.expiryDate || c.expiryDate >= today));
                 if (restored) setActiveGiftCards(prev => [...prev, restored]);
+            }).catch(() => {});
+        }
+        if (removed?.method === 'client_credit' && removed.creditId) {
+            const clientId = formData.clientId || `legacy-${formData.clientName?.replace(/\s+/g, '-').toLowerCase()}`;
+            getClientCredits(clientId, formData.clientName).then(credits => {
+                const restored = credits.find(c => c.id === removed.creditId && c.status === 'available');
+                if (restored) setActiveCredits(prev => [...prev, restored]);
             }).catch(() => {});
         }
     };
@@ -499,6 +546,13 @@ export function AppointmentModal({
                         redeemedDate: today,
                         redeemedInAppointmentId: savedId,
                     })
+                ));
+            }
+
+            const creditPayments = finalPayments.filter(p => p.method === 'client_credit' && p.creditId);
+            if (creditPayments.length > 0) {
+                await Promise.all(creditPayments.map(p =>
+                    useCredit(p.creditId!, p.amount, savedId, today)
                 ));
             }
 
@@ -945,7 +999,7 @@ export function AppointmentModal({
                                 <div className="flex flex-col">
                                     <span className="text-xs font-black text-gray-900 uppercase tracking-tighter">{p.label}</span>
                                     <span className="text-[10px] text-gray-500">
-                                        {p.method === 'cash' ? 'EFECTIVO' : p.method === 'transfer' ? 'TRANSFERENCIA' : p.method === 'debit' ? 'DÉBITO' : p.method === 'credit' ? 'CRÉDITO' : p.method === 'gift_card' ? 'GIFT CARD' : p.method.toUpperCase()}
+                                        {p.method === 'cash' ? 'EFECTIVO' : p.method === 'transfer' ? 'TRANSFERENCIA' : p.method === 'debit' ? 'DÉBITO' : p.method === 'credit' ? 'CRÉDITO' : p.method === 'gift_card' ? 'GIFT CARD' : p.method === 'client_credit' ? 'SALDO A FAVOR' : p.method.toUpperCase()}
                                         {p.bankAccount && ` (${p.bankAccount === 'cuenta1' ? 'CTA 1' : 'CTA 2'})`} • {(() => {
                                             const parts = p.date.split('-');
                                             return parts.length === 3 ? `${parts[2]}-${parts[1]}-${parts[0]}` : p.date;
@@ -975,6 +1029,7 @@ export function AppointmentModal({
                                 onChange={(e) => {
                                     setNewPayment({ ...newPayment, method: e.target.value as any });
                                     setSelectedGiftCardId('');
+                                    setSelectedCreditId('');
                                 }}
                                 options={[
                                     { value: 'cash', label: 'Efectivo' },
@@ -983,6 +1038,7 @@ export function AppointmentModal({
                                     { value: 'credit', label: 'Crédito' },
                                     { value: 'qr', label: 'QR' },
                                     ...(activeGiftCards.length > 0 ? [{ value: 'gift_card', label: 'Gift Card' }] : []),
+                                    ...(activeCredits.length > 0 ? [{ value: 'client_credit', label: 'Saldo a Favor' }] : []),
                                 ]}
                             />
 
@@ -1002,6 +1058,26 @@ export function AppointmentModal({
                                                 {gc.expiryDate && <span className="text-[9px] text-gray-400">vence {gc.expiryDate.split('-').reverse().join('/')}</span>}
                                             </div>
                                             <span className="font-black text-sm text-teal-700">$ {formatArgentineCurrency(gc.amount)}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            ) : newPayment.method === 'client_credit' ? (
+                                <div className="space-y-2">
+                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Saldo disponible</p>
+                                    {activeCredits.map(credit => (
+                                        <button
+                                            key={credit.id}
+                                            type="button"
+                                            onClick={() => setSelectedCreditId(credit.id)}
+                                            className={`w-full flex items-center justify-between p-3 rounded-xl border-2 transition-all ${selectedCreditId === credit.id ? 'border-amber-400 bg-amber-50' : 'border-gray-100 bg-white hover:border-amber-200'}`}
+                                        >
+                                            <div className="flex flex-col items-start gap-0.5">
+                                                <span className="text-xs font-bold text-gray-700">Seña / Crédito</span>
+                                                {credit.sourceTreatmentName && (
+                                                    <span className="text-[9px] text-gray-400">{credit.sourceTreatmentName}</span>
+                                                )}
+                                            </div>
+                                            <span className="font-black text-sm text-amber-700">$ {formatArgentineCurrency(credit.amount)}</span>
                                         </button>
                                     ))}
                                 </div>
@@ -1089,16 +1165,69 @@ export function AppointmentModal({
                             </div>
                         </div>
                     ) : (
-                        <button
-                            type="button"
-                            onClick={() => {
-                                setNewPayment({ ...newPayment, amount: balance > 0 ? balance : 0 });
-                                setShowPaymentForm(true);
-                            }}
-                            className="w-full py-4 border-2 border-dashed border-gray-200 rounded-2xl text-gray-400 hover:border-[#34baab] hover:text-[#34baab] hover:bg-[#34baab]/5 transition-all text-[10px] font-black uppercase tracking-[0.2em] flex items-center justify-center gap-2"
-                        >
-                            <Plus className="w-5 h-5" /> Registrar Pago
-                        </button>
+                        <div className="space-y-3">
+                            {/* Saldo a Favor disponible */}
+                            {activeCredits.length > 0 && (
+                                <div className="space-y-2">
+                                    <div className="flex items-center gap-2">
+                                        <Gift className="w-4 h-4 text-amber-500" />
+                                        <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest">Saldo a Favor Disponible</p>
+                                    </div>
+                                    {activeCredits.map(credit => {
+                                        const amountToApply = balance > 0 ? Math.min(credit.amount, balance) : credit.amount;
+                                        return (
+                                            <button
+                                                key={credit.id}
+                                                type="button"
+                                                onClick={() => {
+                                                    const payment: Payment = {
+                                                        id: Math.random().toString(36).substring(2, 9),
+                                                        amount: amountToApply,
+                                                        method: 'client_credit',
+                                                        label: 'Saldo a Favor',
+                                                        bankAccount: null,
+                                                        creditId: credit.id,
+                                                        date: newPayment.date,
+                                                        createdAt: new Date().toISOString() as any,
+                                                    };
+                                                    setFormData(prev => ({ ...prev, payments: [...prev.payments, payment] }));
+                                                    setActiveCredits(prev => prev.filter(c => c.id !== credit.id));
+                                                    toast.success(`Saldo a favor de $${formatArgentineCurrency(amountToApply)} aplicado`);
+                                                }}
+                                                className="w-full flex items-center justify-between p-3 rounded-xl border-2 border-amber-200 bg-amber-50 hover:border-amber-400 hover:bg-amber-100 transition-all"
+                                            >
+                                                <div className="flex flex-col items-start gap-0.5">
+                                                    <div className="flex items-center gap-2">
+                                                        <Gift className="w-4 h-4 text-amber-500 shrink-0" />
+                                                        <span className="text-xs font-bold text-amber-800">Aplicar Saldo a Favor</span>
+                                                    </div>
+                                                    {credit.sourceTreatmentName && (
+                                                        <span className="text-[9px] text-gray-500 ml-6">{credit.sourceTreatmentName}</span>
+                                                    )}
+                                                    {amountToApply < credit.amount && (
+                                                        <span className="text-[9px] text-amber-600 ml-6 font-bold">
+                                                            Resta $ {formatArgentineCurrency(credit.amount - amountToApply)} de crédito
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <span className="font-black text-sm text-amber-700">$ {formatArgentineCurrency(amountToApply)}</span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            )}
+
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setNewPayment({ ...newPayment, amount: balance > 0 ? balance : 0 });
+                                    setShowPaymentForm(true);
+                                }}
+                                className="w-full py-4 border-2 border-dashed border-gray-200 rounded-2xl text-gray-400 hover:border-[#34baab] hover:text-[#34baab] hover:bg-[#34baab]/5 transition-all text-[10px] font-black uppercase tracking-[0.2em] flex items-center justify-center gap-2"
+                            >
+                                <Plus className="w-5 h-5" /> Registrar Pago
+                            </button>
+                        </div>
                     )}
                 </div>
 

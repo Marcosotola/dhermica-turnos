@@ -16,9 +16,10 @@ import { formatArgentineCurrency } from '@/lib/utils/currency';
 import { CreateClientModal } from '@/components/dashboard/CreateClientModal';
 import { AppointmentModal } from '@/components/appointments/AppointmentModal';
 import { CancelAppointmentDialog, CreditAction } from '@/components/appointments/CancelAppointmentDialog';
-import { deleteAppointment } from '@/lib/firebase/appointments';
+import { DeleteAppointmentDialog } from '@/components/appointments/DeleteAppointmentDialog';
+import { cancelAppointment, deleteAppointment } from '@/lib/firebase/appointments';
 import { createClientCredit } from '@/lib/firebase/clientCredits';
-import { ChevronUp, DollarSign, UserPlus, History, Pencil, Trash2, Gift } from 'lucide-react';
+import { ChevronUp, DollarSign, UserPlus, History, Pencil, Trash2, Gift, Ban } from 'lucide-react';
 import { toast } from 'sonner';
 import { ClientCredit } from '@/lib/types/clientCredit';
 import { getClientCredits } from '@/lib/firebase/clientCredits';
@@ -227,6 +228,11 @@ export default function AgendaPage() {
         setIsEditModalOpen(true);
     };
 
+    const handleCancelClick = (apt: Appointment) => {
+        setSelectedAppointment(apt);
+        setIsCancelDialogOpen(true);
+    };
+
     const handleDeleteClick = (apt: Appointment) => {
         setSelectedAppointment(apt);
         setIsDeleteConfirmOpen(true);
@@ -237,7 +243,7 @@ export default function AgendaPage() {
         setIsDeleting(true);
         try {
             await deleteAppointment(selectedAppointment.id);
-            toast.success('Turno eliminado.');
+            toast.success('Turno eliminado permanentemente.');
             setIsDeleteConfirmOpen(false);
             fetchHistory();
         } catch (error) {
@@ -269,7 +275,7 @@ export default function AgendaPage() {
                 });
             }
 
-            await deleteAppointment(selectedAppointment.id);
+            await cancelAppointment(selectedAppointment.id);
 
             if (creditAction === 'retain' && totalPaid > 0) {
                 toast.success(`Turno cancelado. Crédito de $${totalPaid.toLocaleString('es-AR')} retenido a favor del cliente.`);
@@ -712,9 +718,16 @@ export default function AgendaPage() {
                                                                             <Pencil className="w-3.5 h-3.5" />
                                                                         </button>
                                                                         <button
+                                                                            onClick={() => handleCancelClick(apt)}
+                                                                            className="p-1.5 bg-white border border-gray-100 rounded-lg text-gray-400 hover:text-amber-500 hover:border-amber-100 transition-all shadow-sm"
+                                                                            title="Cancelar Turno"
+                                                                        >
+                                                                            <Ban className="w-3.5 h-3.5" />
+                                                                        </button>
+                                                                        <button
                                                                             onClick={() => handleDeleteClick(apt)}
                                                                             className="p-1.5 bg-white border border-gray-100 rounded-lg text-gray-400 hover:text-red-500 hover:border-red-100 transition-all shadow-sm"
-                                                                            title="Cancelar Turno"
+                                                                            title="Eliminar Turno"
                                                                         >
                                                                             <Trash2 className="w-3.5 h-3.5" />
                                                                         </button>
@@ -807,44 +820,13 @@ export default function AgendaPage() {
                 loading={isDeleting}
             />
 
-            {/* Confirmación de eliminación definitiva */}
-            {isDeleteConfirmOpen && selectedAppointment && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-                    <div className="bg-white rounded-3xl shadow-2xl p-6 w-full max-w-sm space-y-4">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-2xl bg-red-100 flex items-center justify-center shrink-0">
-                                <Trash2 className="w-5 h-5 text-red-500" />
-                            </div>
-                            <div>
-                                <h3 className="font-black text-gray-900">Eliminar turno</h3>
-                                <p className="text-xs text-gray-500">Esta acción no se puede deshacer</p>
-                            </div>
-                        </div>
-                        <p className="text-sm text-gray-600">
-                            Se eliminará permanentemente el turno de{' '}
-                            <span className="font-bold text-gray-900">{selectedAppointment.treatment}</span>{' '}
-                            del {selectedAppointment.date?.split('-').reverse().join('/')} y todos sus datos asociados.
-                        </p>
-                        <div className="flex gap-2">
-                            <button
-                                type="button"
-                                onClick={() => setIsDeleteConfirmOpen(false)}
-                                className="flex-1 px-4 py-2.5 rounded-2xl border border-gray-200 text-sm font-bold text-gray-600 hover:bg-gray-50 transition-colors"
-                            >
-                                Cancelar
-                            </button>
-                            <button
-                                type="button"
-                                onClick={handleConfirmHardDelete}
-                                disabled={isDeleting}
-                                className="flex-1 px-4 py-2.5 rounded-2xl bg-red-500 hover:bg-red-600 text-white text-sm font-bold transition-colors disabled:opacity-50"
-                            >
-                                {isDeleting ? 'Eliminando...' : 'Eliminar'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <DeleteAppointmentDialog
+                isOpen={isDeleteConfirmOpen}
+                onClose={() => setIsDeleteConfirmOpen(false)}
+                onConfirm={handleConfirmHardDelete}
+                appointment={selectedAppointment}
+                loading={isDeleting}
+            />
 
             {/* Vista del cliente modal */}
             {showClientView && selectedUser && (() => {

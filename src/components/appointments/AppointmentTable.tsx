@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Pencil, Trash2, Plus, MoreVertical, X, DollarSign, CheckCircle2, Clock, XCircle } from 'lucide-react';
+import { Pencil, Trash2, Plus, MoreVertical, X, DollarSign, CheckCircle2, Clock, XCircle, Ban } from 'lucide-react';
 import { Appointment } from '@/lib/types/appointment';
 import { Professional } from '@/lib/types/professional';
 import { generateTimeSlots, timeToDecimal } from '@/lib/utils/time';
@@ -14,7 +14,7 @@ interface AppointmentTableProps {
     professionals: Professional[];
     onCreateClick: (time: string, professionalId?: string) => void;
     onEditClick: (appointment: Appointment) => void;
-    onDeleteClick: (appointment: Appointment) => void;
+    onCancelClick: (appointment: Appointment) => void;
     onDetailClick: (appointment: Appointment) => void;
     onQuickPaymentClick: (appointment: Appointment) => void;
 }
@@ -24,7 +24,7 @@ export function AppointmentTable({
     professionals,
     onCreateClick,
     onEditClick,
-    onDeleteClick,
+    onCancelClick,
     onDetailClick,
     onQuickPaymentClick,
 }: AppointmentTableProps) {
@@ -120,7 +120,7 @@ export function AppointmentTable({
                                                     appointment={apt}
                                                     professionalColor={prof.color}
                                                     onEdit={() => onEditClick(apt)}
-                                                    onDelete={() => onDeleteClick(apt)}
+                                                    onDelete={() => onCancelClick(apt)}
                                                     onDetail={() => onDetailClick(apt)}
                                                     onQuickPayment={() => onQuickPaymentClick(apt)}
                                                     isLastRows={index >= timeSlots.length - 3}
@@ -298,12 +298,12 @@ function AppointmentCell({
                                 </button>
                                 <button
                                     onClick={(e) => handleAction(e, onDelete)}
-                                    className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors text-left"
+                                    className="w-full flex items-center gap-3 px-4 py-3 text-sm text-amber-600 hover:bg-amber-50 transition-colors text-left"
                                 >
-                                    <div className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center">
-                                        <Trash2 className="w-4 h-4 text-red-600" />
+                                    <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center">
+                                        <Ban className="w-4 h-4 text-amber-600" />
                                     </div>
-                                    <span className="font-semibold">Eliminar</span>
+                                    <span className="font-semibold">Cancelar</span>
                                 </button>
                             </div>
                         </>

@@ -355,7 +355,27 @@ export async function updateAppointment(
 }
 
 /**
- * Elimina un turno
+ * Cancela un turno (soft cancel) — mantiene el registro con status 'cancelled'
+ */
+export async function cancelAppointment(id: string): Promise<void> {
+    const docRef = doc(db, APPOINTMENTS_COLLECTION, id);
+    const snap = await getDoc(docRef);
+
+    await updateDoc(docRef, {
+        status: 'cancelled',
+        updatedAt: Timestamp.now(),
+    });
+
+    if (snap.exists()) {
+        const professionalId = snap.data().professionalId;
+        if (professionalId) {
+            await syncWithLegacy(professionalId, id, 'update', { status: 'cancelled', updatedAt: Timestamp.now() });
+        }
+    }
+}
+
+/**
+ * Elimina un turno permanentemente (hard delete) — borra el registro y todo lo asociado
  */
 export async function deleteAppointment(id: string): Promise<void> {
     const docRef = doc(db, APPOINTMENTS_COLLECTION, id);
@@ -366,12 +386,22 @@ export async function deleteAppointment(id: string): Promise<void> {
     let clientId = '';
     let treatment = '';
 
+    let payments: any[] = [];
+
     if (snap.exists()) {
         const data = snap.data();
         professionalId = data.professionalId;
         clientId = data.clientId;
         treatment = data.treatment || data.servicio || 'Servicio';
+        payments = data.payments || [];
     }
+
+    // Limpiar créditos asociados a este turno antes de eliminarlo
+    const { deleteClientCreditsBySourceAppointment, restoreCreditsUsedInAppointment } = await import('./clientCredits');
+    await Promise.all([
+        deleteClientCreditsBySourceAppointment(id),
+        restoreCreditsUsedInAppointment(id),
+    ]);
 
     // Eliminar de la colección principal
     await deleteDoc(docRef);

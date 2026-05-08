@@ -17,6 +17,7 @@ import {
 import { Input } from '@/components/ui/Input';
 import { formatArgentineCurrency } from '@/lib/utils/time';
 import { AppointmentDetailModal } from '../appointments/AppointmentDetailModal';
+import { DeleteAppointmentDialog } from '../appointments/DeleteAppointmentDialog';
 import { toast } from 'sonner';
 import { deleteAppointment, updateAppointment } from '@/lib/firebase/appointments';
 import { useRouter } from 'next/navigation';
@@ -43,6 +44,8 @@ export function ProfessionalAppointments({ professional }: ProfessionalAppointme
     const [selectedApt, setSelectedApt] = useState<Appointment | null>(null);
     const [isDetailOpen, setIsDetailOpen] = useState(false);
     const [isQuickPaymentOpen, setIsQuickPaymentOpen] = useState(false);
+    const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     const loadAppointments = async () => {
         setLoading(true);
@@ -76,16 +79,25 @@ export function ProfessionalAppointments({ professional }: ProfessionalAppointme
         router.push(`/agenda?search=${encodeURIComponent(apt.clientName)}`);
     };
 
-    const handleDelete = async (apt: Appointment) => {
-        if (window.confirm('¿Estás seguro de eliminar este turno definitivamente?')) {
-            try {
-                await deleteAppointment(apt.id);
-                toast.success('Turno eliminado');
-                loadAppointments();
-            } catch (error) {
-                console.error('Error deleting appointment:', error);
-                toast.error('Error al eliminar el turno');
-            }
+    const handleDelete = (apt: Appointment) => {
+        setSelectedApt(apt);
+        setIsDetailOpen(false);
+        setIsDeleteOpen(true);
+    };
+
+    const handleConfirmDelete = async () => {
+        if (!selectedApt) return;
+        setIsDeleting(true);
+        try {
+            await deleteAppointment(selectedApt.id);
+            toast.success('Turno eliminado permanentemente');
+            setIsDeleteOpen(false);
+            loadAppointments();
+        } catch (error) {
+            console.error('Error deleting appointment:', error);
+            toast.error('Error al eliminar el turno');
+        } finally {
+            setIsDeleting(false);
         }
     };
     const handleQuickPayment = (apt: Appointment) => {
@@ -286,6 +298,7 @@ export function ProfessionalAppointments({ professional }: ProfessionalAppointme
                 appointment={selectedApt}
                 professionals={[professional]}
                 onEdit={handleEdit}
+                onCancel={handleDelete}
                 onDelete={handleDelete}
                 onQuickPayment={handleQuickPayment}
             />
@@ -295,6 +308,14 @@ export function ProfessionalAppointments({ professional }: ProfessionalAppointme
                 onClose={() => setIsQuickPaymentOpen(false)}
                 appointment={selectedApt}
                 onSuccess={loadAppointments}
+            />
+
+            <DeleteAppointmentDialog
+                isOpen={isDeleteOpen}
+                onClose={() => setIsDeleteOpen(false)}
+                onConfirm={handleConfirmDelete}
+                appointment={selectedApt}
+                loading={isDeleting}
             />
         </div>
     );

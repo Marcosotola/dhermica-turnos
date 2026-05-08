@@ -19,7 +19,8 @@ import {
     UserCircle2,
     Phone,
     Mail,
-    DollarSign
+    DollarSign,
+    Ban,
 } from 'lucide-react';
 
 interface AppointmentDetailModalProps {
@@ -28,6 +29,7 @@ interface AppointmentDetailModalProps {
     appointment: Appointment | null;
     professionals: Professional[];
     onEdit: (appointment: Appointment) => void;
+    onCancel: (appointment: Appointment) => void;
     onDelete: (appointment: Appointment) => void;
     onQuickPayment?: (appointment: Appointment) => void;
 }
@@ -38,6 +40,7 @@ export function AppointmentDetailModal({
     appointment,
     professionals,
     onEdit,
+    onCancel,
     onDelete,
     onQuickPayment,
 }: AppointmentDetailModalProps) {
@@ -72,32 +75,44 @@ export function AppointmentDetailModal({
             title="Detalles del Turno"
             size="md"
             footer={
-                <div className="flex gap-3 w-full">
-                    <Button
-                        onClick={() => {
-                            onClose();
-                            onEdit(appointment);
-                        }}
-                        variant="secondary"
-                        className="flex-1 py-4 font-bold flex items-center justify-center gap-2 border-gray-200"
-                    >
-                        <Pencil className="w-5 h-5" /> Editar
-                    </Button>
-                    <Button
-                        onClick={() => {
-                            onClose();
-                            onDelete(appointment);
-                        }}
-                        className="flex-1 py-4 bg-red-500 hover:bg-red-600 font-bold flex items-center justify-center gap-2 text-white shadow-lg shadow-red-500/10"
-                    >
-                        <Trash2 className="w-5 h-5" /> Eliminar
-                    </Button>
+                <div className="flex flex-col gap-2 w-full">
+                    <div className="flex gap-2">
+                        <Button
+                            onClick={() => {
+                                onClose();
+                                onEdit(appointment);
+                            }}
+                            variant="secondary"
+                            className="flex-1 py-3 font-bold flex items-center justify-center gap-2 border-gray-200"
+                        >
+                            <Pencil className="w-4 h-4" /> Editar
+                        </Button>
+                        <Button
+                            onClick={() => {
+                                onClose();
+                                onCancel(appointment);
+                            }}
+                            className="flex-1 py-3 bg-amber-500 hover:bg-amber-600 font-bold flex items-center justify-center gap-2 text-white shadow-lg shadow-amber-500/10"
+                        >
+                            <Ban className="w-4 h-4" /> Cancelar
+                        </Button>
+                        <Button
+                            onClick={() => {
+                                onClose();
+                                onDelete(appointment);
+                            }}
+                            className="py-3 px-4 bg-red-500 hover:bg-red-600 font-bold flex items-center justify-center gap-2 text-white shadow-lg shadow-red-500/10"
+                            title="Eliminar permanentemente"
+                        >
+                            <Trash2 className="w-4 h-4" />
+                        </Button>
+                    </div>
                     {onQuickPayment && (
                         <Button
                             onClick={() => {
                                 onQuickPayment(appointment);
                             }}
-                            className="flex-[2] py-4 bg-[#34baab] hover:bg-[#2da699] font-bold flex items-center justify-center gap-2 text-white shadow-lg shadow-[#34baab]/10"
+                            className="w-full py-4 bg-[#34baab] hover:bg-[#2da699] font-bold flex items-center justify-center gap-2 text-white shadow-lg shadow-[#34baab]/10"
                         >
                             <DollarSign className="w-5 h-5" /> Cobrar / Cerrar
                         </Button>

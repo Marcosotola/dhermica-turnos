@@ -222,8 +222,8 @@ export async function getFinanceOverview(startDate: string, endDate: string, tar
             paymentsArray.forEach(p => {
                 const pDate = (p.date || '').substring(0, 10);
                 if (!pDate || pDate < startDate || pDate > endDate) return;
-                // Gift card payments are pre-collected — skip to avoid double-counting
-                if (p.method === 'gift_card') return;
+                // Gift cards and client credits are pre-collected — skip to avoid double-counting
+                if (p.method === 'gift_card' || p.method === 'client_credit') return;
                 const isSeña = p.label === 'Seña';
                 const isParcial = p.label === 'Pago Parcial';
                 const isPreApt = pDate < apt.date;
