@@ -40,7 +40,8 @@ export interface Appointment {
     treatments?: SelectedTreatment[]; // Tratamientos del catálogo (opcional, para nuevos turnos)
     status: AppointmentStatus;
     payments: Payment[];
-    commissionPercentageOverride?: number | null; // Override for professional commission (e.g., 100 for total)
+    commissionPercentageOverride?: number | null; // Override for professional commission percentage (e.g., 50 = 50%)
+    commissionFixedOverride?: number | null; // Override for professional commission as fixed amount (e.g., 15000)
     createdAt: Date;
     updatedAt: Date;
     paymentMethod?: 'cash' | 'transfer' | 'debit' | 'credit' | 'qr'; // Legacy/Shortcut for single payment

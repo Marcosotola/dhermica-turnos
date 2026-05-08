@@ -211,19 +211,27 @@ export function AppointmentDetailModal({
                         <p className="font-bold text-gray-900">{professional?.name || 'No asignado'}</p>
                     </div>
 
-                    {(appointment.commissionPercentageOverride !== undefined && appointment.commissionPercentageOverride !== null) && (
+                    {((appointment.commissionPercentageOverride !== undefined && appointment.commissionPercentageOverride !== null) ||
+                      (appointment.commissionFixedOverride !== undefined && appointment.commissionFixedOverride !== null)) && (
                         <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100 md:col-span-2 flex items-center justify-between">
                             <div className="flex items-center gap-3">
                                 <BadgeDollarSign className="w-6 h-6 text-blue-500" />
                                 <div>
                                     <p className="text-[10px] font-black uppercase tracking-widest text-blue-400 leading-none mb-1">Comisión Especial</p>
-                                    <p className="font-black text-blue-600">Este turno paga el {appointment.commissionPercentageOverride}%</p>
+                                    {appointment.commissionFixedOverride !== undefined && appointment.commissionFixedOverride !== null ? (
+                                        <p className="font-black text-blue-600">Monto fijo para este turno</p>
+                                    ) : (
+                                        <p className="font-black text-blue-600">Este turno paga el {appointment.commissionPercentageOverride}%</p>
+                                    )}
                                 </div>
                             </div>
                             <div className="text-right">
                                 <p className="text-[10px] font-black uppercase tracking-widest text-blue-400 leading-none mb-1">Monto para el Prof.</p>
                                 <p className="font-black text-blue-700 text-lg">
-                                    {formatCurrencyWithSymbol((appointment.price || 0) * ((appointment.commissionPercentageOverride || 0) / 100))}
+                                    {appointment.commissionFixedOverride !== undefined && appointment.commissionFixedOverride !== null
+                                        ? formatCurrencyWithSymbol(appointment.commissionFixedOverride)
+                                        : formatCurrencyWithSymbol((appointment.price || 0) * ((appointment.commissionPercentageOverride || 0) / 100))
+                                    }
                                 </p>
                             </div>
                         </div>

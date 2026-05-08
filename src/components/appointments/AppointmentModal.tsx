@@ -66,8 +66,10 @@ export function AppointmentModal({
         status: 'pending' as AppointmentStatus,
         payments: [] as Payment[],
         commissionPercentageOverride: undefined as number | undefined,
+        commissionFixedOverride: undefined as number | undefined,
     });
     const [useCustomCommission, setUseCustomCommission] = useState(false);
+    const [commissionMode, setCommissionMode] = useState<'percentage' | 'fixed'>('percentage');
     const [newPayment, setNewPayment] = useState({
         amount: 0,
         method: 'cash' as Payment['method'],
@@ -201,11 +203,24 @@ export function AppointmentModal({
                 status: appointment.status || 'pending',
                 payments: appointment.payments || [],
                 commissionPercentageOverride: appointment.commissionPercentageOverride ?? undefined,
+                commissionFixedOverride: appointment.commissionFixedOverride ?? undefined,
             });
-            setUseCustomCommission(
+
+            const hasCustomPct =
                 appointment.commissionPercentageOverride !== undefined &&
-                appointment.commissionPercentageOverride !== null
-            );
+                appointment.commissionPercentageOverride !== null;
+            const hasFixedOverride =
+                appointment.commissionFixedOverride !== undefined &&
+                appointment.commissionFixedOverride !== null;
+
+            if (hasCustomPct || hasFixedOverride) {
+                setUseCustomCommission(true);
+                setCommissionMode(hasFixedOverride ? 'fixed' : 'percentage');
+            } else {
+                setUseCustomCommission(false);
+                setCommissionMode('percentage');
+            }
+
             if (appointment.clientId) {
                 setClientMode('registered');
             } else {
@@ -240,6 +255,7 @@ export function AppointmentModal({
                 status: 'pending',
                 payments: [],
                 commissionPercentageOverride: undefined,
+                commissionFixedOverride: undefined,
             });
             setClientMode('registered');
             setUseCustomCommission(false);
@@ -435,7 +451,8 @@ export function AppointmentModal({
             price: formData.price,
             status: formData.status,
             payments: finalPayments,
-            commissionPercentageOverride: useCustomCommission ? (formData.commissionPercentageOverride ?? null) : null,
+            commissionPercentageOverride: useCustomCommission && commissionMode === 'percentage' ? (formData.commissionPercentageOverride ?? null) : null,
+            commissionFixedOverride: useCustomCommission && commissionMode === 'fixed' ? (formData.commissionFixedOverride ?? null) : null,
         };
 
         // Validar datos
@@ -1244,8 +1261,10 @@ export function AppointmentModal({
                             onClick={() => {
                                 const newValue = !useCustomCommission;
                                 setUseCustomCommission(newValue);
-                                if (newValue && formData.commissionPercentageOverride === undefined) {
-                                    setFormData({ ...formData, commissionPercentageOverride: 100 });
+                                if (newValue) {
+                                    if (commissionMode === 'percentage' && formData.commissionPercentageOverride === undefined) {
+                                        setFormData({ ...formData, commissionPercentageOverride: 100 });
+                                    }
                                 }
                             }}
                             className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${useCustomCommission ? 'bg-blue-600' : 'bg-gray-200'
@@ -1259,25 +1278,72 @@ export function AppointmentModal({
                     </div>
 
                     {useCustomCommission && (
-                        <div className="animate-in fade-in slide-in-from-top-2">
-                            <div className="flex items-center gap-4">
-                                <div className="flex-1">
-                                    <Input
-                                        label="Porcentaje de Comisión (%)"
-                                        type="number"
-                                        min="0"
-                                        max="100"
-                                        value={formData.commissionPercentageOverride ?? ''}
-                                        onChange={(e) => setFormData({ ...formData, commissionPercentageOverride: e.target.value ? Number(e.target.value) : undefined })}
-                                        placeholder="Ej: 100"
-                                    />
-                                </div>
-                                <div className="pt-6">
-                                    <span className="text-xs text-gray-400 font-bold uppercase italic">
-                                        * Solo para este turno
-                                    </span>
-                                </div>
+                        <div className="animate-in fade-in slide-in-from-top-2 space-y-3">
+                            {/* Mode selector */}
+                            <div className="bg-white p-0.5 rounded-xl flex border border-blue-100">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setCommissionMode('percentage');
+                                        if (formData.commissionPercentageOverride === undefined) {
+                                            setFormData({ ...formData, commissionPercentageOverride: 100 });
+                                        }
+                                    }}
+                                    className={`flex-1 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
+                                        commissionMode === 'percentage'
+                                            ? 'bg-blue-600 text-white shadow-sm'
+                                            : 'text-gray-400 hover:text-gray-600'
+                                    }`}
+                                >
+                                    % Porcentaje
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setCommissionMode('fixed')}
+                                    className={`flex-1 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
+                                        commissionMode === 'fixed'
+                                            ? 'bg-blue-600 text-white shadow-sm'
+                                            : 'text-gray-400 hover:text-gray-600'
+                                    }`}
+                                >
+                                    $ Monto Fijo
+                                </button>
                             </div>
+
+                            {commissionMode === 'percentage' ? (
+                                <div className="flex items-center gap-4">
+                                    <div className="flex-1">
+                                        <Input
+                                            label="Porcentaje de Comisión (%)"
+                                            type="number"
+                                            min="0"
+                                            max="100"
+                                            value={formData.commissionPercentageOverride ?? ''}
+                                            onChange={(e) => setFormData({ ...formData, commissionPercentageOverride: e.target.value ? Number(e.target.value) : undefined })}
+                                            placeholder="Ej: 50"
+                                        />
+                                    </div>
+                                    {formData.commissionPercentageOverride !== undefined && formData.price > 0 && (
+                                        <div className="pt-6 text-right shrink-0">
+                                            <p className="text-[9px] text-blue-400 font-black uppercase">Resultado</p>
+                                            <p className="text-sm font-black text-blue-700">
+                                                $ {((formData.price * (formData.commissionPercentageOverride || 0)) / 100).toLocaleString('es-AR')}
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
+                            ) : (
+                                <CurrencyInput
+                                    label="Monto Fijo de Comisión ($)"
+                                    value={formData.commissionFixedOverride ?? 0}
+                                    onChange={(val) => setFormData({ ...formData, commissionFixedOverride: val || undefined })}
+                                    placeholder="0,00"
+                                />
+                            )}
+
+                            <p className="text-[9px] text-blue-400 font-bold uppercase tracking-widest italic text-center">
+                                * Solo aplica a este turno · no modifica la configuración del profesional
+                            </p>
                         </div>
                     )}
                 </div>
