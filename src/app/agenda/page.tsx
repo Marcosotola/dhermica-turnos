@@ -976,12 +976,18 @@ export default function AgendaPage() {
                         </div>
 
                         {/* Gift Cards */}
-                        {activeGiftCards.length > 0 && (
-                            <div className="space-y-2">
-                                <p className="text-xs font-black text-gray-400 uppercase tracking-widest px-1 flex items-center gap-2">
-                                    <Gift className="w-3.5 h-3.5 text-[#34baab]" /> Mis Gift Cards
-                                </p>
-                                {activeGiftCards.map(gc => (
+                        <div className="space-y-2">
+                            <p className="text-xs font-black text-gray-400 uppercase tracking-widest px-1 flex items-center gap-2">
+                                <Gift className="w-3.5 h-3.5 text-[#34baab]" /> Mis Gift Cards
+                            </p>
+                            {activeGiftCards.length === 0 ? (
+                                <div className="bg-white border border-gray-100 rounded-2xl p-5 text-center shadow-sm">
+                                    <Gift className="w-8 h-8 text-gray-200 mx-auto mb-2" />
+                                    <p className="text-sm font-bold text-gray-400">No tenés gift cards activas</p>
+                                    <p className="text-xs text-gray-300 mt-0.5">Podés consultarnos para obtener una.</p>
+                                </div>
+                            ) : (
+                                activeGiftCards.map(gc => (
                                     <div key={gc.id} className="rounded-2xl bg-gradient-to-r from-teal-500 via-teal-400 to-cyan-400 p-4 shadow-sm">
                                         <div className="flex items-start justify-between">
                                             <div>
@@ -989,17 +995,15 @@ export default function AgendaPage() {
                                                 <p className="text-2xl font-black text-white">$ {formatArgentineCurrency(gc.amount)}</p>
                                                 <p className="text-xs font-mono text-white/80 mt-1">{gc.code}</p>
                                             </div>
-                                            <div className="text-right">
-                                                {gc.expiryDate && (
-                                                    <p className="text-[10px] text-white/70">Vence {(() => { const [y,m,d] = gc.expiryDate!.split('-'); return `${d}/${m}/${y}`; })()}</p>
-                                                )}
-                                            </div>
+                                            {gc.expiryDate && (
+                                                <p className="text-[10px] text-white/70">Vence {(() => { const [y,m,d] = gc.expiryDate!.split('-'); return `${d}/${m}/${y}`; })()}</p>
+                                            )}
                                         </div>
                                         {gc.notes && <p className="text-[10px] text-white/70 mt-2 italic">"{gc.notes}"</p>}
                                     </div>
-                                ))}
-                            </div>
-                        )}
+                                ))
+                            )}
+                        </div>
 
                         {/* Historial de Transacciones */}
                         <div>
