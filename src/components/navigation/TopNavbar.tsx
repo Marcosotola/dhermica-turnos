@@ -3,10 +3,12 @@
 import { useState, useEffect, ElementType } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Menu, X, Home, Calendar, Truck, Users, LayoutDashboard, LogOut, BookOpen, Settings, Sparkles, Tag, ShoppingBag, Bell, Share2, MapPin, DollarSign, Zap, TrendingDown } from 'lucide-react';
+import { Menu, X, Home, Calendar, Truck, Users, LayoutDashboard, LogOut, BookOpen, Settings, Sparkles, Tag, ShoppingBag, Bell, Share2, MapPin, DollarSign, Zap, TrendingDown, Download } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
+import { usePWA } from '@/lib/hooks/usePWA';
+import { IOSInstallModal } from '../pwa/IOSInstallModal';
 
 
 export function TopNavbar() {
@@ -16,6 +18,9 @@ export function TopNavbar() {
     const pathname = usePathname();
 
     const router = useRouter();
+    const { isInstallable, isIOS, isStandalone, installApp } = usePWA();
+    const [showInstallHelp, setShowInstallHelp] = useState(false);
+    const [showIOSInstall, setShowIOSInstall] = useState(false);
 
     // Close menu when route changes
     useEffect(() => {
@@ -38,6 +43,19 @@ export function TopNavbar() {
     const handleLogout = async () => {
         await logout();
         router.push('/');
+    };
+
+    const handleInstallClick = () => {
+        setIsOpen(false);
+        if (isStandalone) {
+            setShowInstallHelp(true);
+        } else if (isInstallable) {
+            installApp();
+        } else if (isIOS) {
+            setShowIOSInstall(true);
+        } else {
+            setShowInstallHelp(true);
+        }
     };
 
     interface NavLink {
@@ -220,6 +238,19 @@ export function TopNavbar() {
                             </button>
                         </div>
 
+                        <div className="px-2">
+                            <button
+                                type="button"
+                                onClick={handleInstallClick}
+                                className="w-full flex items-center gap-4 px-4 py-3 rounded-2xl text-white/70 font-bold bg-white/8 hover:bg-white/15 active:scale-95 transition-all border border-white/10"
+                            >
+                                <div className="w-10 h-10 rounded-xl bg-white/8 flex items-center justify-center">
+                                    <Download className="w-5 h-5" />
+                                </div>
+                                <span>Instalar App</span>
+                            </button>
+                        </div>
+
                         <p className="text-[10px] text-gray-500 uppercase font-black tracking-widest text-center mt-4">
                             Dhermica v0.1.0
                         </p>
@@ -227,6 +258,67 @@ export function TopNavbar() {
 
                 </div>
             </div>
+
+            {/* iOS install instructions modal */}
+            {showIOSInstall && <IOSInstallModal onClose={() => setShowIOSInstall(false)} />}
+
+            {/* Desktop / already-installed modal */}
+            {showInstallHelp && (
+                <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
+                    <div className="bg-white rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl animate-in slide-in-from-bottom duration-500 sm:zoom-in">
+                        <div className="relative p-6">
+                            <button
+                                type="button"
+                                onClick={() => setShowInstallHelp(false)}
+                                aria-label="Cerrar"
+                                className="absolute right-4 top-4 p-2 hover:bg-gray-100 rounded-full transition-colors"
+                            >
+                                <X className="w-5 h-5 text-gray-400" />
+                            </button>
+
+                            <div className="text-center mb-5">
+                                <div className="w-16 h-16 bg-[#34baab]/10 rounded-2xl mx-auto mb-4 flex items-center justify-center">
+                                    <Download className="w-8 h-8 text-[#34baab]" />
+                                </div>
+                                {isStandalone ? (
+                                    <>
+                                        <h3 className="text-xl font-black text-gray-900 mb-2">¡Ya la tenés instalada!</h3>
+                                        <p className="text-gray-500 text-sm">Dhermica ya está instalada en tu dispositivo. Podés acceder directamente desde tu pantalla de inicio.</p>
+                                    </>
+                                ) : (
+                                    <>
+                                        <h3 className="text-xl font-black text-gray-900 mb-1">Instalar Dhermica</h3>
+                                        <p className="text-gray-500 text-sm">Seguí estos pasos para instalar la app:</p>
+                                    </>
+                                )}
+                            </div>
+
+                            {!isStandalone && (
+                                <div className="space-y-2 mb-6">
+                                    {[
+                                        'Abrí esta página en Chrome o Edge',
+                                        'Hacé clic en el ícono de instalación en la barra de direcciones (o en el menú del navegador)',
+                                        'Seguí los pasos para completar la instalación',
+                                    ].map((step, i) => (
+                                        <div key={i} className="flex items-start gap-3 bg-gray-50 p-3 rounded-2xl border border-gray-100">
+                                            <span className="w-7 h-7 bg-[#34baab] text-white text-xs font-black rounded-full flex items-center justify-center shrink-0 mt-0.5">{i + 1}</span>
+                                            <p className="text-sm text-gray-700 font-medium">{step}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            <button
+                                type="button"
+                                onClick={() => setShowInstallHelp(false)}
+                                className={`w-full py-4 rounded-xl font-bold text-lg transition-all active:scale-[0.98] ${isStandalone ? 'bg-[#34baab] text-white' : 'bg-gray-900 text-white'}`}
+                            >
+                                {isStandalone ? '¡Perfecto!' : 'Entendido'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </>
     );
 }
