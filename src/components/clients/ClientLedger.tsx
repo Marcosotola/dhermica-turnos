@@ -31,6 +31,7 @@ interface ClientLedgerProps {
     credits: ClientCredit[];
     isAdmin?: boolean;
     loading?: boolean;
+    hideSummary?: boolean;
 }
 
 function entryIcon(type: LedgerEntry['type']) {
@@ -60,7 +61,7 @@ function entryAmountColor(type: LedgerEntry['type']): string {
     }
 }
 
-export function ClientLedger({ appointments, credits, isAdmin, loading }: ClientLedgerProps) {
+export function ClientLedger({ appointments, credits, isAdmin, loading, hideSummary }: ClientLedgerProps) {
     const [open, setOpen] = useState(false);
     const [txType, setTxType] = useState<'all' | LedgerEntry['type']>('all');
     const [txDateFrom, setTxDateFrom] = useState('');
@@ -106,6 +107,7 @@ export function ClientLedger({ appointments, credits, isAdmin, loading }: Client
     return (
         <div className="space-y-4">
             {/* Summary Cards */}
+            {!hideSummary && <>
             <div className="flex flex-wrap gap-3">
                 {isAdmin && (
                     <div className="flex-1 min-w-[130px] bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
@@ -165,6 +167,7 @@ export function ClientLedger({ appointments, credits, isAdmin, loading }: Client
                     </p>
                 </div>
             )}
+            </>}
 
             {/* Timeline toggle */}
             <div className="border border-gray-100 rounded-3xl overflow-hidden bg-white shadow-sm">
@@ -221,12 +224,16 @@ export function ClientLedger({ appointments, credits, isAdmin, loading }: Client
                                         type="date"
                                         value={txDateFrom}
                                         onChange={e => setTxDateFrom(e.target.value)}
+                                        placeholder="Desde"
+                                        title="Desde"
                                         className="w-full px-2 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-[#34baab]"
                                     />
                                     <input
                                         type="date"
                                         value={txDateTo}
                                         onChange={e => setTxDateTo(e.target.value)}
+                                        placeholder="Hasta"
+                                        title="Hasta"
                                         className="w-full px-2 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-[#34baab]"
                                     />
                                 </div>

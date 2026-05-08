@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { getUsersByRole, getAllUsers } from '@/lib/firebase/users';
 import { UserProfile } from '@/lib/types/user';
 import { Toaster } from 'sonner';
-import { BookOpen, Search, User as UserIcon, Phone, Calendar, Heart, AlertCircle, Info, CalendarCheck, ChevronDown, Loader2, ArrowLeft, CheckCircle2, Clock, XCircle } from 'lucide-react';
+import { BookOpen, Search, User as UserIcon, Phone, Calendar, Heart, AlertCircle, Info, CalendarCheck, ChevronDown, Loader2, ArrowLeft, CheckCircle2, Clock, XCircle, Eye, Smartphone, ClipboardList } from 'lucide-react';
 import { Appointment } from '@/lib/types/appointment';
 import { getAppointmentsByClientId, searchAppointmentsByClient } from '@/lib/firebase/appointments';
 import { Button } from '@/components/ui/Button';
@@ -18,11 +18,12 @@ import { AppointmentModal } from '@/components/appointments/AppointmentModal';
 import { CancelAppointmentDialog, CreditAction } from '@/components/appointments/CancelAppointmentDialog';
 import { deleteAppointment } from '@/lib/firebase/appointments';
 import { createClientCredit } from '@/lib/firebase/clientCredits';
-import { ChevronUp, DollarSign, UserPlus, History, Pencil, Trash2 } from 'lucide-react';
+import { ChevronUp, DollarSign, UserPlus, History, Pencil, Trash2, Gift } from 'lucide-react';
 import { toast } from 'sonner';
 import { ClientCredit } from '@/lib/types/clientCredit';
 import { getClientCredits } from '@/lib/firebase/clientCredits';
 import { ClientLedger } from '@/components/clients/ClientLedger';
+import { getClientLedgerSummary } from '@/lib/utils/clientLedger';
 import { GiftCard } from '@/lib/types/giftCard';
 import { getGiftCardsByClient } from '@/lib/firebase/giftCards';
 import { GiftCardSection } from '@/components/clients/GiftCardSection';
@@ -58,6 +59,8 @@ export default function AgendaPage() {
     const [aptDateFrom, setAptDateFrom] = useState('');
     const [aptDateTo, setAptDateTo] = useState('');
     const [showHistorial, setShowHistorial] = useState(false);
+    const [showClientView, setShowClientView] = useState(false);
+    const [clientViewTurnosOpen, setClientViewTurnosOpen] = useState(false);
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const normalize = (s: string) =>
@@ -400,11 +403,20 @@ export default function AgendaPage() {
                                             </div>
                                         </div>
                                     </div>
-                                    <div className="flex flex-col text-right">
-                                        <div className="flex items-center justify-end gap-2 text-gray-600 font-bold">
+                                    <div className="flex flex-col items-end gap-1">
+                                        <div className="flex items-center gap-2 text-gray-600 font-bold">
                                             <Phone className="w-4 h-4 text-[#34baab]" /> {selectedUser.phone}
                                         </div>
                                         <div className="text-sm text-gray-400 lowercase">{selectedUser.email}</div>
+                                        {!selectedUser.uid.startsWith('legacy-') && (
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowClientView(true)}
+                                                className="flex items-center gap-1.5 mt-1 px-3 py-1.5 bg-[#34baab]/10 hover:bg-[#34baab]/20 text-[#34baab] text-xs font-bold rounded-xl transition-colors"
+                                            >
+                                                <Eye className="w-3.5 h-3.5" /> Ver como cliente
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
 
@@ -833,6 +845,179 @@ export default function AgendaPage() {
                     </div>
                 </div>
             )}
+
+            {/* Vista del cliente modal */}
+            {showClientView && selectedUser && (() => {
+                const cvSummary = getClientLedgerSummary(appointments, clientCredits);
+                const activeGiftCards = giftCards.filter(g => g.status === 'active');
+                return (
+                <div className="fixed inset-0 z-50 flex flex-col bg-gray-50 overflow-y-auto">
+                    {/* Header */}
+                    <div className="bg-[#484450] px-4 py-5 flex items-center justify-between shrink-0 sticky top-0 z-10">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-[#34baab] rounded-2xl flex items-center justify-center shadow-lg">
+                                <ClipboardList className="w-5 h-5 text-white" />
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-black text-[#34baab] uppercase tracking-widest flex items-center gap-1">
+                                    <Smartphone className="w-3 h-3" /> Vista del cliente
+                                </p>
+                                <h1 className="text-lg font-black text-white leading-tight">{selectedUser.fullName}</h1>
+                            </div>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => setShowClientView(false)}
+                            className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white text-sm font-bold rounded-xl transition-colors"
+                        >
+                            Cerrar
+                        </button>
+                    </div>
+
+                    <div className="max-w-2xl w-full mx-auto px-4 py-5 space-y-4">
+
+                        {/* Banner de estado */}
+                        {cvSummary.netBalance > 0 ? (
+                            <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-2xl px-4 py-4">
+                                <AlertCircle className="w-6 h-6 text-red-500 shrink-0" />
+                                <div>
+                                    <p className="text-xs font-black text-red-400 uppercase tracking-widest">Saldo pendiente</p>
+                                    <p className="text-xl font-black text-red-600">$ {formatArgentineCurrency(cvSummary.netBalance)}</p>
+                                </div>
+                            </div>
+                        ) : cvSummary.netBalance < 0 ? (
+                            <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-2xl px-4 py-4">
+                                <Gift className="w-6 h-6 text-amber-500 shrink-0" />
+                                <div>
+                                    <p className="text-xs font-black text-amber-500 uppercase tracking-widest">Saldo a favor</p>
+                                    <p className="text-xl font-black text-amber-600">$ {formatArgentineCurrency(Math.abs(cvSummary.netBalance))}</p>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="flex items-center gap-3 bg-green-50 border border-green-200 rounded-2xl px-4 py-4">
+                                <CheckCircle2 className="w-6 h-6 text-green-500 shrink-0" />
+                                <div>
+                                    <p className="text-xs font-black text-green-500 uppercase tracking-widest">Al día</p>
+                                    <p className="text-sm font-bold text-green-700">No hay deuda pendiente</p>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Historial de Turnos colapsable */}
+                        <div className="border border-gray-100 rounded-2xl overflow-hidden bg-white shadow-sm">
+                            <button
+                                type="button"
+                                onClick={() => setClientViewTurnosOpen(v => !v)}
+                                className="w-full flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 transition-colors"
+                            >
+                                <div className="flex items-center gap-2">
+                                    <CalendarCheck className="w-4 h-4 text-[#34baab]" />
+                                    <span className="font-bold text-gray-900 text-sm">Mis Turnos</span>
+                                    <span className="text-xs text-gray-400 font-medium">({appointments.length})</span>
+                                </div>
+                                {clientViewTurnosOpen ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+                            </button>
+                            {clientViewTurnosOpen && (
+                                <div className="p-3 space-y-2 animate-in slide-in-from-top-2 duration-200">
+                                    {appointments.length === 0 ? (
+                                        <div className="py-8 text-center">
+                                            <Clock className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+                                            <p className="text-sm font-bold text-gray-400">No hay turnos registrados</p>
+                                        </div>
+                                    ) : (
+                                        [...appointments]
+                                            .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
+                                            .map(apt => {
+                                                const totalPaid = (apt.payments || []).reduce((s, p) => s + p.amount, 0);
+                                                const balance = (apt.price || 0) - totalPaid;
+                                                const status = apt.status || 'pending';
+                                                return (
+                                                    <div key={apt.id} className="flex items-start justify-between gap-3 p-3 rounded-2xl border border-gray-100 bg-gray-50/50">
+                                                        <div className="flex items-start gap-2 min-w-0">
+                                                            <div className="w-8 h-8 bg-white rounded-xl flex items-center justify-center shrink-0 border border-gray-100">
+                                                                <CalendarCheck className="w-4 h-4 text-[#34baab]" />
+                                                            </div>
+                                                            <div className="min-w-0">
+                                                                <p className="font-bold text-gray-900 text-sm truncate">{apt.treatment}</p>
+                                                                <p className="text-[11px] text-gray-500 flex items-center gap-1 mt-0.5">
+                                                                    <Clock className="w-3 h-3 shrink-0" />
+                                                                    {(() => { const [y,m,d] = apt.date.split('-'); return `${d}/${m}/${y}`; })()} — {apt.time}hs
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex flex-col items-end gap-1 shrink-0">
+                                                            <span className="text-sm font-black text-[#34baab]">$ {formatArgentineCurrency(apt.price || 0)}</span>
+                                                            {(status as string) === 'completed' || (status as string) === 'realizado' ? (
+                                                                <span className="px-2 py-0.5 bg-green-100 text-green-600 rounded-full text-[9px] uppercase font-black flex items-center gap-1">
+                                                                    <CheckCircle2 className="w-2.5 h-2.5" /> Realizado
+                                                                </span>
+                                                            ) : (status as string) === 'cancelled' || (status as string) === 'cancelado' ? (
+                                                                <span className="px-2 py-0.5 bg-red-100 text-red-600 rounded-full text-[9px] uppercase font-black flex items-center gap-1">
+                                                                    <XCircle className="w-2.5 h-2.5" /> Cancelado
+                                                                </span>
+                                                            ) : (
+                                                                <span className="px-2 py-0.5 bg-amber-100 text-amber-600 rounded-full text-[9px] uppercase font-black flex items-center gap-1">
+                                                                    <Clock className="w-2.5 h-2.5" /> Pendiente
+                                                                </span>
+                                                            )}
+                                                            {(apt.payments || []).length > 0 && balance === 0 && (
+                                                                <span className="text-[9px] font-black text-[#34baab]">Saldado</span>
+                                                            )}
+                                                            {(apt.payments || []).length > 0 && balance > 0 && (
+                                                                <span className="text-[9px] font-black text-red-500">Debe $ {formatArgentineCurrency(balance)}</span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })
+                                    )}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Gift Cards */}
+                        {activeGiftCards.length > 0 && (
+                            <div className="space-y-2">
+                                <p className="text-xs font-black text-gray-400 uppercase tracking-widest px-1 flex items-center gap-2">
+                                    <Gift className="w-3.5 h-3.5 text-[#34baab]" /> Mis Gift Cards
+                                </p>
+                                {activeGiftCards.map(gc => (
+                                    <div key={gc.id} className="rounded-2xl bg-gradient-to-r from-teal-500 via-teal-400 to-cyan-400 p-4 shadow-sm">
+                                        <div className="flex items-start justify-between">
+                                            <div>
+                                                <p className="text-[10px] font-black text-white/70 uppercase tracking-widest mb-1">Gift Card activa</p>
+                                                <p className="text-2xl font-black text-white">$ {formatArgentineCurrency(gc.amount)}</p>
+                                                <p className="text-xs font-mono text-white/80 mt-1">{gc.code}</p>
+                                            </div>
+                                            <div className="text-right">
+                                                {gc.expiryDate && (
+                                                    <p className="text-[10px] text-white/70">Vence {(() => { const [y,m,d] = gc.expiryDate!.split('-'); return `${d}/${m}/${y}`; })()}</p>
+                                                )}
+                                            </div>
+                                        </div>
+                                        {gc.notes && <p className="text-[10px] text-white/70 mt-2 italic">"{gc.notes}"</p>}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        {/* Historial de Transacciones */}
+                        <div>
+                            <p className="text-xs font-black text-gray-400 uppercase tracking-widest px-1 mb-2 flex items-center gap-2">
+                                <DollarSign className="w-3.5 h-3.5 text-[#34baab]" /> Historial de Transacciones
+                            </p>
+                            <ClientLedger
+                                appointments={appointments}
+                                credits={clientCredits}
+                                loading={historyLoading || creditsLoading}
+                                hideSummary
+                            />
+                        </div>
+
+                    </div>
+                </div>
+                );
+            })()}
         </div>
     );
 }
