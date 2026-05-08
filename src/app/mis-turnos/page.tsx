@@ -27,7 +27,7 @@ import { getClientCredits } from '@/lib/firebase/clientCredits';
 import { ClientLedger } from '@/components/clients/ClientLedger';
 import { GiftCard } from '@/lib/types/giftCard';
 import { getGiftCardsByClient } from '@/lib/firebase/giftCards';
-import { getClientLedgerSummary } from '@/lib/utils/clientLedger';
+import { getClientLedgerSummary, BALANCE_SINCE } from '@/lib/utils/clientLedger';
 
 export default function MisTurnosPage() {
     const { user, profile, loading } = useAuth();
@@ -129,6 +129,12 @@ export default function MisTurnosPage() {
                                 <p className="text-sm font-bold text-green-700">No hay deuda pendiente</p>
                             </div>
                         </div>
+                    )}
+
+                    {!historyLoading && (
+                        <p className="text-[10px] text-gray-400 font-medium px-1">
+                            * Saldo calculado desde el {(() => { const [y, m, d] = BALANCE_SINCE.split('-'); return `${d}/${m}/${y}`; })()}. Turnos anteriores no tenían registro de pagos.
+                        </p>
                     )}
 
                     {/* Historial de Turnos colapsable */}

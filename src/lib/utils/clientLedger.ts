@@ -1,6 +1,9 @@
 import { Appointment } from '../types/appointment';
 import { ClientCredit } from '../types/clientCredit';
 
+// Turnos anteriores a esta fecha se excluyen del cálculo de saldo (no tenían registro de pagos)
+export const BALANCE_SINCE = '2026-05-01';
+
 export type LedgerEntryType =
     | 'payment'
     | 'credit_generated'
@@ -110,10 +113,13 @@ export function getClientLedgerSummary(
 ): ClientLedgerSummary {
     const activeStatuses = new Set(['completed', 'pending', 'realizado']);
 
+    // Solo se cuentan turnos desde BALANCE_SINCE; los anteriores no tenían registro de pago
+    const billableAppointments = appointments.filter(apt => (apt.date || '') >= BALANCE_SINCE);
+
     let totalBilled = 0;
     let totalPaid = 0;
 
-    for (const apt of appointments) {
+    for (const apt of billableAppointments) {
         if (activeStatuses.has(apt.status)) {
             totalBilled += apt.price || 0;
         }
