@@ -7,6 +7,11 @@ export interface TreatmentPrice {
     duration?: number; // in minutes
 }
 
+export interface CancellationPolicy {
+    hoursBeforeToCancel: number;
+    forfeitDeposit: boolean;
+}
+
 export interface Treatment {
     id: string;
     name: string;
@@ -20,6 +25,7 @@ export interface Treatment {
     preCare?: string[];
     postCare?: string[];
     imageUrl?: string;
+    cancellationPolicy?: CancellationPolicy;
     createdAt?: Date;
     updatedAt?: Date;
 }

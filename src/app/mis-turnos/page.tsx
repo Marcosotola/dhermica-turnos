@@ -11,18 +11,23 @@ import {
     ChevronLeft,
     Loader2,
     CheckCircle2,
-    XCircle
+    XCircle,
+    Wallet,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Appointment } from '@/lib/types/appointment';
 import { getAppointmentsByClientId } from '@/lib/firebase/appointments';
 import { formatArgentineCurrency } from '@/lib/utils/currency';
 import { Toaster } from 'sonner';
+import { ClientCredit } from '@/lib/types/clientCredit';
+import { getClientCredits } from '@/lib/firebase/clientCredits';
+import { ClientLedger } from '@/components/clients/ClientLedger';
 
 export default function MisTurnosPage() {
     const { user, profile, loading } = useAuth();
     const router = useRouter();
     const [appointments, setAppointments] = useState<Appointment[]>([]);
+    const [credits, setCredits] = useState<ClientCredit[]>([]);
     const [historyLoading, setHistoryLoading] = useState(true);
 
     useEffect(() => {
@@ -36,8 +41,12 @@ export default function MisTurnosPage() {
             if (!user || !profile) return;
             setHistoryLoading(true);
             try {
-                const data = await getAppointmentsByClientId(user.uid, profile.fullName);
-                setAppointments(data);
+                const [apts, creds] = await Promise.all([
+                    getAppointmentsByClientId(user.uid, profile.fullName),
+                    getClientCredits(user.uid, profile.fullName),
+                ]);
+                setAppointments(apts);
+                setCredits(creds);
             } catch (error) {
                 console.error('Error fetching history:', error);
             } finally {
@@ -80,7 +89,24 @@ export default function MisTurnosPage() {
                     </div>
                 </div>
 
-                <div className="max-w-4xl mx-auto">
+                <div className="max-w-4xl mx-auto space-y-8">
+                    {/* Estado de Cuenta */}
+                    <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6">
+                        <h2 className="text-sm font-black text-gray-400 uppercase tracking-widest mb-6 flex items-center gap-2">
+                            <Wallet className="w-4 h-4 text-[#34baab]" /> Mi Estado de Cuenta
+                        </h2>
+                        <ClientLedger
+                            appointments={appointments}
+                            credits={credits}
+                            loading={historyLoading}
+                        />
+                    </div>
+
+                    {/* Historial de Turnos */}
+                    <div>
+                        <h2 className="text-sm font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2 px-1">
+                            <CalendarCheck className="w-4 h-4 text-[#34baab]" /> Historial de Turnos
+                        </h2>
                     {historyLoading ? (
                         <div className="flex justify-center p-12">
                             <Loader2 className="w-10 h-10 text-[#34baab] animate-spin" />
@@ -224,6 +250,7 @@ export default function MisTurnosPage() {
                             </p>
                         </div>
                     )}
+                    </div>
                 </div>
             </div>
         </div>

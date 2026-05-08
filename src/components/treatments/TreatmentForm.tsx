@@ -5,8 +5,8 @@ import { Modal } from '../ui/Modal';
 import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
 import { Button } from '../ui/Button';
-import { Treatment, TreatmentCategory, TreatmentPrice } from '@/lib/types/treatment';
-import { Plus, Trash2 } from 'lucide-react';
+import { Treatment, TreatmentCategory, TreatmentPrice, CancellationPolicy } from '@/lib/types/treatment';
+import { Plus, Trash2, Clock } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface TreatmentFormProps {
@@ -44,6 +44,7 @@ function buildFormData(treatment?: Treatment): Omit<Treatment, 'id' | 'createdAt
             results: treatment.results || [],
             preCare: treatment.preCare || [],
             postCare: treatment.postCare || [],
+            cancellationPolicy: treatment.cancellationPolicy,
         };
     }
     return {
@@ -57,6 +58,7 @@ function buildFormData(treatment?: Treatment): Omit<Treatment, 'id' | 'createdAt
         results: [],
         preCare: [],
         postCare: [],
+        cancellationPolicy: undefined,
     };
 }
 
@@ -291,6 +293,73 @@ export function TreatmentForm({ isOpen, onClose, onSubmit, treatment }: Treatmen
                             className="w-full px-4 py-3 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-[#34baab] outline-none resize-none transition-all text-gray-900 text-sm"
                         />
                     </div>
+                </div>
+
+                {/* Política de Cancelación */}
+                <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                        <h4 className="font-black text-gray-900 uppercase tracking-widest text-xs flex items-center gap-2">
+                            <Clock className="w-3.5 h-3.5 text-amber-500" /> Política de Cancelación
+                        </h4>
+                        <label className="flex items-center gap-2 cursor-pointer select-none">
+                            <input
+                                type="checkbox"
+                                checked={!!formData.cancellationPolicy}
+                                onChange={e => setFormData(prev => ({
+                                    ...prev,
+                                    cancellationPolicy: e.target.checked
+                                        ? { hoursBeforeToCancel: 45, forfeitDeposit: true }
+                                        : undefined,
+                                }))}
+                                className="accent-amber-500 w-4 h-4"
+                            />
+                            <span className="text-sm font-medium text-gray-600">Activar</span>
+                        </label>
+                    </div>
+
+                    {formData.cancellationPolicy && (
+                        <div className="bg-amber-50 border border-amber-200 p-4 rounded-2xl space-y-4 animate-in slide-in-from-top-2">
+                            <p className="text-xs text-amber-700 font-medium">
+                                Define cuántas horas antes del turno el cliente puede cancelar sin perder la seña.
+                            </p>
+                            <div className="flex items-end gap-4">
+                                <div className="flex-1">
+                                    <Input
+                                        label="Horas mínimas de anticipación"
+                                        type="number"
+                                        value={formData.cancellationPolicy.hoursBeforeToCancel || ''}
+                                        onChange={e => setFormData(prev => ({
+                                            ...prev,
+                                            cancellationPolicy: {
+                                                ...(prev.cancellationPolicy as CancellationPolicy),
+                                                hoursBeforeToCancel: parseInt(e.target.value) || 0,
+                                            },
+                                        }))}
+                                        min={1}
+                                        placeholder="45"
+                                        className="bg-white"
+                                    />
+                                </div>
+                            </div>
+                            <label className="flex items-start gap-3 cursor-pointer select-none">
+                                <input
+                                    type="checkbox"
+                                    checked={formData.cancellationPolicy.forfeitDeposit}
+                                    onChange={e => setFormData(prev => ({
+                                        ...prev,
+                                        cancellationPolicy: {
+                                            ...(prev.cancellationPolicy as CancellationPolicy),
+                                            forfeitDeposit: e.target.checked,
+                                        },
+                                    }))}
+                                    className="accent-red-500 w-4 h-4 mt-0.5"
+                                />
+                                <span className="text-sm text-gray-700">
+                                    La seña se pierde si cancela con menos anticipación de la indicada
+                                </span>
+                            </label>
+                        </div>
+                    )}
                 </div>
 
                 <div className="flex gap-4 pt-4">

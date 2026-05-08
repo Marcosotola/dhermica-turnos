@@ -252,6 +252,22 @@ export async function createAppointment(
     return docRef.id;
 }
 
+export async function getAppointmentById(id: string): Promise<Appointment | null> {
+    const snap = await getDoc(doc(db, APPOINTMENTS_COLLECTION, id));
+    if (!snap.exists()) return null;
+    const data = snap.data();
+    return {
+        id: snap.id,
+        ...data,
+        createdAt: data.createdAt?.toDate?.() || new Date(),
+        updatedAt: data.updatedAt?.toDate?.() || new Date(),
+        payments: (data.payments || []).map((p: any) => ({
+            ...p,
+            createdAt: p.createdAt?.toDate?.() || new Date(),
+        })),
+    } as Appointment;
+}
+
 /**
  * Actualiza un turno existente
  */

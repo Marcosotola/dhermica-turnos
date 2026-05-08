@@ -2,8 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/contexts/AuthContext';
-import { getFinanceOverview, FinanceOverview } from '@/lib/firebase/finance';
-import { getUnpaidAppointmentsFromDate, UnpaidAppointment } from '@/lib/firebase/appointments';
+import { getFinanceOverview, FinanceOverview, FinanceMovement } from '@/lib/firebase/finance';
+import { getUnpaidAppointmentsFromDate, UnpaidAppointment, getAppointmentById } from '@/lib/firebase/appointments';
+import { Appointment } from '@/lib/types/appointment';
+import { deleteEgreso } from '@/lib/firebase/egresos';
+import { QuickPaymentModal } from '@/components/appointments/QuickPaymentModal';
 import { getTodayDate, formatDate } from '@/lib/utils/time';
 import {
     DollarSign,
@@ -25,7 +28,8 @@ import {
     BookText,
     Filter,
     ArrowUpDown,
-    AlertCircle
+    AlertCircle,
+    X,
 } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 import { useRouter } from 'next/navigation';
@@ -48,6 +52,11 @@ export default function FinanzasPage() {
     const [typeFilter, setTypeFilter] = useState<'all' | 'ingreso' | 'egreso'>('all');
     const [unpaidAppointments, setUnpaidAppointments] = useState<UnpaidAppointment[]>([]);
     const [showUnpaid, setShowUnpaid] = useState(false);
+    const [selectedMovement, setSelectedMovement] = useState<FinanceMovement | null>(null);
+    const [detailApt, setDetailApt] = useState<Appointment | null>(null);
+    const [detailLoading, setDetailLoading] = useState(false);
+    const [showAptModal, setShowAptModal] = useState(false);
+    const [showEgresoDetail, setShowEgresoDetail] = useState(false);
 
     const UNPAID_FROM_DATE = '2026-05-01';
 
@@ -55,6 +64,7 @@ export default function FinanzasPage() {
     const isSecretary = profile?.role === 'secretary';
     const isContador = profile?.role === 'contador';
     const canSeeIncome = isAdmin || isSecretary || isContador;
+    const canSeeAdminMetrics = isAdmin || isSecretary;
 
     useEffect(() => {
         loadData();
@@ -126,6 +136,42 @@ export default function FinanzasPage() {
         setExpandedMetric(expandedMetric === metric ? null : metric);
     };
 
+    const handleMovementClick = async (m: FinanceMovement) => {
+        if (m.referenceType === 'appointment' && m.referenceId) {
+            setDetailLoading(true);
+            try {
+                const apt = await getAppointmentById(m.referenceId);
+                if (apt) {
+                    setDetailApt(apt);
+                    setShowAptModal(true);
+                }
+            } catch {
+                toast.error('No se pudo cargar el turno');
+            } finally {
+                setDetailLoading(false);
+            }
+        } else if (m.referenceType === 'egreso') {
+            setSelectedMovement(m);
+            setShowEgresoDetail(true);
+        }
+    };
+
+    const handleDeleteEgreso = async () => {
+        if (!selectedMovement) return;
+        setDetailLoading(true);
+        try {
+            await deleteEgreso(selectedMovement.id);
+            toast.success('Gasto eliminado');
+            setShowEgresoDetail(false);
+            setSelectedMovement(null);
+            loadData();
+        } catch {
+            toast.error('Error al eliminar el gasto');
+        } finally {
+            setDetailLoading(false);
+        }
+    };
+
     if (loading && !overview) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -151,6 +197,7 @@ export default function FinanzasPage() {
     };
 
     return (
+        <>
         <div className="min-h-screen bg-gray-50 pb-24 font-sans">
             <Toaster position="top-center" richColors />
 
@@ -301,7 +348,7 @@ export default function FinanzasPage() {
                     {/* 1. Top Metrics Bar - Interactive Tiles */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 items-start">
                         {/* Saldo Neto */}
-                        {isAdmin && (
+                        {canSeeAdminMetrics && (
                             <div className="space-y-2">
                                 <button
                                     type="button"
@@ -369,8 +416,9 @@ export default function FinanzasPage() {
                                                 { label: 'Servicios', val: overview?.totalServiceIncome },
                                                 { label: 'Señas / Parciales', val: overview?.totalPartialIncome },
                                                 { label: 'Productos', val: overview?.totalProductIncome },
-                                                { label: 'Alquileres', val: overview?.totalRentalIncome }
-                                            ].map(i => (
+                                                { label: 'Alquileres', val: overview?.totalRentalIncome },
+                                                { label: 'Gift Cards', val: overview?.totalGiftCardIncome },
+                                            ].filter(i => (i.val || 0) > 0).map(i => (
                                                 <div key={i.label} className="flex justify-between items-center">
                                                     <span className="text-xs font-bold text-gray-500 uppercase">{i.label}</span>
                                                     <span className="text-sm font-black text-gray-700">{formatCurrency(i.val || 0)}</span>
@@ -392,7 +440,7 @@ export default function FinanzasPage() {
                         )}
 
                         {/* Egresos Totales */}
-                        {isAdmin && (
+                        {canSeeAdminMetrics && (
                             <div className="space-y-2">
                                 <button
                                     type="button"
@@ -450,22 +498,22 @@ export default function FinanzasPage() {
                             <button
                                 type="button"
                                 onClick={() => toggleMetric('comisiones')}
-                                className={`w-full rounded-2xl md:rounded-3xl p-3 md:p-5 shadow-sm border transition-all flex items-center gap-3 md:gap-4 text-left ${isAdmin ? (expandedMetric === 'comisiones' ? 'bg-white border-amber-500 ring-1 ring-amber-500/20' : 'bg-white border-gray-100 hover:shadow-md') : 'bg-[#34baab] border-none shadow-md text-white'}`}
+                                className={`w-full rounded-2xl md:rounded-3xl p-3 md:p-5 shadow-sm border transition-all flex items-center gap-3 md:gap-4 text-left ${canSeeAdminMetrics ? (expandedMetric === 'comisiones' ? 'bg-white border-amber-500 ring-1 ring-amber-500/20' : 'bg-white border-gray-100 hover:shadow-md') : 'bg-[#34baab] border-none shadow-md text-white'}`}
                             >
-                                <div className={`p-2 md:p-3 rounded-xl md:rounded-2xl ${isAdmin ? 'bg-amber-50 text-amber-500' : 'bg-white/20 text-white'}`}>
-                                    {isAdmin ? <Users className="w-5 h-5 md:w-6 md:h-6" /> : <DollarSign className="w-5 h-5 md:w-6 md:h-6" />}
+                                <div className={`p-2 md:p-3 rounded-xl md:rounded-2xl ${canSeeAdminMetrics ? 'bg-amber-50 text-amber-500' : 'bg-white/20 text-white'}`}>
+                                    {canSeeAdminMetrics ? <Users className="w-5 h-5 md:w-6 md:h-6" /> : <DollarSign className="w-5 h-5 md:w-6 md:h-6" />}
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <h3 className={`font-black uppercase tracking-widest text-[8px] md:text-[9px] mb-0.5 truncate ${isAdmin ? 'text-gray-400' : 'text-white/70'}`}>
-                                        {isAdmin ? 'Comisiones' : 'Mi Ganancia'}
+                                    <h3 className={`font-black uppercase tracking-widest text-[8px] md:text-[9px] mb-0.5 truncate ${canSeeAdminMetrics ? 'text-gray-400' : 'text-white/70'}`}>
+                                        {canSeeAdminMetrics ? 'Comisiones' : 'Mi Ganancia'}
                                     </h3>
-                                    <p className={`text-base md:text-xl font-black truncate ${isAdmin ? 'text-gray-900' : 'text-white'}`}>
-                                        {formatCurrency(isAdmin ? (overview?.totalProfCommissions || 0) : (personalData?.totalCommission || 0))}
+                                    <p className={`text-base md:text-xl font-black truncate ${canSeeAdminMetrics ? 'text-gray-900' : 'text-white'}`}>
+                                        {formatCurrency(canSeeAdminMetrics ? (overview?.totalProfCommissions || 0) : (personalData?.totalCommission || 0))}
                                     </p>
                                 </div>
-                                {isAdmin && <ArrowUpDown className={`w-3 h-3 text-gray-300 transition-transform flex-shrink-0 ${expandedMetric === 'comisiones' ? 'rotate-180' : ''}`} />}
+                                {canSeeAdminMetrics && <ArrowUpDown className={`w-3 h-3 text-gray-300 transition-transform flex-shrink-0 ${expandedMetric === 'comisiones' ? 'rotate-180' : ''}`} />}
                             </button>
-                            {isAdmin && expandedMetric === 'comisiones' && (
+                            {canSeeAdminMetrics && expandedMetric === 'comisiones' && (
                                 <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 animate-in slide-in-from-top-2 duration-200">
                                     <div className="max-h-[300px] overflow-y-auto pr-1 space-y-3 custom-scrollbar">
                                         {Object.entries(overview?.byProfessional || {}).map(([id, data]) => data.totalCommission > 0 && (
@@ -538,7 +586,11 @@ export default function FinanzasPage() {
                                             .filter(m => typeFilter === 'all' || m.type === typeFilter)
                                             .slice(0, visibleMovements)
                                             .map((m, idx) => (
-                                            <tr key={m.id + idx} className="hover:bg-gray-50 transition-colors">
+                                            <tr
+                                                key={m.id + idx}
+                                                className={`transition-colors hover:bg-gray-50 ${(m.referenceType === 'appointment' || m.referenceType === 'egreso') ? 'cursor-pointer' : ''}`}
+                                                onClick={() => handleMovementClick(m)}
+                                            >
                                                 <td className="px-2 py-3">
                                                     <span className="text-xs font-bold text-gray-700">{m.date.split('-').reverse().join('/')}</span>
                                                 </td>
@@ -550,7 +602,7 @@ export default function FinanzasPage() {
                                                     </span>
                                                 </td>
                                                 <td className="px-2 py-3">
-                                                    <span className="text-xs font-bold text-gray-700 capitalize truncate block" title={m.category}>{m.category}</span>
+                                                    <span className="text-xs font-bold capitalize truncate block text-gray-700" title={m.category}>{m.category}</span>
                                                 </td>
                                                 <td className="px-2 py-3">
                                                     <span className="text-xs text-gray-500 font-medium truncate block" title={m.description}>
@@ -605,5 +657,72 @@ export default function FinanzasPage() {
                 </div>
             </div>
         </div>
+
+        {/* Modal: detalle de turno */}
+        {detailApt && (
+            <QuickPaymentModal
+                isOpen={showAptModal}
+                onClose={() => { setShowAptModal(false); setDetailApt(null); }}
+                appointment={detailApt}
+                onSuccess={() => { setShowAptModal(false); setDetailApt(null); loadData(); }}
+            />
+        )}
+
+        {/* Modal: detalle de egreso */}
+        {showEgresoDetail && selectedMovement && (
+            <div
+                className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50"
+                onClick={() => setShowEgresoDetail(false)}
+            >
+                <div
+                    className="bg-white rounded-t-3xl sm:rounded-3xl w-full sm:max-w-md p-6 space-y-5"
+                    onClick={e => e.stopPropagation()}
+                >
+                    <div className="flex items-center justify-between">
+                        <h2 className="font-black text-lg text-gray-900">Detalle de Gasto</h2>
+                        <button
+                            type="button"
+                            onClick={() => setShowEgresoDetail(false)}
+                            className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+                        >
+                            <X className="w-5 h-5 text-gray-400" />
+                        </button>
+                    </div>
+                    <div className="space-y-3 bg-gray-50 rounded-2xl p-4">
+                        {[
+                            { label: 'Fecha', value: selectedMovement.date.split('-').reverse().join('/') },
+                            { label: 'Categoría', value: EGRESO_CATEGORY_LABEL[selectedMovement.category as EgresoCategory] || selectedMovement.category },
+                            { label: 'Descripción', value: selectedMovement.description },
+                            { label: 'Método', value: methodLabels[selectedMovement.method] || selectedMovement.method },
+                            { label: 'Monto', value: formatCurrency(selectedMovement.amount) },
+                        ].map(row => (
+                            <div key={row.label} className="flex justify-between items-center">
+                                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{row.label}</span>
+                                <span className={`text-sm font-bold ${row.label === 'Monto' ? 'text-red-600' : 'text-gray-800'}`}>{row.value}</span>
+                            </div>
+                        ))}
+                    </div>
+                    <div className="flex gap-3">
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            onClick={() => router.push('/egresos')}
+                            className="flex-1"
+                        >
+                            Ir a Egresos
+                        </Button>
+                        <Button
+                            type="button"
+                            onClick={handleDeleteEgreso}
+                            disabled={detailLoading}
+                            className="flex-1 bg-red-500 hover:bg-red-600 text-white font-black"
+                        >
+                            {detailLoading ? 'Eliminando...' : 'Eliminar'}
+                        </Button>
+                    </div>
+                </div>
+            </div>
+        )}
+        </>
     );
 }

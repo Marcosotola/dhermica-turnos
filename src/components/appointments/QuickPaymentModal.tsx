@@ -6,18 +6,20 @@ import { Button } from '../ui/Button';
 import { CurrencyInput } from '../ui/CurrencyInput';
 import { Select } from '../ui/Select';
 import { Appointment, AppointmentStatus, Payment } from '@/lib/types/appointment';
+import { GiftCard } from '@/lib/types/giftCard';
 import { updateAppointment } from '@/lib/firebase/appointments';
+import { getGiftCardsByClient, updateGiftCardStatus } from '@/lib/firebase/giftCards';
 import { toast } from 'sonner';
-import { 
-    CheckCircle2, 
-    Clock, 
-    XCircle, 
-    CreditCard, 
-    Plus, 
+import {
+    CheckCircle2,
+    Clock,
+    XCircle,
+    CreditCard,
+    Plus,
     Trash2,
-    DollarSign,
-    Save
+    Gift,
 } from 'lucide-react';
+import { formatArgentineCurrency } from '@/lib/utils/currency';
 
 interface QuickPaymentModalProps {
     isOpen: boolean;
@@ -37,13 +39,17 @@ export function QuickPaymentModal({
     const [price, setPrice] = useState(0);
     const [payments, setPayments] = useState<Payment[]>([]);
     const [showPaymentForm, setShowPaymentForm] = useState(false);
+    const [activeGiftCards, setActiveGiftCards] = useState<GiftCard[]>([]);
+    const [selectedGiftCardId, setSelectedGiftCardId] = useState<string>('');
     const [newPayment, setNewPayment] = useState({
         amount: 0,
         method: 'cash' as Payment['method'],
-        label: 'Pago',
+        label: 'Pago Total',
         bankAccount: 'cuenta1' as 'cuenta1' | 'cuenta2',
         date: new Date().toLocaleDateString('en-CA')
     });
+
+    const today = new Date().toLocaleDateString('en-CA');
 
     useEffect(() => {
         if (appointment && isOpen) {
@@ -53,11 +59,22 @@ export function QuickPaymentModal({
             setNewPayment({
                 amount: 0,
                 method: 'cash',
-                label: 'Pago',
+                label: 'Pago Total',
                 bankAccount: 'cuenta1',
-                date: new Date().toLocaleDateString('en-CA')
+                date: today
             });
             setShowPaymentForm(false);
+            setSelectedGiftCardId('');
+
+            const clientId = appointment.clientId || `legacy-${appointment.clientName?.replace(/\s+/g, '-').toLowerCase()}`;
+            getGiftCardsByClient(clientId, appointment.clientName).then(cards => {
+                const active = cards.filter(c => c.status === 'active' && (!c.expiryDate || c.expiryDate >= today));
+                console.log('[GiftCards] clientId:', clientId, '| clientName:', appointment.clientName, '| total:', cards.length, '| activas:', active.length);
+                setActiveGiftCards(active);
+            }).catch(err => {
+                console.error('[GiftCards] Error al buscar gift cards:', err);
+                setActiveGiftCards([]);
+            });
         }
     }, [appointment, isOpen]);
 
@@ -67,6 +84,31 @@ export function QuickPaymentModal({
     const balance = price - totalPaid;
 
     const handleAddPayment = () => {
+        if (newPayment.method === 'gift_card') {
+            if (!selectedGiftCardId) {
+                toast.error('Seleccioná una gift card');
+                return;
+            }
+            const gc = activeGiftCards.find(c => c.id === selectedGiftCardId);
+            if (!gc) return;
+            const payment: Payment = {
+                id: Math.random().toString(36).substring(2, 9),
+                amount: gc.amount,
+                method: 'gift_card',
+                label: `Gift Card (${gc.code})`,
+                bankAccount: null,
+                giftCardId: gc.id,
+                date: newPayment.date,
+                createdAt: new Date().toISOString() as any
+            };
+            setPayments(prev => [...prev, payment]);
+            setActiveGiftCards(prev => prev.filter(c => c.id !== gc.id));
+            setSelectedGiftCardId('');
+            setShowPaymentForm(false);
+            toast.success(`Gift Card ${gc.code} agregada`);
+            return;
+        }
+
         if (newPayment.amount <= 0) {
             toast.error('El monto debe ser mayor a 0');
             return;
@@ -92,15 +134,23 @@ export function QuickPaymentModal({
     };
 
     const removePayment = (id: string) => {
+        const removed = payments.find(p => p.id === id);
         setPayments(prev => prev.filter(p => p.id !== id));
+        // Restore gift card to available list if it was removed
+        if (removed?.method === 'gift_card' && removed.giftCardId) {
+            const clientId = appointment!.clientId || `legacy-${appointment!.clientName?.replace(/\s+/g, '-').toLowerCase()}`;
+            getGiftCardsByClient(clientId, appointment!.clientName).then(cards => {
+                const restored = cards.find(c => c.id === removed.giftCardId && c.status === 'active' && (!c.expiryDate || c.expiryDate >= today));
+                if (restored) setActiveGiftCards(prev => [...prev, restored]);
+            }).catch(() => {});
+        }
     };
 
     const handleSubmit = async () => {
         setLoading(true);
         try {
-            // Si hay un pago en el formulario que no se ha "agregado", lo agregamos
             let finalPayments = [...payments];
-            if (showPaymentForm && newPayment.amount > 0) {
+            if (showPaymentForm && newPayment.method !== 'gift_card' && newPayment.amount > 0) {
                 finalPayments.push({
                     id: Math.random().toString(36).substring(2, 9),
                     amount: newPayment.amount,
@@ -112,15 +162,21 @@ export function QuickPaymentModal({
                 });
             }
 
-            // Auto-complete if fully paid? 
-            // Better to let the user decide, but we can suggest it.
-            
             await updateAppointment(appointment.id, {
                 status,
                 price,
                 payments: finalPayments
             });
-            
+
+            // Redimir las gift cards usadas en este turno
+            const gcPayments = finalPayments.filter(p => p.method === 'gift_card' && p.giftCardId);
+            await Promise.all(gcPayments.map(p =>
+                updateGiftCardStatus(p.giftCardId!, 'redeemed', {
+                    redeemedDate: today,
+                    redeemedInAppointmentId: appointment.id,
+                })
+            ));
+
             toast.success('Turno actualizado correctamente');
             onSuccess?.();
             onClose();
@@ -180,7 +236,7 @@ export function QuickPaymentModal({
                         {[
                             { id: 'pending', label: 'Pendiente', icon: Clock, color: 'text-orange-600', bg: 'bg-orange-50', border: 'border-orange-200' },
                             { id: 'completed', label: 'Realizado', icon: CheckCircle2, color: 'text-green-600', bg: 'bg-green-50', border: 'border-green-200' },
-                            { id: 'cancelled', label: 'Cancelado', icon: XCircle, color: 'text-red-600', bg: 'bg-red-50', border: 'border-red-200' }
+                            { id: 'cancelled', label: 'Cancelado', icon: XCircle, color: 'text-red-600', bg: 'bg-red-50', border: 'border-red-200' },
                         ].map((s) => (
                             <button
                                 key={s.id}
@@ -262,60 +318,89 @@ export function QuickPaymentModal({
                 {/* Add Payment Form */}
                 {showPaymentForm ? (
                     <div className="bg-white p-4 rounded-xl border-2 border-[#34baab]/20 space-y-4 animate-in fade-in slide-in-from-top-2">
-                        <div className="grid grid-cols-2 gap-3">
-                            <CurrencyInput
-                                label="Monto a Cobrar"
-                                value={newPayment.amount}
-                                onChange={(val) => setNewPayment({ ...newPayment, amount: val })}
-                            />
-                            <div className="space-y-1">
-                                <label htmlFor="quick-pay-date" className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">Fecha</label>
-                                <input
-                                    id="quick-pay-date"
-                                    type="date"
-                                    value={newPayment.date}
-                                    onChange={(e) => setNewPayment({ ...newPayment, date: e.target.value })}
-                                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#34baab]"
-                                />
+                        <Select
+                            label="Método"
+                            value={newPayment.method}
+                            onChange={(e) => {
+                                setNewPayment({ ...newPayment, method: e.target.value as Payment['method'] });
+                                setSelectedGiftCardId('');
+                            }}
+                            options={[
+                                { value: 'cash', label: 'Efectivo' },
+                                { value: 'transfer', label: 'Transferencia' },
+                                { value: 'debit', label: 'Débito' },
+                                { value: 'credit', label: 'Crédito' },
+                                { value: 'qr', label: 'QR' },
+                                ...(activeGiftCards.length > 0 ? [{ value: 'gift_card', label: 'Gift Card' }] : []),
+                            ]}
+                        />
+
+                        {newPayment.method === 'gift_card' ? (
+                            <div className="space-y-2">
+                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Gift Card activa</p>
+                                {activeGiftCards.map(gc => (
+                                    <button
+                                        key={gc.id}
+                                        type="button"
+                                        onClick={() => setSelectedGiftCardId(gc.id)}
+                                        className={`w-full flex items-center justify-between p-3 rounded-xl border-2 transition-all ${
+                                            selectedGiftCardId === gc.id
+                                                ? 'border-teal-400 bg-teal-50'
+                                                : 'border-gray-100 bg-white hover:border-teal-200'
+                                        }`}
+                                    >
+                                        <div className="flex items-center gap-2">
+                                            <Gift className="w-4 h-4 text-teal-500 shrink-0" />
+                                            <span className="font-mono text-xs text-gray-600">{gc.code}</span>
+                                            {gc.expiryDate && (
+                                                <span className="text-[9px] text-gray-400">vence {gc.expiryDate.split('-').reverse().join('/')}</span>
+                                            )}
+                                        </div>
+                                        <span className="font-black text-sm text-teal-700">$ {formatArgentineCurrency(gc.amount)}</span>
+                                    </button>
+                                ))}
                             </div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-3">
-                            <Select
-                                label="Método"
-                                value={newPayment.method}
-                                onChange={(e) => setNewPayment({ ...newPayment, method: e.target.value as any })}
-                                options={[
-                                    { value: 'cash', label: 'Efectivo' },
-                                    { value: 'transfer', label: 'Transferencia' },
-                                    { value: 'debit', label: 'Débito' },
-                                    { value: 'credit', label: 'Crédito' },
-                                    { value: 'qr', label: 'QR' },
-                                ]}
-                            />
-                            {newPayment.method !== 'cash' ? (
-                                <Select
-                                    label="Cuenta"
-                                    value={newPayment.bankAccount}
-                                    onChange={(e) => setNewPayment({ ...newPayment, bankAccount: e.target.value as any })}
-                                    options={[
-                                        { value: 'cuenta1', label: 'Cuenta 1' },
-                                        { value: 'cuenta2', label: 'Cuenta 2' },
-                                    ]}
+                        ) : (
+                            <div className="grid grid-cols-2 gap-3">
+                                <CurrencyInput
+                                    label="Monto a Cobrar"
+                                    value={newPayment.amount}
+                                    onChange={(val) => setNewPayment({ ...newPayment, amount: val })}
                                 />
-                            ) : (
-                                <Select
-                                    label="Etiqueta"
-                                    value={newPayment.label}
-                                    onChange={(e) => setNewPayment({ ...newPayment, label: e.target.value })}
-                                    options={[
-                                        { value: 'Pago', label: 'Pago' },
-                                        { value: 'Seña', label: 'Seña' },
-                                        { value: 'Saldo', label: 'Saldo' },
-                                        { value: 'Abono', label: 'Abono' },
-                                    ]}
-                                />
-                            )}
-                        </div>
+                                <div className="space-y-1">
+                                    <label htmlFor="quick-pay-date" className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">Fecha</label>
+                                    <input
+                                        id="quick-pay-date"
+                                        type="date"
+                                        value={newPayment.date}
+                                        onChange={(e) => setNewPayment({ ...newPayment, date: e.target.value })}
+                                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#34baab]"
+                                    />
+                                </div>
+                                {newPayment.method !== 'cash' ? (
+                                    <Select
+                                        label="Cuenta"
+                                        value={newPayment.bankAccount}
+                                        onChange={(e) => setNewPayment({ ...newPayment, bankAccount: e.target.value as any })}
+                                        options={[
+                                            { value: 'cuenta1', label: 'Cuenta 1' },
+                                            { value: 'cuenta2', label: 'Cuenta 2' },
+                                        ]}
+                                    />
+                                ) : (
+                                    <Select
+                                        label="Etiqueta"
+                                        value={newPayment.label}
+                                        onChange={(e) => setNewPayment({ ...newPayment, label: e.target.value })}
+                                        options={[
+                                            { value: 'Pago Total', label: 'Pago Total' },
+                                            { value: 'Seña', label: 'Seña' },
+                                            { value: 'Pago Parcial', label: 'Pago Parcial' },
+                                        ]}
+                                    />
+                                )}
+                            </div>
+                        )}
                         <div className="flex gap-2">
                             <Button
                                 type="button"

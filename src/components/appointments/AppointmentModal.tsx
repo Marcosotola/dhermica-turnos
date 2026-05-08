@@ -8,7 +8,7 @@ import { Select } from '../ui/Select';
 import { Button } from '../ui/Button';
 import { Appointment, DURATION_OPTIONS, AppointmentStatus, Payment, SelectedTreatment } from '@/lib/types/appointment';
 import { TreatmentSelectorSheet } from './TreatmentSelectorSheet';
-import { Plus, Trash2, CreditCard, CheckCircle2, Clock, XCircle, ChevronDown, Save, Phone, Sparkles } from 'lucide-react';
+import { Plus, Trash2, CreditCard, CheckCircle2, Clock, XCircle, ChevronDown, Save, Phone, Sparkles, Gift } from 'lucide-react';
 import { Professional } from '@/lib/types/professional';
 import { UserProfile } from '@/lib/types/user';
 import { getAllUsers, createManualUserProfile } from '@/lib/firebase/users';
@@ -16,6 +16,9 @@ import { capitalizeName } from '@/lib/utils/time';
 import { Search, UserPlus, User, BadgeDollarSign } from 'lucide-react';
 import { validateAppointment, checkOverlap } from '@/lib/utils/validation';
 import { createAppointment, updateAppointment } from '@/lib/firebase/appointments';
+import { GiftCard } from '@/lib/types/giftCard';
+import { getGiftCardsByClient, updateGiftCardStatus } from '@/lib/firebase/giftCards';
+import { formatArgentineCurrency } from '@/lib/utils/currency';
 import { toast } from 'sonner';
 import { PhoneInput } from '../ui/PhoneInput';
 
@@ -66,12 +69,15 @@ export function AppointmentModal({
     const [newPayment, setNewPayment] = useState({
         amount: 0,
         method: 'cash' as Payment['method'],
-        label: 'Pago',
+        label: 'Pago Total',
         bankAccount: 'cuenta1' as 'cuenta1' | 'cuenta2',
         date: new Date().toLocaleDateString('en-CA') // Default to today
     });
     const [showPaymentForm, setShowPaymentForm] = useState(false);
+    const [activeGiftCards, setActiveGiftCards] = useState<GiftCard[]>([]);
+    const [selectedGiftCardId, setSelectedGiftCardId] = useState<string>('');
     const [loading, setLoading] = useState(false);
+    const today = new Date().toLocaleDateString('en-CA');
     const [clients, setClients] = useState<UserProfile[]>([]);
     const [clientsLoading, setClientsLoading] = useState(false);
     const [clientMode, setClientMode] = useState<'registered' | 'manual'>('registered');
@@ -113,6 +119,16 @@ export function AppointmentModal({
             fetchClients();
         }
     }, [isOpen]);
+
+    const fetchActiveGiftCards = (clientId: string, clientName?: string) => {
+        if (!clientId) { setActiveGiftCards([]); return; }
+        getGiftCardsByClient(clientId, clientName).then(cards => {
+            setActiveGiftCards(cards.filter(c => c.status === 'active' && (!c.expiryDate || c.expiryDate >= today)));
+        }).catch(err => {
+            console.error('[GiftCards] Error al buscar gift cards:', err);
+            setActiveGiftCards([]);
+        });
+    };
 
     // Filter clients based on search query
     useEffect(() => {
@@ -219,14 +235,20 @@ export function AppointmentModal({
         setErrors([]);
         setSearchQuery('');
         setShowSuggestions(false);
+        setSelectedGiftCardId('');
         setNewPayment({
             amount: 0,
             method: 'cash',
-            label: 'Pago',
+            label: 'Pago Total',
             bankAccount: 'cuenta1',
             date: new Date().toLocaleDateString('en-CA')
         });
         setShowPaymentForm(false);
+        if (appointment?.clientId) {
+            fetchActiveGiftCards(appointment.clientId, appointment.clientName);
+        } else {
+            setActiveGiftCards([]);
+        }
     }, [appointment, defaultTime, defaultProfessionalId, isOpen]);
 
     const handleClientSearch = (value: string) => {
@@ -255,9 +277,32 @@ export function AppointmentModal({
         }));
         setSearchQuery(client.fullName);
         setShowSuggestions(false);
+        fetchActiveGiftCards(client.uid, client.fullName);
     };
 
     const handleAddPayment = () => {
+        if (newPayment.method === 'gift_card') {
+            if (!selectedGiftCardId) { toast.error('Seleccioná una gift card'); return; }
+            const gc = activeGiftCards.find(c => c.id === selectedGiftCardId);
+            if (!gc) return;
+            const payment: Payment = {
+                id: Math.random().toString(36).substring(2, 9),
+                amount: gc.amount,
+                method: 'gift_card',
+                label: `Gift Card (${gc.code})`,
+                bankAccount: null,
+                giftCardId: gc.id,
+                date: newPayment.date,
+                createdAt: new Date().toISOString() as any,
+            };
+            setFormData(prev => ({ ...prev, payments: [...prev.payments, payment] }));
+            setActiveGiftCards(prev => prev.filter(c => c.id !== gc.id));
+            setSelectedGiftCardId('');
+            setShowPaymentForm(false);
+            toast.success(`Gift Card ${gc.code} agregada`);
+            return;
+        }
+
         if (newPayment.amount <= 0) {
             toast.error('El monto debe ser mayor a 0');
             return;
@@ -270,7 +315,7 @@ export function AppointmentModal({
             label: newPayment.label,
             bankAccount: newPayment.method !== 'cash' ? newPayment.bankAccount : null,
             date: newPayment.date,
-            createdAt: new Date().toISOString() as any // Use string for better serialization in arrays
+            createdAt: new Date().toISOString() as any
         };
 
         setFormData(prev => ({
@@ -280,7 +325,7 @@ export function AppointmentModal({
         setNewPayment({
             amount: 0,
             method: 'cash',
-            label: 'Pago',
+            label: 'Pago Total',
             bankAccount: 'cuenta1',
             date: new Date().toLocaleDateString('en-CA')
         });
@@ -289,10 +334,15 @@ export function AppointmentModal({
     };
 
     const removePayment = (id: string) => {
-        setFormData(prev => ({
-            ...prev,
-            payments: prev.payments.filter(p => p.id !== id)
-        }));
+        const removed = formData.payments.find(p => p.id === id);
+        setFormData(prev => ({ ...prev, payments: prev.payments.filter(p => p.id !== id) }));
+        if (removed?.method === 'gift_card' && removed.giftCardId) {
+            const clientId = formData.clientId || `legacy-${formData.clientName?.replace(/\s+/g, '-').toLowerCase()}`;
+            getGiftCardsByClient(clientId, formData.clientName).then(cards => {
+                const restored = cards.find(c => c.id === removed.giftCardId && c.status === 'active' && (!c.expiryDate || c.expiryDate >= today));
+                if (restored) setActiveGiftCards(prev => [...prev, restored]);
+            }).catch(() => {});
+        }
     };
 
     const totalPaid = formData.payments.reduce((sum, p) => sum + p.amount, 0);
@@ -432,13 +482,26 @@ export function AppointmentModal({
                 }).filter(([_, v]) => v !== undefined)
             );
 
+            let savedId: string;
             if (appointment) {
                 await updateAppointment(appointment.id, cleanData);
+                savedId = appointment.id;
                 toast.success('Turno actualizado correctamente');
             } else {
-                await createAppointment(cleanData as any);
+                savedId = await createAppointment(cleanData as any);
                 toast.success('Turno creado y cliente registrado');
             }
+
+            const gcPayments = finalPayments.filter(p => p.method === 'gift_card' && p.giftCardId);
+            if (gcPayments.length > 0) {
+                await Promise.all(gcPayments.map(p =>
+                    updateGiftCardStatus(p.giftCardId!, 'redeemed', {
+                        redeemedDate: today,
+                        redeemedInAppointmentId: savedId,
+                    })
+                ));
+            }
+
             onClose();
         } catch (error) {
             console.error('Error saving appointment:', error);
@@ -882,7 +945,7 @@ export function AppointmentModal({
                                 <div className="flex flex-col">
                                     <span className="text-xs font-black text-gray-900 uppercase tracking-tighter">{p.label}</span>
                                     <span className="text-[10px] text-gray-500">
-                                        {p.method === 'cash' ? 'EFECTIVO' : p.method === 'transfer' ? 'TRANSFERENCIA' : p.method === 'debit' ? 'DÉBITO' : p.method === 'credit' ? 'CRÉDITO' : p.method.toUpperCase()} 
+                                        {p.method === 'cash' ? 'EFECTIVO' : p.method === 'transfer' ? 'TRANSFERENCIA' : p.method === 'debit' ? 'DÉBITO' : p.method === 'credit' ? 'CRÉDITO' : p.method === 'gift_card' ? 'GIFT CARD' : p.method.toUpperCase()}
                                         {p.bankAccount && ` (${p.bankAccount === 'cuenta1' ? 'CTA 1' : 'CTA 2'})`} • {(() => {
                                             const parts = p.date.split('-');
                                             return parts.length === 3 ? `${parts[2]}-${parts[1]}-${parts[0]}` : p.date;
@@ -906,79 +969,107 @@ export function AppointmentModal({
 
                     {showPaymentForm ? (
                         <div className="bg-white p-4 rounded-xl border-2 border-[#34baab]/20 space-y-3 animate-in fade-in slide-in-from-top-2">
-                            <div className="grid grid-cols-2 gap-3">
-                                <CurrencyInput
-                                    label="Monto"
-                                    value={newPayment.amount}
-                                    onChange={(val) => setNewPayment({ ...newPayment, amount: val })}
-                                />
-                                <div className="space-y-1">
-                                    <label htmlFor="apt-payment-date" className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">Fecha</label>
-                                    <input
-                                        id="apt-payment-date"
-                                        type="date"
-                                        value={newPayment.date}
-                                        onChange={(e) => setNewPayment({ ...newPayment, date: e.target.value })}
-                                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#34baab]"
-                                    />
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-2 gap-3">
-                                <Select
-                                    label="Método"
-                                    value={newPayment.method}
-                                    onChange={(e) => setNewPayment({ ...newPayment, method: e.target.value as any })}
-                                    options={[
-                                        { value: 'cash', label: 'Efectivo' },
-                                        { value: 'transfer', label: 'Transferencia' },
-                                        { value: 'debit', label: 'Débito' },
-                                        { value: 'credit', label: 'Crédito' },
-                                        { value: 'qr', label: 'QR' },
-                                    ]}
-                                />
-                                {newPayment.method !== 'cash' ? (
-                                    <Select
-                                        label="Cuenta de Destino"
-                                        value={newPayment.bankAccount}
-                                        onChange={(e) => setNewPayment({ ...newPayment, bankAccount: e.target.value as any })}
-                                        options={[
-                                            { value: 'cuenta1', label: 'Cuenta 1' },
-                                            { value: 'cuenta2', label: 'Cuenta 2' },
-                                        ]}
-                                    />
-                                ) : (
-                                    <div className="space-y-1">
-                                        <label htmlFor="apt-payment-label-cash" className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">Etiqueta</label>
-                                        <select
-                                            id="apt-payment-label-cash"
-                                            value={newPayment.label}
-                                            onChange={(e) => setNewPayment({ ...newPayment, label: e.target.value })}
-                                            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#34baab]"
+                            <Select
+                                label="Método"
+                                value={newPayment.method}
+                                onChange={(e) => {
+                                    setNewPayment({ ...newPayment, method: e.target.value as any });
+                                    setSelectedGiftCardId('');
+                                }}
+                                options={[
+                                    { value: 'cash', label: 'Efectivo' },
+                                    { value: 'transfer', label: 'Transferencia' },
+                                    { value: 'debit', label: 'Débito' },
+                                    { value: 'credit', label: 'Crédito' },
+                                    { value: 'qr', label: 'QR' },
+                                    ...(activeGiftCards.length > 0 ? [{ value: 'gift_card', label: 'Gift Card' }] : []),
+                                ]}
+                            />
+
+                            {newPayment.method === 'gift_card' ? (
+                                <div className="space-y-2">
+                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Gift Card activa</p>
+                                    {activeGiftCards.map(gc => (
+                                        <button
+                                            key={gc.id}
+                                            type="button"
+                                            onClick={() => setSelectedGiftCardId(gc.id)}
+                                            className={`w-full flex items-center justify-between p-3 rounded-xl border-2 transition-all ${selectedGiftCardId === gc.id ? 'border-teal-400 bg-teal-50' : 'border-gray-100 bg-white hover:border-teal-200'}`}
                                         >
-                                            <option value="Pago">Pago</option>
-                                            <option value="Seña">Seña</option>
-                                            <option value="Saldo">Saldo</option>
-                                            <option value="Abono">Abono</option>
-                                        </select>
-                                    </div>
-                                )}
-                            </div>
-                            {newPayment.method !== 'cash' && (
-                                <div className="space-y-1">
-                                    <label htmlFor="apt-payment-label-transfer" className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">Etiqueta</label>
-                                    <select
-                                        id="apt-payment-label-transfer"
-                                        value={newPayment.label}
-                                        onChange={(e) => setNewPayment({ ...newPayment, label: e.target.value })}
-                                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#34baab]"
-                                    >
-                                        <option value="Pago">Pago</option>
-                                        <option value="Seña">Seña</option>
-                                        <option value="Saldo">Saldo</option>
-                                        <option value="Abono">Abono</option>
-                                    </select>
+                                            <div className="flex items-center gap-2">
+                                                <Gift className="w-4 h-4 text-teal-500 shrink-0" />
+                                                <span className="font-mono text-xs text-gray-600">{gc.code}</span>
+                                                {gc.expiryDate && <span className="text-[9px] text-gray-400">vence {gc.expiryDate.split('-').reverse().join('/')}</span>}
+                                            </div>
+                                            <span className="font-black text-sm text-teal-700">$ {formatArgentineCurrency(gc.amount)}</span>
+                                        </button>
+                                    ))}
                                 </div>
+                            ) : (
+                                <>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <CurrencyInput
+                                            label="Monto"
+                                            value={newPayment.amount}
+                                            onChange={(val) => setNewPayment({ ...newPayment, amount: val })}
+                                        />
+                                        <div className="space-y-1">
+                                            <label htmlFor="apt-payment-date" className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">Fecha</label>
+                                            <input
+                                                id="apt-payment-date"
+                                                type="date"
+                                                value={newPayment.date}
+                                                onChange={(e) => setNewPayment({ ...newPayment, date: e.target.value })}
+                                                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#34baab]"
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        {newPayment.method !== 'cash' ? (
+                                            <Select
+                                                label="Cuenta de Destino"
+                                                value={newPayment.bankAccount}
+                                                onChange={(e) => setNewPayment({ ...newPayment, bankAccount: e.target.value as any })}
+                                                options={[
+                                                    { value: 'cuenta1', label: 'Cuenta 1' },
+                                                    { value: 'cuenta2', label: 'Cuenta 2' },
+                                                ]}
+                                            />
+                                        ) : (
+                                            <div className="space-y-1">
+                                                <label htmlFor="apt-payment-label-cash" className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">Etiqueta</label>
+                                                <select
+                                                    id="apt-payment-label-cash"
+                                                    value={newPayment.label}
+                                                    onChange={(e) => setNewPayment({ ...newPayment, label: e.target.value })}
+                                                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#34baab]"
+                                                >
+                                                    <option value="Pago Total">Pago Total</option>
+                                                    <option value="Seña">Seña</option>
+                                                    <option value="Pago Parcial">Pago Parcial</option>
+                                                </select>
+                                            </div>
+                                        )}
+                                        {newPayment.method !== 'cash' && (
+                                            <div className="space-y-1">
+                                                <label htmlFor="apt-payment-label-transfer" className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">Etiqueta</label>
+                                                <select
+                                                    id="apt-payment-label-transfer"
+                                                    value={newPayment.label}
+                                                    onChange={(e) => setNewPayment({ ...newPayment, label: e.target.value })}
+                                                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#34baab]"
+                                                >
+                                                    <option value="Pago">Pago</option>
+                                                    <option value="Seña">Seña</option>
+                                                    <option value="Saldo">Saldo</option>
+                                                    <option value="Abono">Abono</option>
+                                                </select>
+                                            </div>
+                                        )}
+                                    </div>
+                                </>
                             )}
+
                             <div className="flex gap-2 pt-2 border-t border-gray-100">
                                 <Button
                                     type="button"

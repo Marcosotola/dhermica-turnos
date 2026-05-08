@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
-import { getUsersByRole } from '@/lib/firebase/users';
+import { getUsersByRole, getAllUsers } from '@/lib/firebase/users';
 import { UserProfile } from '@/lib/types/user';
 import { Toaster } from 'sonner';
 import { BookOpen, Search, User as UserIcon, Phone, Calendar, Heart, AlertCircle, Info, CalendarCheck, ChevronDown, Loader2, ArrowLeft, CheckCircle2, Clock, XCircle } from 'lucide-react';
@@ -15,10 +15,17 @@ import { Professional } from '@/lib/types/professional';
 import { formatArgentineCurrency } from '@/lib/utils/currency';
 import { CreateClientModal } from '@/components/dashboard/CreateClientModal';
 import { AppointmentModal } from '@/components/appointments/AppointmentModal';
-import { DeleteConfirmDialog } from '@/components/appointments/DeleteConfirmDialog';
+import { CancelAppointmentDialog, CreditAction } from '@/components/appointments/CancelAppointmentDialog';
 import { deleteAppointment } from '@/lib/firebase/appointments';
+import { createClientCredit } from '@/lib/firebase/clientCredits';
 import { ChevronUp, DollarSign, UserPlus, History, Pencil, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { ClientCredit } from '@/lib/types/clientCredit';
+import { getClientCredits } from '@/lib/firebase/clientCredits';
+import { ClientLedger } from '@/components/clients/ClientLedger';
+import { GiftCard } from '@/lib/types/giftCard';
+import { getGiftCardsByClient } from '@/lib/firebase/giftCards';
+import { GiftCardSection } from '@/components/clients/GiftCardSection';
 
 export default function AgendaPage() {
     const { user, profile, loading: authLoading } = useAuth();
@@ -38,9 +45,19 @@ export default function AgendaPage() {
     const [professionals, setProfessionals] = useState<Professional[]>([]);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+    const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
+    const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
     const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [clientCredits, setClientCredits] = useState<ClientCredit[]>([]);
+    const [creditsLoading, setCreditsLoading] = useState(false);
+    const [giftCards, setGiftCards] = useState<GiftCard[]>([]);
+    const [giftCardsLoading, setGiftCardsLoading] = useState(false);
+    const [aptSearch, setAptSearch] = useState('');
+    const [aptStatusFilter, setAptStatusFilter] = useState<'all' | 'pending' | 'completed' | 'cancelled'>('all');
+    const [aptDateFrom, setAptDateFrom] = useState('');
+    const [aptDateTo, setAptDateTo] = useState('');
+    const [showHistorial, setShowHistorial] = useState(false);
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const normalize = (s: string) =>
@@ -67,25 +84,41 @@ export default function AgendaPage() {
         fetchProfessionals();
     }, []);
 
-    // Load only registered clients at init — fast
-    const loadRegisteredClients = useCallback(async () => {
-        setLoading(true);
+    const USERS_CACHE_KEY = 'dhermica_users_cache';
+
+    // Load all registered users — show cached list immediately, refresh in background
+    const loadRegisteredClients = useCallback(async (background = false) => {
+        // Show cached data instantly if available
+        const cached = sessionStorage.getItem(USERS_CACHE_KEY);
+        if (cached) {
+            try {
+                const parsed: UserProfile[] = JSON.parse(cached);
+                setRegisteredClients(parsed);
+                setUsers(parsed);
+                if (!background) setLoading(false);
+            } catch {
+                // corrupt cache — ignore, fetch fresh
+            }
+        }
+
+        if (!background) setLoading(!cached);
         try {
-            const [clients, promotors] = await Promise.all([
-                getUsersByRole('client'),
-                getUsersByRole('promotor'),
-            ]);
-            const sorted = [...clients, ...promotors].sort((a, b) =>
-                a.fullName.localeCompare(b.fullName, 'es')
-            );
+            const all = await getAllUsers();
+            const sorted = all
+                .filter(u => !!u.fullName)
+                .sort((a, b) => a.fullName.localeCompare(b.fullName, 'es'));
+            sessionStorage.setItem(USERS_CACHE_KEY, JSON.stringify(sorted));
             setRegisteredClients(sorted);
-            setUsers(sorted);
+            setUsers(prev => {
+                // Only update visible list if not mid-search
+                return searchTerm.trim() ? prev : sorted;
+            });
         } catch (error) {
             console.error('Error loading clients:', error);
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [searchTerm]);
 
     useEffect(() => {
         if (profile?.role === 'admin' || profile?.role === 'professional' || profile?.role === 'secretary') {
@@ -158,18 +191,32 @@ export default function AgendaPage() {
         if (!selectedUser) return;
 
         setHistoryLoading(true);
+        setCreditsLoading(true);
+        setGiftCardsLoading(true);
         try {
-            const data = await getAppointmentsByClientId(selectedUser.uid, selectedUser.fullName);
-            setAppointments(data);
+            const [apts, credits, gCards] = await Promise.all([
+                getAppointmentsByClientId(selectedUser.uid, selectedUser.fullName),
+                getClientCredits(selectedUser.uid, selectedUser.fullName),
+                getGiftCardsByClient(selectedUser.uid, selectedUser.fullName),
+            ]);
+            setAppointments(apts);
+            setClientCredits(credits);
+            setGiftCards(gCards);
         } catch (error) {
             console.error('Error fetching history:', error);
         } finally {
             setHistoryLoading(false);
+            setCreditsLoading(false);
+            setGiftCardsLoading(false);
         }
     }, [selectedUser]);
 
     useEffect(() => {
         fetchHistory();
+        setAptSearch('');
+        setAptStatusFilter('all');
+        setAptDateFrom('');
+        setAptDateTo('');
     }, [selectedUser, fetchHistory]);
 
     const handleEditClick = (apt: Appointment) => {
@@ -179,20 +226,61 @@ export default function AgendaPage() {
 
     const handleDeleteClick = (apt: Appointment) => {
         setSelectedAppointment(apt);
-        setIsDeleteDialogOpen(true);
+        setIsDeleteConfirmOpen(true);
     };
 
-    const handleConfirmDelete = async () => {
+    const handleConfirmHardDelete = async () => {
         if (!selectedAppointment) return;
         setIsDeleting(true);
         try {
             await deleteAppointment(selectedAppointment.id);
-            toast.success('Turno eliminado');
-            setIsDeleteDialogOpen(false);
-            fetchHistory(); // Refrescar historial
+            toast.success('Turno eliminado.');
+            setIsDeleteConfirmOpen(false);
+            fetchHistory();
         } catch (error) {
-            console.error('Error deleting appointment:', error);
-            toast.error('Error al eliminar turno');
+            console.error('Error eliminando turno:', error);
+            toast.error('Error al eliminar el turno');
+        } finally {
+            setIsDeleting(false);
+        }
+    };
+
+    const handleConfirmCancel = async (creditAction: CreditAction, notes?: string) => {
+        if (!selectedAppointment) return;
+        setIsDeleting(true);
+        try {
+            const totalPaid = (selectedAppointment.payments || []).reduce((sum, p) => sum + p.amount, 0);
+
+            if (creditAction !== 'none' && totalPaid > 0) {
+                await createClientCredit({
+                    clientId: selectedAppointment.clientId || `legacy-${selectedAppointment.clientName?.replace(/\s+/g, '-').toLowerCase()}`,
+                    clientName: selectedAppointment.clientName,
+                    amount: totalPaid,
+                    reason: 'cancelled_appointment',
+                    status: creditAction === 'retain' ? 'available' : 'forfeited',
+                    sourceAppointmentId: selectedAppointment.id,
+                    sourceAppointmentDate: selectedAppointment.date,
+                    sourceTreatmentName: selectedAppointment.treatment,
+                    notes: notes,
+                    createdBy: user?.uid,
+                });
+            }
+
+            await deleteAppointment(selectedAppointment.id);
+
+            if (creditAction === 'retain' && totalPaid > 0) {
+                toast.success(`Turno cancelado. Crédito de $${totalPaid.toLocaleString('es-AR')} retenido a favor del cliente.`);
+            } else if (creditAction === 'forfeit' && totalPaid > 0) {
+                toast.success('Turno cancelado. Seña registrada como perdida.');
+            } else {
+                toast.success('Turno cancelado.');
+            }
+
+            setIsCancelDialogOpen(false);
+            fetchHistory();
+        } catch (error) {
+            console.error('Error cancelling appointment:', error);
+            toast.error('Error al cancelar el turno');
         } finally {
             setIsDeleting(false);
         }
@@ -421,89 +509,217 @@ export default function AgendaPage() {
                                     </div>
                                 )}
 
+                                {/* Estado de Cuenta */}
                                 <div className="pt-6 border-t border-gray-100">
-                                    <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest mb-6 flex items-center gap-2">
-                                        <Calendar className="w-4 h-4 text-[#34baab]" /> Historial de Turnos
+                                    <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                        <DollarSign className="w-4 h-4 text-[#34baab]" /> Estado de Cuenta
                                     </h3>
+                                    <ClientLedger
+                                        appointments={appointments}
+                                        credits={clientCredits}
+                                        isAdmin={true}
+                                        loading={historyLoading || creditsLoading}
+                                    />
+                                </div>
+
+                                {/* Gift Cards */}
+                                <div className="pt-6 border-t border-gray-100">
+                                    {giftCardsLoading ? (
+                                        <div className="flex items-center gap-2 text-xs text-gray-400 py-2">
+                                            <Loader2 className="w-3.5 h-3.5 animate-spin" /> Cargando gift cards...
+                                        </div>
+                                    ) : (
+                                        <GiftCardSection
+                                            clientId={selectedUser.uid}
+                                            clientName={selectedUser.fullName}
+                                            giftCards={giftCards}
+                                            onRefresh={fetchHistory}
+                                            createdBy={user?.uid}
+                                        />
+                                    )}
+                                </div>
+
+                                {/* Historial de Turnos */}
+                                <div className="pt-6 border-t border-gray-100">
+                                    <div className="border border-gray-100 rounded-3xl overflow-hidden bg-white shadow-sm">
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowHistorial(v => !v)}
+                                            className="w-full flex items-center justify-between p-4 bg-gray-50 hover:bg-gray-100 transition-colors"
+                                        >
+                                            <div className="flex items-center gap-2">
+                                                <Calendar className="w-5 h-5 text-[#34baab]" />
+                                                <span className="font-bold text-gray-900">Historial de Turnos</span>
+                                                <span className="text-xs text-gray-400 font-medium">({appointments.length} registros)</span>
+                                            </div>
+                                            {showHistorial ? <ChevronUp className="w-5 h-5 text-gray-400" /> : <ChevronDown className="w-5 h-5 text-gray-400" />}
+                                        </button>
+
+                                    {showHistorial && (
+                                    <div className="p-4 animate-in slide-in-from-top-2 duration-200 space-y-4">
+                                    {/* Filtros */}
+                                    <div className="flex flex-col gap-2">
+                                        <div className="flex flex-col sm:flex-row gap-2">
+                                            <div className="relative flex-1">
+                                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                                <input
+                                                    type="text"
+                                                    placeholder="Buscar tratamiento..."
+                                                    value={aptSearch}
+                                                    onChange={e => setAptSearch(e.target.value)}
+                                                    className="w-full pl-9 pr-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-[#34baab]"
+                                                />
+                                            </div>
+                                            <div className="flex gap-1 flex-wrap">
+                                                {([
+                                                    { value: 'all', label: 'Todos' },
+                                                    { value: 'pending', label: 'Pendiente' },
+                                                    { value: 'completed', label: 'Realizado' },
+                                                    { value: 'cancelled', label: 'Cancelado' },
+                                                ] as const).map(f => (
+                                                    <button
+                                                        key={f.value}
+                                                        onClick={() => setAptStatusFilter(f.value)}
+                                                        className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wide transition-colors ${
+                                                            aptStatusFilter === f.value
+                                                                ? 'bg-[#34baab] text-white'
+                                                                : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                                                        }`}
+                                                    >
+                                                        {f.label}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                        {/* Date range row */}
+                                        <div className="flex items-center gap-2">
+                                            <CalendarCheck className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                                            <div className="flex-1 grid grid-cols-2 gap-1.5">
+                                                <input
+                                                    type="date"
+                                                    value={aptDateFrom}
+                                                    onChange={e => setAptDateFrom(e.target.value)}
+                                                    className="w-full px-2 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-[#34baab]"
+                                                />
+                                                <input
+                                                    type="date"
+                                                    value={aptDateTo}
+                                                    onChange={e => setAptDateTo(e.target.value)}
+                                                    className="w-full px-2 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-[#34baab]"
+                                                />
+                                            </div>
+                                            {(aptDateFrom || aptDateTo) && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => { setAptDateFrom(''); setAptDateTo(''); }}
+                                                    className="text-[10px] text-[#34baab] font-bold whitespace-nowrap hover:underline"
+                                                >
+                                                    Limpiar
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
 
                                     {historyLoading ? (
                                         <div className="flex justify-center p-8">
                                             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#34baab]"></div>
                                         </div>
-                                    ) : appointments.length > 0 ? (
-                                        <div className="space-y-3">
-                                            {appointments.map((apt) => {
-                                                const totalPaid = (apt.payments || []).reduce((sum, p) => sum + p.amount, 0);
-                                                const balance = (apt.price || 0) - totalPaid;
-                                                const status = apt.status || 'pending';
+                                    ) : (() => {
+                                        const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+                                        const filtered = appointments.filter(apt => {
+                                            const status = (apt.status || 'pending') as string;
+                                            const matchSearch = !aptSearch || norm(apt.treatment).includes(norm(aptSearch));
+                                            const matchStatus = aptStatusFilter === 'all' ||
+                                                (aptStatusFilter === 'completed' && (status === 'completed' || status === 'realizado')) ||
+                                                (aptStatusFilter === 'cancelled' && (status === 'cancelled' || status === 'cancelado')) ||
+                                                (aptStatusFilter === 'pending' && status === 'pending');
+                                            const matchFrom = !aptDateFrom || apt.date >= aptDateFrom;
+                                            const matchTo = !aptDateTo || apt.date <= aptDateTo;
+                                            return matchSearch && matchStatus && matchFrom && matchTo;
+                                        });
 
-                                                return (
-                                                    <div key={apt.id} className="flex flex-col p-4 bg-gray-50 rounded-3xl border border-gray-100 hover:border-[#34baab]/30 transition-all">
-                                                        <div className="flex items-center justify-between mb-3">
-                                                            <div className="flex items-center gap-4">
-                                                                <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm">
-                                                                    <CalendarCheck className="w-5 h-5 text-[#34baab]" />
-                                                                </div>
-                                                                <div>
-                                                                    <div className="flex items-center gap-2">
-                                                                        <h4 className="font-bold text-gray-900 text-sm">{apt.treatment}</h4>
-                                                                        {((status as any) === 'completed' || (status as any) === 'realizado') && <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />}
-                                                                        {((status as any) === 'pending') && <Clock className="w-3.5 h-3.5 text-orange-500" />}
-                                                                        {((status as any) === 'cancelled' || (status as any) === 'cancelado') && <XCircle className="w-3.5 h-3.5 text-red-500" />}
+                                        if (filtered.length === 0) {
+                                            return (
+                                                <div className="bg-gray-50 rounded-2xl p-8 text-center border-2 border-dashed border-gray-200">
+                                                    <p className="text-gray-400 font-medium">
+                                                        {appointments.length === 0 ? 'No hay turnos registrados.' : 'No hay turnos que coincidan con el filtro.'}
+                                                    </p>
+                                                </div>
+                                            );
+                                        }
+
+                                        return (
+                                            <div className="space-y-3">
+                                                {filtered.map((apt) => {
+                                                    const totalPaid = (apt.payments || []).reduce((sum, p) => sum + p.amount, 0);
+                                                    const balance = (apt.price || 0) - totalPaid;
+                                                    const status = apt.status || 'pending';
+
+                                                    return (
+                                                        <div key={apt.id} className="flex flex-col p-4 bg-gray-50 rounded-3xl border border-gray-100 hover:border-[#34baab]/30 transition-all">
+                                                            <div className="flex items-center justify-between mb-3">
+                                                                <div className="flex items-center gap-4">
+                                                                    <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm">
+                                                                        <CalendarCheck className="w-5 h-5 text-[#34baab]" />
                                                                     </div>
-                                                                    <p className="text-xs text-gray-500">
-                                                                        {(() => {
-                                                                            const parts = apt.date.split('-');
-                                                                            return parts.length === 3 ? `${parts[2]}-${parts[1]}-${parts[0]}` : apt.date;
-                                                                        })()} - {apt.time}
-                                                                    </p>
+                                                                    <div>
+                                                                        <div className="flex items-center gap-2">
+                                                                            <h4 className="font-bold text-gray-900 text-sm">{apt.treatment}</h4>
+                                                                            {((status as any) === 'completed' || (status as any) === 'realizado') && <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />}
+                                                                            {((status as any) === 'pending') && <Clock className="w-3.5 h-3.5 text-orange-500" />}
+                                                                            {((status as any) === 'cancelled' || (status as any) === 'cancelado') && <XCircle className="w-3.5 h-3.5 text-red-500" />}
+                                                                        </div>
+                                                                        <p className="text-xs text-gray-500">
+                                                                            {(() => {
+                                                                                const parts = apt.date.split('-');
+                                                                                return parts.length === 3 ? `${parts[2]}-${parts[1]}-${parts[0]}` : apt.date;
+                                                                            })()} - {apt.time}
+                                                                        </p>
+                                                                    </div>
+                                                                </div>
+                                                                <div className="text-right flex flex-col items-end gap-2">
+                                                                    <div>
+                                                                        <div className="flex items-center gap-1 text-[#34baab] font-black justify-end">
+                                                                            <DollarSign className="w-3 h-3" />
+                                                                            <span>{formatArgentineCurrency(apt.price || 0)}</span>
+                                                                        </div>
+                                                                        {((status as any) === 'completed' || (status as any) === 'realizado') ? (
+                                                                            <span className="text-[8px] font-black bg-green-100 text-green-600 px-1.5 py-0.5 rounded uppercase tracking-widest">Realizado</span>
+                                                                        ) : ((status as any) === 'cancelled' || (status as any) === 'cancelado') ? (
+                                                                            <span className="text-[8px] font-black bg-red-100 text-red-600 px-1.5 py-0.5 rounded uppercase tracking-widest">Cancelado</span>
+                                                                        ) : (
+                                                                            <span className="text-[8px] font-black bg-amber-100 text-amber-600 px-1.5 py-0.5 rounded uppercase tracking-widest">Pendiente</span>
+                                                                        )}
+                                                                    </div>
+                                                                    <div className="flex gap-1">
+                                                                        <button
+                                                                            onClick={() => handleEditClick(apt)}
+                                                                            className="p-1.5 bg-white border border-gray-100 rounded-lg text-gray-400 hover:text-[#34baab] hover:border-[#34baab]/30 transition-all shadow-sm"
+                                                                            title="Editar Turno"
+                                                                        >
+                                                                            <Pencil className="w-3.5 h-3.5" />
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={() => handleDeleteClick(apt)}
+                                                                            className="p-1.5 bg-white border border-gray-100 rounded-lg text-gray-400 hover:text-red-500 hover:border-red-100 transition-all shadow-sm"
+                                                                            title="Cancelar Turno"
+                                                                        >
+                                                                            <Trash2 className="w-3.5 h-3.5" />
+                                                                        </button>
+                                                                    </div>
                                                                 </div>
                                                             </div>
-                                                            <div className="text-right flex flex-col items-end gap-2">
-                                                                <div>
-                                                                    <div className="flex items-center gap-1 text-[#34baab] font-black justify-end">
-                                                                        <DollarSign className="w-3 h-3" />
-                                                                        <span>{formatArgentineCurrency(apt.price || 0)}</span>
-                                                                    </div>
-                                                                    {((status as any) === 'completed' || (status as any) === 'realizado') ? (
-                                                                        <span className="text-[8px] font-black bg-green-100 text-green-600 px-1.5 py-0.5 rounded uppercase tracking-widest">Realizado</span>
-                                                                    ) : ((status as any) === 'cancelled' || (status as any) === 'cancelado') ? (
-                                                                        <span className="text-[8px] font-black bg-red-100 text-red-600 px-1.5 py-0.5 rounded uppercase tracking-widest">Cancelado</span>
-                                                                    ) : (
-                                                                        <span className="text-[8px] font-black bg-amber-100 text-amber-600 px-1.5 py-0.5 rounded uppercase tracking-widest">Pendiente</span>
-                                                                    )}
-                                                                </div>
-                                                                <div className="flex gap-1">
-                                                                    <button
-                                                                        onClick={() => handleEditClick(apt)}
-                                                                        className="p-1.5 bg-white border border-gray-100 rounded-lg text-gray-400 hover:text-[#34baab] hover:border-[#34baab]/30 transition-all shadow-sm"
-                                                                        title="Editar Turno"
-                                                                    >
-                                                                        <Pencil className="w-3.5 h-3.5" />
-                                                                    </button>
-                                                                    <button
-                                                                        onClick={() => handleDeleteClick(apt)}
-                                                                        className="p-1.5 bg-white border border-gray-100 rounded-lg text-gray-400 hover:text-red-500 hover:border-red-100 transition-all shadow-sm"
-                                                                        title="Eliminar Turno"
-                                                                    >
-                                                                        <Trash2 className="w-3.5 h-3.5" />
-                                                                    </button>
-                                                                </div>
-                                                            </div>
-                                                        </div>
 
-                                                        {/* Payments Breakdown */}
-                                                        {(apt.payments || []).length > 0 && (
-                                                            <div className="mt-2 pt-2 border-t border-gray-100">
-                                                                <div className="flex justify-between items-center mb-1">
-                                                                    <span className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Pagos Realizados</span>
-                                                                    <span className={`text-[12px] font-black ${balance > 0 ? 'text-red-500' : 'text-[#34baab]'} uppercase`}>
-                                                                        {balance > 0 ? `Deuda: $${formatArgentineCurrency(balance)}` : 'Saldado'}
-                                                                    </span>
-                                                                </div>
-                                                                <div className="flex flex-wrap gap-1">
-                                                                    {(apt.payments || []).length > 0 ? (
-                                                                        (apt.payments || []).map((p, i) => (
+                                                            {(apt.payments || []).length > 0 && (
+                                                                <div className="mt-2 pt-2 border-t border-gray-100">
+                                                                    <div className="flex justify-between items-center mb-1">
+                                                                        <span className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Pagos Realizados</span>
+                                                                        <span className={`text-[12px] font-black ${balance > 0 ? 'text-red-500' : 'text-[#34baab]'} uppercase`}>
+                                                                            {balance > 0 ? `Deuda: $${formatArgentineCurrency(balance)}` : 'Saldado'}
+                                                                        </span>
+                                                                    </div>
+                                                                    <div className="flex flex-wrap gap-1">
+                                                                        {(apt.payments || []).map((p, i) => (
                                                                             <span key={i} className="text-[10px] bg-white text-gray-600 px-3 py-2 rounded-xl border border-gray-100 font-bold flex flex-col shadow-sm">
                                                                                 <span className="text-gray-400 uppercase text-[8px] mb-0.5">{(() => {
                                                                                     const parts = (p.date || '').split('-');
@@ -511,28 +727,25 @@ export default function AgendaPage() {
                                                                                 })()} • {p.method === 'cash' ? 'Efectivo' : p.method === 'transfer' ? 'Transferencia' : p.method === 'debit' ? 'Débito' : p.method === 'credit' ? 'Crédito' : p.method}</span>
                                                                                 <span className="text-gray-900">{p.label}: ${formatArgentineCurrency(p.amount)}</span>
                                                                             </span>
-                                                                        ))
-                                                                    ) : (
-                                                                        <span className="text-[8px] text-gray-400 italic">No hay pagos registrados</span>
-                                                                    )}
+                                                                        ))}
+                                                                    </div>
                                                                 </div>
-                                                            </div>
-                                                        )}
+                                                            )}
 
-                                                        {apt.notes && (
-                                                            <div className="mt-2 text-[10px] text-gray-500 bg-white p-2 rounded-xl border border-gray-50 italic leading-tight">
-                                                                "{apt.notes}"
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    ) : (
-                                        <div className="bg-gray-50 rounded-2xl p-8 text-center border-2 border-dashed border-gray-200">
-                                            <p className="text-gray-400 font-medium">No hay turnos registrados.</p>
-                                        </div>
+                                                            {apt.notes && (
+                                                                <div className="mt-2 text-[10px] text-gray-500 bg-white p-2 rounded-xl border border-gray-50 italic leading-tight">
+                                                                    "{apt.notes}"
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        );
+                                    })()}
+                                    </div>
                                     )}
+                                    </div>
                                 </div>
                             </div>
                         ) : (
@@ -555,6 +768,7 @@ export default function AgendaPage() {
                 onClose={() => setIsCreateModalOpen(false)}
                 onCreated={() => {
                     setSearchTerm('');
+                    sessionStorage.removeItem('dhermica_users_cache');
                     loadRegisteredClients();
                 }}
             />
@@ -573,16 +787,52 @@ export default function AgendaPage() {
                 />
             )}
 
-            <DeleteConfirmDialog
-                isOpen={isDeleteDialogOpen}
-                onClose={() => setIsDeleteDialogOpen(false)}
-                onConfirm={handleConfirmDelete}
-                title="Eliminar Turno"
-                description="¿Estás seguro de que deseas eliminar este turno? Esta acción no se puede deshacer."
-                itemName={selectedAppointment?.treatment}
-                itemDetail={`${selectedAppointment?.date} • ${selectedAppointment?.time}`}
+            <CancelAppointmentDialog
+                isOpen={isCancelDialogOpen}
+                onClose={() => setIsCancelDialogOpen(false)}
+                onConfirm={handleConfirmCancel}
+                appointment={selectedAppointment}
                 loading={isDeleting}
             />
+
+            {/* Confirmación de eliminación definitiva */}
+            {isDeleteConfirmOpen && selectedAppointment && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+                    <div className="bg-white rounded-3xl shadow-2xl p-6 w-full max-w-sm space-y-4">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-2xl bg-red-100 flex items-center justify-center shrink-0">
+                                <Trash2 className="w-5 h-5 text-red-500" />
+                            </div>
+                            <div>
+                                <h3 className="font-black text-gray-900">Eliminar turno</h3>
+                                <p className="text-xs text-gray-500">Esta acción no se puede deshacer</p>
+                            </div>
+                        </div>
+                        <p className="text-sm text-gray-600">
+                            Se eliminará permanentemente el turno de{' '}
+                            <span className="font-bold text-gray-900">{selectedAppointment.treatment}</span>{' '}
+                            del {selectedAppointment.date?.split('-').reverse().join('/')} y todos sus datos asociados.
+                        </p>
+                        <div className="flex gap-2">
+                            <button
+                                type="button"
+                                onClick={() => setIsDeleteConfirmOpen(false)}
+                                className="flex-1 px-4 py-2.5 rounded-2xl border border-gray-200 text-sm font-bold text-gray-600 hover:bg-gray-50 transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleConfirmHardDelete}
+                                disabled={isDeleting}
+                                className="flex-1 px-4 py-2.5 rounded-2xl bg-red-500 hover:bg-red-600 text-white text-sm font-bold transition-colors disabled:opacity-50"
+                            >
+                                {isDeleting ? 'Eliminando...' : 'Eliminar'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

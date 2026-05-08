@@ -13,10 +13,11 @@ export interface SelectedTreatment {
 export interface Payment {
     id: string;
     amount: number;
-    method: 'cash' | 'transfer' | 'debit' | 'credit' | 'qr';
+    method: 'cash' | 'transfer' | 'debit' | 'credit' | 'qr' | 'gift_card';
     date: string; // YYYY-MM-DD
     label: string; // e.g., "Seña", "Saldo", "Pago Parcial"
     bankAccount?: 'cuenta1' | 'cuenta2' | null;
+    giftCardId?: string; // only when method === 'gift_card'
     createdAt: Date;
 }
 

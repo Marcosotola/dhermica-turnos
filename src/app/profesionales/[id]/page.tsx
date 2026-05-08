@@ -177,7 +177,7 @@ export default function ProfessionalDetailPage() {
                     >
                         <User className="w-4 h-4" /> Resumen
                     </button>
-                    {profile?.role === 'admin' && (
+                    {(profile?.role === 'admin' || profile?.role === 'secretary') && (
                         <button
                             type="button"
                             onClick={() => setActiveTab('config')}
@@ -321,7 +321,7 @@ export default function ProfessionalDetailPage() {
                     <ProfessionalAppointments professional={professional} />
                 )}
 
-                {activeTab === 'config' && profile?.role === 'admin' && (
+                {activeTab === 'config' && (profile?.role === 'admin' || profile?.role === 'secretary') && (
                     <ProfessionalConfig professional={professional} onUpdate={fetchProfessional} />
                 )}
             </div>

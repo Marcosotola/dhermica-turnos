@@ -6,7 +6,7 @@ import { useAuth } from '@/lib/contexts/AuthContext';
 import { AppointmentTable } from '@/components/appointments/AppointmentTable';
 import { AppointmentModal } from '@/components/appointments/AppointmentModal';
 import { AppointmentDetailModal } from '@/components/appointments/AppointmentDetailModal';
-import { DeleteConfirmDialog } from '@/components/appointments/DeleteConfirmDialog';
+import { CancelAppointmentDialog, CreditAction } from '@/components/appointments/CancelAppointmentDialog';
 import { DatePicker } from '@/components/appointments/DatePicker';
 import { AppointmentSearch } from '@/components/appointments/AppointmentSearch';
 import { QuickPaymentModal } from '@/components/appointments/QuickPaymentModal';
@@ -14,6 +14,7 @@ import { useAppointments } from '@/lib/hooks/useAppointments';
 import { useProfessionals } from '@/lib/hooks/useProfessionals';
 import { Appointment } from '@/lib/types/appointment';
 import { deleteAppointment } from '@/lib/firebase/appointments';
+import { createClientCredit } from '@/lib/firebase/clientCredits';
 import { getTodayDate } from '@/lib/utils/time';
 import { toast, Toaster } from 'sonner';
 import { Calendar, Users, ArrowLeft, Plus, Search, Home } from 'lucide-react';
@@ -40,7 +41,7 @@ function TurnosContent() {
     const [mounted, setMounted] = useState(false);
     const [modalOpen, setModalOpen] = useState(false);
     const [detailModalOpen, setDetailModalOpen] = useState(false);
-    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
     const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
     const [defaultTime, setDefaultTime] = useState<string | undefined>();
     const [defaultProfessionalId, setDefaultProfessionalId] = useState<string | undefined>();
@@ -124,7 +125,7 @@ function TurnosContent() {
 
     const handleDeleteClick = (appointment: Appointment) => {
         setSelectedAppointment(appointment);
-        setDeleteDialogOpen(true);
+        setCancelDialogOpen(true);
     };
 
     const handleQuickPaymentClick = (appointment: Appointment) => {
@@ -133,18 +134,43 @@ function TurnosContent() {
         setDetailModalOpen(false);
     };
 
-    const handleConfirmDelete = async () => {
+    const handleConfirmCancel = async (creditAction: CreditAction, notes?: string) => {
         if (!selectedAppointment) return;
 
         setDeleting(true);
         try {
+            const totalPaid = (selectedAppointment.payments || []).reduce((sum, p) => sum + p.amount, 0);
+
+            if (creditAction !== 'none' && totalPaid > 0) {
+                await createClientCredit({
+                    clientId: selectedAppointment.clientId || `legacy-${selectedAppointment.clientName?.replace(/\s+/g, '-').toLowerCase()}`,
+                    clientName: selectedAppointment.clientName,
+                    amount: totalPaid,
+                    reason: 'cancelled_appointment',
+                    status: creditAction === 'retain' ? 'available' : 'forfeited',
+                    sourceAppointmentId: selectedAppointment.id,
+                    sourceAppointmentDate: selectedAppointment.date,
+                    sourceTreatmentName: selectedAppointment.treatment,
+                    notes,
+                    createdBy: user?.uid,
+                });
+            }
+
             await deleteAppointment(selectedAppointment.id);
-            toast.success('Turno eliminado exitosamente');
-            setDeleteDialogOpen(false);
+
+            if (creditAction === 'retain' && totalPaid > 0) {
+                toast.success(`Turno cancelado. Crédito de $${totalPaid.toLocaleString('es-AR')} retenido a favor del cliente.`);
+            } else if (creditAction === 'forfeit' && totalPaid > 0) {
+                toast.success('Turno cancelado. Seña registrada como perdida.');
+            } else {
+                toast.success('Turno cancelado.');
+            }
+
+            setCancelDialogOpen(false);
             setSelectedAppointment(null);
         } catch (error) {
-            console.error('Error deleting appointment:', error);
-            toast.error('Error al eliminar el turno');
+            console.error('Error cancelling appointment:', error);
+            toast.error('Error al cancelar el turno');
         } finally {
             setDeleting(false);
         }
@@ -337,14 +363,11 @@ function TurnosContent() {
                 appointment={selectedAppointment}
             />
 
-            <DeleteConfirmDialog
-                isOpen={deleteDialogOpen}
-                onClose={() => setDeleteDialogOpen(false)}
-                onConfirm={handleConfirmDelete}
-                title="Confirmar Eliminación"
-                description="¿Está seguro que desea eliminar este turno? Esta acción no se puede deshacer."
-                itemName={selectedAppointment?.clientName}
-                itemDetail={`${selectedAppointment?.treatment} - ${selectedAppointment?.date} ${selectedAppointment?.time}`}
+            <CancelAppointmentDialog
+                isOpen={cancelDialogOpen}
+                onClose={() => setCancelDialogOpen(false)}
+                onConfirm={handleConfirmCancel}
+                appointment={selectedAppointment}
                 loading={deleting}
             />
         </div>
