@@ -136,6 +136,7 @@ export function useNotifications() {
     }, [user, token]);
 
     useEffect(() => {
+        let isMounted = true;
         if (typeof window !== 'undefined' && 'Notification' in window) {
             setPermission(Notification.permission);
         }
@@ -146,9 +147,10 @@ export function useNotifications() {
 
             try {
                 const msg = await messaging();
-                if (!msg) return;
+                if (!msg || !isMounted) return;
 
                 onMessage(msg, (payload) => {
+                    if (!isMounted) return;
                     toast(payload.notification?.title || 'Nuevo aviso', {
                         description: payload.notification?.body,
                         action: payload.data?.url ? {
@@ -160,9 +162,11 @@ export function useNotifications() {
 
                 if (!token && process.env.NEXT_PUBLIC_VAPID_KEY) {
                     const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+                    if (!isMounted) return;
 
                     // Wait for the service worker to become active
                     await waitForServiceWorkerActivation(registration);
+                    if (!isMounted) return;
 
                     const tokenPromise = getToken(msg, {
                         vapidKey: process.env.NEXT_PUBLIC_VAPID_KEY,
@@ -174,17 +178,25 @@ export function useNotifications() {
                         new Promise<null>((_, reject) => setTimeout(() => reject(new Error('Timeout refresh token')), 15000))
                     ]);
 
-                    if (currentToken) {
+                    if (currentToken && isMounted) {
                         setToken(currentToken);
                         await addFcmToken(user.uid, currentToken);
                     }
                 }
-            } catch (e) {
+            } catch (e: any) {
+                if (e?.message?.includes('database connection is closing')) {
+                    // Ignore this specific Firebase/IndexedDB error common in HMR
+                    return;
+                }
                 console.error('FCM: Error initializing messaging:', e);
             }
         };
 
         initMessaging();
+
+        return () => {
+            isMounted = false;
+        };
     }, [user, permission, token, profile]);
 
     return {

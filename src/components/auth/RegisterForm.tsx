@@ -14,6 +14,7 @@ import { PhoneInput } from '@/components/ui/PhoneInput';
 import { Phone, Mail, ChevronLeft, Eye, EyeOff } from 'lucide-react';
 import { ConfirmationResult } from 'firebase/auth';
 import { useAuth } from '@/lib/contexts/AuthContext';
+import { adminCreateUser } from '@/app/actions/auth';
 
 interface RegisterFormProps {
     onToggleMode: () => void;
@@ -21,10 +22,14 @@ interface RegisterFormProps {
 
 export function RegisterForm({ onToggleMode }: RegisterFormProps) {
     const [step, setStep] = useState(1);
-    const [authOption, setAuthOption] = useState<'options' | 'email' | 'phone_number' | 'phone_otp'>('options');
-    const [loading, setLoading] = useState(false);
     const { requestPermission } = useNotifications();
-    const { user: currentUser } = useAuth();
+    const { user: currentUser, profile: currentProfile } = useAuth();
+    const isAdmin = currentProfile?.role === 'admin' || currentProfile?.role === 'secretary';
+    const [authOption, setAuthOption] = useState<'options' | 'email' | 'phone_number' | 'phone_otp'>(
+        isAdmin ? 'email' : 'options'
+    );
+    const [loading, setLoading] = useState(false);
+
     const [formData, setFormData] = useState({
         email: '',
         password: '',
@@ -68,10 +73,52 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
         e.preventDefault();
         setLoading(true);
         try {
+            if (isAdmin) {
+                // ADMIN FLOW: Register user via Server Action (no session sign-out)
+                const finalPhone = formData.phone
+                    ? formatPhone(`${countryCode}${formData.phone}`)
+                    : '';
+
+                const result = await adminCreateUser({
+                    ...formData,
+                    phone: finalPhone,
+                });
+
+                if (result.success) {
+                    toast.success('¡Usuario creado exitosamente por el administrador!');
+                    // Reset form or redirect
+                    setFormData({
+                        email: '',
+                        password: '',
+                        confirmPassword: '',
+                        fullName: '',
+                        firstName: '',
+                        lastName: '',
+                        birthDate: '',
+                        phone: '',
+                        hasTattoos: false,
+                        sex: 'female',
+                        isPregnant: false,
+                        relevantMedicalInfo: '',
+                        wantNotifications: true,
+                    });
+                    setStep(1);
+                    setAuthOption(isAdmin ? 'email' : 'options');
+                } else {
+                    if (result.code === 'auth/email-already-in-use') {
+                        toast.error('El email ya está en uso.');
+                    } else {
+                        toast.error(`Error: ${result.error}`);
+                    }
+                }
+                return;
+            }
+
+            // NORMAL USER FLOW
             let uid: string;
             let email: string;
 
-            if (currentUser) {
+            if (currentUser && !currentProfile) {
                 // User already authenticated via phone or Google — skip email registration
                 uid = currentUser.uid;
                 email = currentUser.email || formData.email || `phone_${currentUser.uid}@dhermica.internal`;
@@ -498,18 +545,20 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
                 </form>
             )}
 
-            <div className="pt-6 border-t border-gray-100">
-                <p className="text-center text-sm text-gray-500">
-                    ¿Ya tienes cuenta?{' '}
-                    <button
-                        onClick={onToggleMode}
-                        type="button"
-                        className="font-black text-[#34baab] hover:underline p-2"
-                    >
-                        Inicia sesión aquí
-                    </button>
-                </p>
-            </div>
+            {!isAdmin && (
+                <div className="pt-6 border-t border-gray-100">
+                    <p className="text-center text-sm text-gray-500">
+                        ¿Ya tienes cuenta?{' '}
+                        <button
+                            onClick={onToggleMode}
+                            type="button"
+                            className="font-black text-[#34baab] hover:underline p-2"
+                        >
+                            Inicia sesión aquí
+                        </button>
+                    </p>
+                </div>
+            )}
         </div>
     );
 }

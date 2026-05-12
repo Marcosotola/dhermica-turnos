@@ -109,12 +109,18 @@ export default function UsuariosPage() {
         setIsEditModalOpen(true);
     };
 
-    const filteredUsers = users.filter(u =>
-        (u.fullName?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-        (u.firstName?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-        (u.lastName?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-        (u.email?.toLowerCase() || '').includes(searchTerm.toLowerCase())
-    );
+    const filteredUsers = users
+        .filter(u =>
+            (u.fullName?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+            (u.firstName?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+            (u.lastName?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+            (u.email?.toLowerCase() || '').includes(searchTerm.toLowerCase())
+        )
+        .sort((a, b) => {
+            const nameA = (a.fullName || `${a.firstName} ${a.lastName}`).toLowerCase();
+            const nameB = (b.fullName || `${b.firstName} ${b.lastName}`).toLowerCase();
+            return nameA.localeCompare(nameB);
+        });
 
     if (authLoading || loading) {
         return (
