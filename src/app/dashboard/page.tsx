@@ -147,23 +147,23 @@ export default function DashboardPage() {
             <Toaster position="top-center" richColors />
             <div className="container mx-auto px-4 py-8">
                 {/* Header Section */}
-                <div className="bg-[#484450] rounded-3xl p-8 mb-8 shadow-lg text-white">
-                    <div className="flex items-center gap-4 mb-4">
-                        <div className="w-16 h-16 bg-[#34baab] rounded-2xl flex items-center justify-center shadow-inner">
+                <Link href="/about" className="block bg-[#484450] rounded-3xl p-8 mb-8 shadow-lg text-white hover:bg-[#524d5c] transition-colors group">
+                    <div className="flex items-center gap-4">
+                        <div className="w-16 h-16 bg-[#34baab] rounded-2xl flex items-center justify-center shadow-inner group-hover:scale-105 transition-transform">
                             <UserIcon className="w-10 h-10 text-white" />
                         </div>
-                        <div>
-                            <h1 className="text-3xl font-black tracking-tight">
-                                Hola, {profile?.fullName || 'Usuario'}
+                        <div className="flex flex-col md:flex-row md:items-baseline md:gap-4">
+                            <h1 className="text-5xl md:text-6xl font-normal leading-tight pl-4 text-[#34baab]" style={{ fontFamily: "var(--font-amsterdam), sans-serif" }}>
+                                Dhermica
                             </h1>
-                            <p className="text-gray-100 font-medium opacity-100">
-                                {role === 'admin' ? 'Administrador' : role === 'professional' ? 'Profesional' : role === 'promotor' ? 'Promotor' : 'Cliente'}
+                            <p className="text-gray-100 font-medium opacity-90 text-lg mt-4 md:mt-0 pl-4 md:pl-0">
+                                {profile?.fullName || 'Usuario'}
                             </p>
                         </div>
+
                     </div>
+                </Link>
 
-
-                </div>
 
                 <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
                     {/* Common Card: My Profile */}

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -11,6 +12,12 @@ const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
 });
+
+const amsterdam = localFont({
+  src: "../../public/amsterdam-four.ttf",
+  variable: "--font-amsterdam",
+});
+
 
 export const metadata: Metadata = {
   title: "Dhermica Estética Unisex",
@@ -43,8 +50,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased pb-safe`}
+        className={`${geistSans.variable} ${geistMono.variable} ${amsterdam.variable} antialiased pb-safe`}
       >
+
         <AuthProvider>
           <PWAProvider>
             <NotificationProvider>
