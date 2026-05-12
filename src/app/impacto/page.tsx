@@ -128,9 +128,10 @@ export default function ImpactPage() {
                         <Heart className="w-48 h-48 md:w-64 md:h-64" />
                     </div>
                     <h1 className="text-3xl md:text-5xl font-black mb-4 md:mb-6 text-white leading-tight tracking-tighter">
-                        Un Momento para <span className="text-[#34baab]">Vos</span>,<br className="md:hidden" />
+                        Un Momento para <span className="text-[#34baab]">Vos</span>, <br className="md:hidden" />
                         una Bendición para <span className="text-[#34baab]">Otros</span>
                     </h1>
+
                     <p className="text-sm md:text-xl opacity-90 font-light max-w-2xl mx-auto leading-relaxed">
                         Con cada tratamiento en Dhermica, estás apoyando nuestras misiones sociales. 
                         Aquí compartimos algunos de los momentos donde tu elección se convirtió en esperanza.
