@@ -250,14 +250,42 @@ function TurnosContent() {
                     </div>
                 </div>
 
-                <div className="flex flex-col lg:flex-row gap-6">
-                    {/* Desktop Sidebar: Date Picker */}
-                    <div className="hidden lg:block lg:w-80">
-                        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sticky top-8">
-                            <label className="block text-sm font-bold text-gray-700 mb-4">
-                                Selecciona una fecha
-                            </label>
+                <div className="flex flex-col gap-6">
+                    {/* Desktop Date Filter Bar */}
+                    <div className="hidden lg:flex items-center gap-6 bg-white rounded-3xl shadow-sm border border-gray-100 p-5">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-[#34baab]/10 rounded-xl flex items-center justify-center">
+                                <Calendar className="w-5 h-5 text-[#34baab]" />
+                            </div>
+                            <div>
+                                <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">Fecha Seleccionada</p>
+                                <p className="text-sm font-bold text-gray-900">Agenda del día</p>
+                            </div>
+                        </div>
+                        <div className="w-64">
                             <DatePicker value={selectedDate} onChange={setSelectedDate} />
+                        </div>
+                        
+                        <div className="flex items-center gap-2 ml-auto">
+                            <Button 
+                                variant="ghost" 
+                                className="rounded-xl font-bold text-gray-500 hover:text-[#34baab] hover:bg-[#34baab]/5"
+                                onClick={() => setSelectedDate(getTodayDate())}
+                            >
+                                <Home className="w-4 h-4 mr-2" />
+                                Hoy
+                            </Button>
+                            <Button 
+                                variant="ghost" 
+                                className="rounded-xl font-bold text-gray-500 hover:text-[#34baab] hover:bg-[#34baab]/5"
+                                onClick={() => {
+                                    const next = new Date(selectedDate);
+                                    next.setDate(next.getDate() + 1);
+                                    setSelectedDate(next.toISOString().split('T')[0]);
+                                }}
+                            >
+                                Mañana
+                            </Button>
                         </div>
                     </div>
 

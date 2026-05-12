@@ -48,12 +48,16 @@ export default function RootLayout({
         <AuthProvider>
           <PWAProvider>
             <NotificationProvider>
-              <TopNavbar />
-              <BirthdayLauncher />
-              <main className="min-h-[100dvh]">
-                {children}
-              </main>
-              <BottomNav />
+              <div className="flex min-h-screen">
+                <TopNavbar />
+                <div className="flex-1 lg:pl-64 flex flex-col min-w-0">
+                  <BirthdayLauncher />
+                  <main className="flex-1">
+                    {children}
+                  </main>
+                  <BottomNav />
+                </div>
+              </div>
               <WhatsAppBadge />
             </NotificationProvider>
           </PWAProvider>
