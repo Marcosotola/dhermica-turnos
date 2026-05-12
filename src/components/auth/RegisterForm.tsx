@@ -11,7 +11,7 @@ import { UserProfile } from '@/lib/types/user';
 import { useNotifications } from '@/lib/hooks/useNotifications';
 import { Checkbox } from '@/components/ui/Checkbox';
 import { PhoneInput } from '@/components/ui/PhoneInput';
-import { Phone, Mail, ChevronLeft } from 'lucide-react';
+import { Phone, Mail, ChevronLeft, Eye, EyeOff } from 'lucide-react';
 import { ConfirmationResult } from 'firebase/auth';
 import { useAuth } from '@/lib/contexts/AuthContext';
 
@@ -44,6 +44,7 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
     const [otp, setOtp] = useState('');
     const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
     const [resendTimer, setResendTimer] = useState(0);
+    const [showPassword, setShowPassword] = useState(false);
 
     const handleNext = () => {
         if (step === 1) {
@@ -268,22 +269,40 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
                                 placeholder="tu@email.com"
                                 required
                             />
-                            <Input
-                                label="Contraseña"
-                                type="password"
-                                value={formData.password}
-                                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                                placeholder="••••••••"
-                                required
-                            />
-                            <Input
-                                label="Confirmar Contraseña"
-                                type="password"
-                                value={formData.confirmPassword}
-                                onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                                placeholder="••••••••"
-                                required
-                            />
+                            <div className="relative">
+                                <Input
+                                    label="Contraseña"
+                                    type={showPassword ? 'text' : 'password'}
+                                    value={formData.password}
+                                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                                    placeholder="••••••••"
+                                    required
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-3 top-[34px] text-gray-400 hover:text-gray-600 transition-colors"
+                                >
+                                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                                </button>
+                            </div>
+                            <div className="relative">
+                                <Input
+                                    label="Confirmar Contraseña"
+                                    type={showPassword ? 'text' : 'password'}
+                                    value={formData.confirmPassword}
+                                    onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                                    placeholder="••••••••"
+                                    required
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-3 top-[34px] text-gray-400 hover:text-gray-600 transition-colors"
+                                >
+                                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                                </button>
+                            </div>
                             <Button type="button" onClick={handleNext} className="w-full py-4 rounded-xl font-bold">
                                 Continuar
                             </Button>
