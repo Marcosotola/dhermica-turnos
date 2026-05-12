@@ -52,3 +52,12 @@ export const deleteImpactImage = async (id: string, storagePath: string): Promis
         await deleteObject(storageRef);
     }
 };
+
+export const updateImpactDescription = async (id: string, description: string): Promise<void> => {
+    const { updateDoc } = await import('firebase/firestore');
+    await updateDoc(doc(db, COLLECTION_NAME, id), {
+        description,
+        updatedAt: Timestamp.now()
+    });
+};
+
