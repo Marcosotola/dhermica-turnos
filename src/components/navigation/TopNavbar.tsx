@@ -174,11 +174,12 @@ export function TopNavbar() {
                         <div className="px-4 py-3 bg-white/5 rounded-2xl border border-white/5 mb-4">
                             <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 rounded-full bg-[#34baab]/20 border border-[#34baab]/30 flex items-center justify-center overflow-hidden">
-                                    {profile?.photoURL ? (
-                                        <img src={profile.photoURL} alt="" className="w-full h-full object-cover" />
+                                    {user?.photoURL ? (
+                                        <img src={user.photoURL} alt="" className="w-full h-full object-cover" />
                                     ) : (
                                         <span className="text-[#34baab] font-black text-sm">{profile?.fullName?.charAt(0) || 'U'}</span>
                                     )}
+
                                 </div>
                                 <div className="flex flex-col min-w-0">
                                     <span className="text-white text-xs font-black truncate">{profile?.fullName || 'Usuario'}</span>
