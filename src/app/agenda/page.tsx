@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { getUsersByRole, getAllUsers } from '@/lib/firebase/users';
 import { UserProfile } from '@/lib/types/user';
 import { Toaster } from 'sonner';
-import { BookOpen, Search, User as UserIcon, Phone, Calendar, Heart, AlertCircle, Info, CalendarCheck, ChevronDown, Loader2, ArrowLeft, CheckCircle2, Clock, XCircle, Eye, Smartphone, ClipboardList } from 'lucide-react';
+import { BookOpen, Search, User as UserIcon, Phone, Calendar, Heart, AlertCircle, Info, CalendarCheck, ChevronDown, Loader2, ArrowLeft, CheckCircle2, Clock, XCircle, Eye, Smartphone, ClipboardList, Users } from 'lucide-react';
 import { Appointment } from '@/lib/types/appointment';
 import { getAppointmentsByClientId, searchAppointmentsByClient } from '@/lib/firebase/appointments';
 import { Button } from '@/components/ui/Button';
@@ -317,7 +317,14 @@ export default function AgendaPage() {
                             <p className="text-gray-300 font-medium">Consulta fichas y datos relevantes.</p>
                         </div>
 
-                        <div className="ml-auto">
+                        <div className="ml-auto flex items-center gap-3">
+                            <button
+                                onClick={() => router.push('/registro')}
+                                className="bg-[#34baab] hover:bg-[#2da698] text-white px-6 py-3 rounded-2xl font-bold flex items-center gap-2 shadow-lg shadow-[#34baab]/20 transition-all active:scale-95 group"
+                            >
+                                <Users className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                                <span className="hidden md:inline">Registrar Cliente</span>
+                            </button>
                             <button
                                 onClick={() => setIsCreateModalOpen(true)}
                                 className="bg-[#34baab] hover:bg-[#2da698] text-white px-6 py-3 rounded-2xl font-bold flex items-center gap-2 shadow-lg shadow-[#34baab]/20 transition-all active:scale-95 group"

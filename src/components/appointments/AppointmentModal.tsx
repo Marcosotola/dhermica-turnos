@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Modal } from '../ui/Modal';
 import { Input } from '../ui/Input';
 import { CurrencyInput } from '../ui/CurrencyInput';
@@ -45,6 +46,7 @@ export function AppointmentModal({
     defaultProfessionalId,
     date,
 }: AppointmentModalProps) {
+    const router = useRouter();
     const [formData, setFormData] = useState({
         clientName: '',
         clientFirstName: '',
@@ -643,38 +645,20 @@ export function AppointmentModal({
                     </div>
                 )}
 
-                <div className="flex items-center gap-2 mb-4">
-                    <User className="w-5 h-5 text-gray-400" />
-                    <h3 className="text-sm font-bold text-gray-700 uppercase tracking-widest">Información del Cliente</h3>
-                </div>
-
-                <div className="bg-gray-50 p-1 rounded-xl flex mb-6">
+                <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                        <User className="w-5 h-5 text-gray-400" />
+                        <h3 className="text-sm font-bold text-gray-700 uppercase tracking-widest">Información del Cliente</h3>
+                    </div>
                     <button
                         type="button"
-                        onClick={() => setClientMode('registered')}
-                        className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-bold transition-all ${clientMode === 'registered'
-                            ? 'bg-white text-[#34baab] shadow-sm'
-                            : 'text-gray-500 hover:text-gray-700'
-                            }`}
+                        onClick={() => router.push('/registro')}
+                        className="text-[#34baab] text-xs font-bold hover:underline flex items-center gap-1"
                     >
-                        <User className="w-4 h-4" /> Cliente Registrado
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => {
-                            setClientMode('manual');
-                            setFormData(prev => ({ ...prev, clientId: '' }));
-                        }}
-                        className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-bold transition-all ${clientMode === 'manual'
-                            ? 'bg-white text-[#34baab] shadow-sm'
-                            : 'text-gray-500 hover:text-gray-700'
-                            }`}
-                    >
-                        <UserPlus className="w-4 h-4" /> Nuevo Manual
+                        <UserPlus className="w-3.5 h-3.5" /> Registrar Cliente
                     </button>
                 </div>
 
-                {clientMode === 'registered' ? (
                     <div className={`relative mb-6 ${showSuggestions ? 'z-[70]' : 'z-[50]'}`}>
                         <div className="relative">
                             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 z-10" />
@@ -745,71 +729,6 @@ export function AppointmentModal({
                             </div>
                         )}
                     </div>
-                ) : (
-                    <div className="space-y-4 mb-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <Input
-                                label="Nombre"
-                                value={formData.clientFirstName || ''}
-                                onChange={(e) =>
-                                    setFormData({ ...formData, clientFirstName: capitalizeName(e.target.value) })
-                                }
-                                placeholder="Ej: María"
-                                required
-                            />
-                            <Input
-                                label="Apellido"
-                                value={formData.clientLastName || ''}
-                                onChange={(e) =>
-                                    setFormData({ ...formData, clientLastName: capitalizeName(e.target.value) })
-                                }
-                                placeholder="Ej: González"
-                                required
-                            />
-                        </div>
-
-                        {/* Información de Salud (Solo Manual) */}
-                        <div className="bg-amber-50 p-5 rounded-3xl border border-amber-100 space-y-4 mt-4">
-                            <div className="flex items-center gap-2 mb-1">
-                                <BadgeDollarSign className="w-4 h-4 text-amber-600" />
-                                <h3 className="text-[10px] font-black text-amber-600 uppercase tracking-[0.2em]">Perfil de Salud</h3>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4">
-                                <label className="flex items-center gap-3 p-3 bg-white rounded-2xl border border-amber-200 cursor-pointer hover:bg-amber-100/50 transition-colors">
-                                    <input
-                                        type="checkbox"
-                                        checked={formData.isPregnant}
-                                        onChange={(e) => setFormData({ ...formData, isPregnant: e.target.checked })}
-                                        className="w-5 h-5 rounded border-amber-300 text-amber-600 focus:ring-amber-500"
-                                    />
-                                    <span className="text-sm font-medium text-amber-900">Embarazo</span>
-                                </label>
-
-                                <label className="flex items-center gap-3 p-3 bg-white rounded-2xl border border-amber-200 cursor-pointer hover:bg-amber-100/50 transition-colors">
-                                    <input
-                                        type="checkbox"
-                                        checked={formData.hasTattoos}
-                                        onChange={(e) => setFormData({ ...formData, hasTattoos: e.target.checked })}
-                                        className="w-5 h-5 rounded border-amber-300 text-amber-600 focus:ring-amber-500"
-                                    />
-                                    <span className="text-sm font-medium text-amber-900">Tatuajes</span>
-                                </label>
-                            </div>
-
-                            <div className="space-y-2">
-                                <label className="text-xs font-bold text-amber-700 uppercase px-1">Notas Médicas / Alergias</label>
-                                <textarea
-                                    value={formData.relevantMedicalInfo || ''}
-                                    onChange={(e) => setFormData({ ...formData, relevantMedicalInfo: e.target.value })}
-                                    placeholder="Ej: Alérgica a la aspirina, hipersensibilidad..."
-                                    rows={2}
-                                    className="w-full px-4 py-2 bg-white border border-amber-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent resize-none text-sm text-gray-900"
-                                />
-                            </div>
-                        </div>
-                    </div>
-                )}
 
                 <div className="bg-[#34baab]/5 p-5 rounded-3xl border border-[#34baab]/10 space-y-5 mb-8">
                     <div className="flex items-center gap-2 mb-1">
@@ -827,15 +746,7 @@ export function AppointmentModal({
                             required
                         />
 
-                        <div className={`grid grid-cols-1 ${clientMode === 'manual' ? 'md:grid-cols-2' : ''} gap-4`}>
-                            {clientMode === 'manual' && (
-                                <Input
-                                    label="Fecha de Nacimiento (Opcional)"
-                                    type="date"
-                                    value={formData.clientBirthDate || ''}
-                                    onChange={(e) => setFormData({ ...formData, clientBirthDate: e.target.value })}
-                                />
-                            )}
+                        <div className="grid grid-cols-1 gap-4">
                             <Input
                                 label="Email"
                                 type="email"

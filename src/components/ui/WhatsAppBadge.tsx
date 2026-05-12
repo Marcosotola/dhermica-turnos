@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { MessageCircle } from 'lucide-react';
+import { useAuth } from '@/lib/contexts/AuthContext';
 
 interface WhatsAppBadgeProps {
     phoneNumber?: string;
@@ -12,6 +13,16 @@ export function WhatsAppBadge({
     phoneNumber = '5493513908626',
     message = 'Hola! Me gustaría realizar una consulta.'
 }: WhatsAppBadgeProps) {
+    const { profile, loading } = useAuth();
+
+    // If still loading auth state, don't show the badge to avoid flickering
+    if (loading) return null;
+
+    // Only show for clients or guests (no profile). 
+    // Hide for admin, professional, secretary, promotor, contador.
+    if (profile && profile.role !== 'client') {
+        return null;
+    }
 
     const handleClick = () => {
         const url = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
