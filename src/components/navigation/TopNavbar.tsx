@@ -1,4 +1,6 @@
 'use client';
+// Force change for git detection
+
 
 import { useState, useEffect, ElementType } from 'react';
 import Link from 'next/link';
