@@ -5,7 +5,8 @@
 import { useState, useEffect, ElementType } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Menu, X, Home, Calendar, Truck, Users, LayoutDashboard, LogOut, BookOpen, Settings, Sparkles, Tag, ShoppingBag, Bell, Share2, MapPin, DollarSign, Zap, TrendingDown, Download } from 'lucide-react';
+import { Menu, X, Home, Calendar, Truck, Users, LayoutDashboard, LogOut, BookOpen, Settings, Sparkles, Tag, ShoppingBag, Bell, Share2, MapPin, DollarSign, Zap, TrendingDown, Download, Heart } from 'lucide-react';
+
 import { Button } from '../ui/Button';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
@@ -84,6 +85,7 @@ export function TopNavbar() {
             { href: '/alquileres', label: 'Alquiler', icon: Truck },
             { href: '/secretaria/notificaciones', label: 'Avisos', icon: Bell },
             { href: '/comunidad', label: 'Comunidad', icon: Users },
+            { href: '/impacto', label: 'Impacto', icon: Heart },
         ] : []),
         // Professional only
         ...(role === 'professional' ? [
@@ -95,6 +97,7 @@ export function TopNavbar() {
             { href: '/productos', label: 'Productos', icon: ShoppingBag },
             { href: '/promociones', label: 'Promos', icon: Tag },
             { href: '/comunidad', label: 'Comunidad', icon: Users },
+            { href: '/impacto', label: 'Impacto', icon: Heart },
             { href: '/ubicacion', label: 'Ubicación', icon: MapPin },
         ] : []),
         // Secretary only
@@ -111,6 +114,7 @@ export function TopNavbar() {
             { href: '/usuarios', label: 'Usuarios', icon: Settings },
             { href: '/ubicacion', label: 'Ubicación', icon: MapPin },
             { href: '/comunidad', label: 'Comunidad', icon: Users },
+            { href: '/impacto', label: 'Impacto', icon: Heart },
             { href: '/alquileres', label: 'Alquiler', icon: Truck },
         ] : []),
         // Client and Promotor
@@ -120,6 +124,7 @@ export function TopNavbar() {
             { href: '/productos', label: 'Productos', icon: ShoppingBag },
             { href: '/promociones', label: 'Promociones', icon: Tag },
             { href: '/comunidad', label: 'Comunidad', icon: Users },
+            { href: '/impacto', label: 'Impacto', icon: Heart },
             { href: '/ubicacion', label: 'Ubicación', icon: MapPin },
         ] : []),
         // Contador only
@@ -130,8 +135,10 @@ export function TopNavbar() {
             { href: '/productos', label: 'Productos', icon: ShoppingBag },
             { href: '/promociones', label: 'Promociones', icon: Tag },
             { href: '/comunidad', label: 'Comunidad', icon: Users },
+            { href: '/impacto', label: 'Impacto', icon: Heart },
             { href: '/ubicacion', label: 'Ubicación', icon: MapPin },
         ] : []),
+
     ];
 
     const NavContent = ({ mobile = false }) => (

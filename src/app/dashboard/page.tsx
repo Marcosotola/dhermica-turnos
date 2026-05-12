@@ -28,8 +28,10 @@ import {
     MapPin,
     DollarSign,
     Zap,
-    TrendingDown
+    TrendingDown,
+    Heart
 } from 'lucide-react';
+
 import Link from 'next/link';
 import { Appointment } from '@/lib/types/appointment';
 import { EditProfileModal } from '@/components/dashboard/EditProfileModal';
@@ -243,6 +245,13 @@ export default function DashboardPage() {
                                 <p className="hidden md:block text-gray-500 text-sm mt-2 text-center">Resultados e inspiración.</p>
                             </Link>
 
+                            <Link href="/impacto" className="flex flex-col items-center justify-center bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-all group">
+                                <Heart className="w-10 h-10 text-rose-500 mb-4 group-hover:scale-110 transition-transform fill-rose-500/10" />
+                                <span className="text-xl font-bold text-gray-900 text-center">Impacto</span>
+                                <p className="hidden md:block text-gray-500 text-sm mt-2 text-center">Misiones y ayuda social.</p>
+                            </Link>
+
+
                             <Link href="/aparatos" className="flex flex-col items-center justify-center bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-all group">
                                 <Zap className="w-10 h-10 text-amber-500 mb-4 group-hover:scale-110 transition-transform" />
                                 <span className="text-xl font-bold text-gray-900 text-center">Aparatos</span>
@@ -307,11 +316,17 @@ export default function DashboardPage() {
                                 <p className="hidden md:block text-gray-500 text-sm mt-2 text-center">Ofertas y paquetes especiales.</p>
                             </Link>
 
-                            <Link href="/comunidad" className="flex flex-col items-center justify-center bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-all group">
-                                <Users className="w-10 h-10 text-[#34baab] mb-4 group-hover:scale-110 transition-transform" />
-                                <span className="text-xl font-bold text-gray-900 text-center">Comunidad</span>
-                                <p className="hidden md:block text-gray-500 text-sm mt-2 text-center">Resultados e inspiración.</p>
-                            </Link>
+                             <Link href="/comunidad" className="flex flex-col items-center justify-center bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-all group">
+                                 <Users className="w-10 h-10 text-[#34baab] mb-4 group-hover:scale-110 transition-transform" />
+                                 <span className="text-xl font-bold text-gray-900 text-center">Comunidad</span>
+                                 <p className="hidden md:block text-gray-500 text-sm mt-2 text-center">Resultados e inspiración.</p>
+                             </Link>
+ 
+                             <Link href="/impacto" className="flex flex-col items-center justify-center bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-all group">
+                                 <Heart className="w-10 h-10 text-rose-500 mb-4 group-hover:scale-110 transition-transform fill-rose-500/10" />
+                                 <span className="text-xl font-bold text-gray-900 text-center">Impacto</span>
+                                 <p className="hidden md:block text-gray-500 text-sm mt-2 text-center">Misiones y ayuda social.</p>
+                             </Link>
                         </>
                     )}
 
