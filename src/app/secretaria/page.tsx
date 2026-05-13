@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Calendar, TrendingUp, Sparkles, ShoppingBag, BookOpen, Bell, MapPin, Users, Truck, DollarSign, Zap, TrendingDown } from 'lucide-react';
 import { ProfileSection } from '@/components/dashboard/ProfileSection';
 import { EditProfileModal } from '@/components/dashboard/EditProfileModal';
+import { OrphanAlertBanner } from '@/components/dashboard/OrphanAlertBanner';
 import { Toaster } from 'sonner';
 
 export default function SecretariaPage() {
@@ -62,6 +63,8 @@ export default function SecretariaPage() {
                         onEditClick={() => setIsEditModalOpen(true)}
                     />
                 </div>
+
+                <OrphanAlertBanner />
 
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
                     {/* Turnos */}

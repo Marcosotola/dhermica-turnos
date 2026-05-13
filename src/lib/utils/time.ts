@@ -58,6 +58,16 @@ export function getTodayDate(): string {
 }
 
 /**
+ * Obtiene el índice del día de la semana (0-6, donde 0 es domingo) a partir de un string YYYY-MM-DD
+ */
+export function getDayOfWeek(dateString: string): number {
+    const [year, month, day] = dateString.split('-').map(Number);
+    // Mes en JS es 0-11
+    const date = new Date(year, month - 1, day);
+    return date.getDay();
+}
+
+/**
  * Formatea un número como moneda argentina
  */
 export function formatArgentineCurrency(amount: number): string {

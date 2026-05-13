@@ -39,6 +39,7 @@ import { Toaster, toast } from 'sonner';
 import { getAppointmentsByClientId, getAppointmentsByProfessionalId } from '@/lib/firebase/appointments';
 import { useNotifications } from '@/lib/hooks/useNotifications';
 import { ProfileSection } from '@/components/dashboard/ProfileSection';
+import { OrphanAlertBanner } from '@/components/dashboard/OrphanAlertBanner';
 
 export default function DashboardPage() {
     const { user, profile, loading } = useAuth();
@@ -166,6 +167,7 @@ export default function DashboardPage() {
                     </div>
                 </Link>
 
+                {(role === 'admin' || role === 'professional') && <OrphanAlertBanner />}
 
                 <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
                     {/* Common Card: My Profile */}

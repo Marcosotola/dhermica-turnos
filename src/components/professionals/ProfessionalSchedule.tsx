@@ -5,6 +5,8 @@ import { Professional } from '@/lib/types/professional';
 import { getTreatments } from '@/lib/firebase/treatments';
 import { updateProfessional } from '@/lib/firebase/professionals';
 import { Treatment } from '@/lib/types/treatment';
+import { getAppointmentsByProfessionalId } from '@/lib/firebase/appointments';
+import { checkAppointmentConflict } from '@/lib/utils/validation';
 import {
     Clock,
     Calendar,
@@ -15,7 +17,8 @@ import {
     X,
     AlertCircle,
     Coffee,
-    Sparkles
+    Sparkles,
+    Pencil
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -44,6 +47,8 @@ export function ProfessionalSchedule({ professional, onUpdate }: ProfessionalSch
     const [workingHours, setWorkingHours] = useState(professional.workingHours || {});
     const [selectedServices, setSelectedServices] = useState<string[]>(professional.services || []);
     const [exceptions, setExceptions] = useState(professional.exceptions || []);
+    const [editingExceptionIndex, setEditingExceptionIndex] = useState<number | null>(null);
+    const [showConflictConfirm, setShowConflictConfirm] = useState<{ count: number; firstDate: string } | null>(null);
 
     useEffect(() => {
         getTreatments().then(setTreatments);
@@ -81,15 +86,44 @@ export function ProfessionalSchedule({ professional, onUpdate }: ProfessionalSch
         setExceptions(exceptions.filter((_, i) => i !== index));
     };
 
-    const handleSave = async () => {
+    const handleSave = async (force = false) => {
         setSubmitting(true);
         try {
+            // Solo verificar conflictos si no se está forzando el guardado
+            if (!force) {
+                const appointments = await getAppointmentsByProfessionalId(professional.id);
+                const today = new Date().toISOString().split('-')[0];
+                
+                // Filtrar solo futuros y no cancelados
+                const futureAppointments = appointments.filter(apt => 
+                    apt.date >= today && 
+                    apt.status !== 'cancelled' && 
+                    apt.status !== 'cancelado'
+                );
+
+                const conflicts = futureAppointments.filter(apt => {
+                    // Simular el conflicto con el NUEVO horario que estamos por guardar
+                    const simulatedProfessional = { ...professional, workingHours, exceptions };
+                    return checkAppointmentConflict(apt, simulatedProfessional).isOrphan;
+                });
+
+                if (conflicts.length > 0) {
+                    setShowConflictConfirm({
+                        count: conflicts.length,
+                        firstDate: conflicts[0].date
+                    });
+                    setSubmitting(false);
+                    return;
+                }
+            }
+
             await updateProfessional(professional.id, {
                 workingHours,
                 services: selectedServices,
                 exceptions
             });
             toast.success('Configuración de agenda guardada');
+            setShowConflictConfirm(null);
             onUpdate();
         } catch (error) {
             console.error('Error saving schedule:', error);
@@ -116,6 +150,42 @@ export function ProfessionalSchedule({ professional, onUpdate }: ProfessionalSch
                     Guardar Cambios
                 </Button>
             </div>
+
+            {/* Conflict Warning Alert */}
+            {showConflictConfirm && (
+                <div className="bg-red-50 border-2 border-red-200 rounded-[32px] p-6 md:p-8 animate-in zoom-in duration-300 shadow-xl shadow-red-200/20">
+                    <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+                        <div className="flex items-start gap-4">
+                            <div className="w-14 h-14 bg-red-100 rounded-2xl flex items-center justify-center shrink-0 shadow-inner">
+                                <AlertCircle className="w-8 h-8 text-red-600" />
+                            </div>
+                            <div>
+                                <h4 className="text-xl font-black text-red-900 uppercase tracking-tight">¡Atención! Conflicto Detectado</h4>
+                                <p className="text-sm text-red-700 mt-1 font-medium leading-relaxed max-w-2xl">
+                                    Hay <span className="font-black">{showConflictConfirm.count} turnos</span> ya agendados que quedarán fuera del nuevo horario 
+                                    (el primero es el {showConflictConfirm.firstDate.split('-').reverse().join('/')}). 
+                                    ¿Deseas guardar los cambios de todas formas? Los turnos afectados se marcarán con alerta en la agenda.
+                                </p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-3 shrink-0">
+                            <Button
+                                variant="ghost"
+                                onClick={() => setShowConflictConfirm(null)}
+                                className="text-red-700 hover:bg-red-100 font-black uppercase tracking-widest text-[10px] px-6 h-12 rounded-2xl"
+                            >
+                                Cancelar
+                            </Button>
+                            <Button
+                                onClick={() => handleSave(true)}
+                                className="bg-red-600 hover:bg-red-700 text-white border-none rounded-2xl font-black uppercase tracking-widest text-[10px] px-8 h-12 shadow-lg shadow-red-200"
+                            >
+                                Sí, Guardar de todas formas
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <div className="grid grid-cols-1 2xl:grid-cols-3 gap-8">
                 {/* Working Hours */}
@@ -221,21 +291,24 @@ export function ProfessionalSchedule({ professional, onUpdate }: ProfessionalSch
                         </div>
 
                         <div className="space-y-3">
-                            {exceptions.map((ex, i) => (
-                                    <div key={i} className="flex flex-col gap-3 w-full">
-                                        <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-4 bg-gray-50 p-4 md:p-6 rounded-[2rem] border border-gray-100 shadow-sm">
+                            {exceptions.map((ex, i) => {
+                                const isEditing = editingExceptionIndex === i;
+                                return (
+                                    <div key={i} className="flex flex-col gap-3 w-full group">
+                                        <div className={`flex flex-col lg:flex-row items-stretch lg:items-center gap-4 p-4 md:p-6 rounded-[2rem] border transition-all shadow-sm ${isEditing ? 'bg-white border-[#34baab] ring-4 ring-[#34baab]/10' : 'bg-gray-50 border-gray-100 hover:border-gray-200'}`}>
                                             {/* Fecha */}
                                             <div className="flex-shrink-0">
                                                 <label className="text-[7px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">Fecha</label>
                                                 <Input
                                                     type="date"
                                                     value={ex.date}
+                                                    readOnly={!isEditing}
                                                     onChange={(e) => {
                                                         const newEx = [...exceptions];
                                                         newEx[i].date = e.target.value;
                                                         setExceptions(newEx);
                                                     }}
-                                                    className="bg-white border-gray-200 rounded-xl w-full md:w-44 font-bold text-xs"
+                                                    className={`rounded-xl w-full md:w-44 font-bold text-xs ${isEditing ? 'bg-white border-gray-200' : 'bg-transparent border-none shadow-none px-1 cursor-default'}`}
                                                 />
                                             </div>
 
@@ -243,70 +316,96 @@ export function ProfessionalSchedule({ professional, onUpdate }: ProfessionalSch
                                             <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3">
                                                 <div className="flex flex-col">
                                                     <label className="text-[7px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">Tipo de Excepción</label>
-                                                    <select
-                                                        value={ex.type}
-                                                        onChange={(e) => {
-                                                            const newEx = [...exceptions];
-                                                            newEx[i].type = e.target.value as any;
-                                                            if (e.target.value === 'absence') {
-                                                                newEx[i].services = [];
-                                                            }
-                                                            setExceptions(newEx);
-                                                        }}
-                                                        className="bg-white border border-gray-200 rounded-xl px-4 py-2 h-[44px] text-xs font-bold focus:ring-2 focus:ring-[#34baab]/20 outline-none w-full appearance-none cursor-pointer hover:border-[#34baab]/30 transition-colors"
-                                                    >
-                                                        <option value="absence">🚫 Ausencia / Vacaciones</option>
-                                                        <option value="extra">✨ Horas / Días Extra</option>
-                                                    </select>
+                                                    {isEditing ? (
+                                                        <select
+                                                            value={ex.type}
+                                                            onChange={(e) => {
+                                                                const newEx = [...exceptions];
+                                                                newEx[i].type = e.target.value as any;
+                                                                if (e.target.value === 'absence') {
+                                                                    newEx[i].services = [];
+                                                                }
+                                                                setExceptions(newEx);
+                                                            }}
+                                                            className="bg-white border border-gray-200 rounded-xl px-4 py-2 h-[44px] text-xs font-bold focus:ring-2 focus:ring-[#34baab]/20 outline-none w-full appearance-none cursor-pointer hover:border-[#34baab]/30 transition-colors"
+                                                        >
+                                                            <option value="absence">🚫 Ausencia / Vacaciones</option>
+                                                            <option value="extra">✨ Horas / Días Extra</option>
+                                                        </select>
+                                                    ) : (
+                                                        <div className="h-[44px] flex items-center px-1 font-bold text-xs text-gray-700 uppercase tracking-tighter">
+                                                            {ex.type === 'absence' ? '🚫 Ausencia' : '✨ Horas Extra'}
+                                                        </div>
+                                                    )}
                                                 </div>
                                                 <div className="flex flex-col">
                                                     <label className="text-[7px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">Nota Interna</label>
                                                     <Input
                                                         placeholder="Ej: Médico, Feriado..."
                                                         value={ex.note || ''}
+                                                        readOnly={!isEditing}
                                                         onChange={(e) => {
                                                             const newEx = [...exceptions];
                                                             newEx[i].note = e.target.value;
                                                             setExceptions(newEx);
                                                         }}
-                                                        className="bg-white border-gray-200 rounded-xl font-medium text-xs w-full"
+                                                        className={`rounded-xl font-medium text-xs w-full ${isEditing ? 'bg-white border-gray-200' : 'bg-transparent border-none shadow-none px-1 cursor-default'}`}
                                                     />
                                                 </div>
                                             </div>
 
                                             {/* Rango Horario */}
-                                            <div className="flex-shrink-0 bg-white/60 p-3 rounded-2xl border border-gray-100">
-                                                <label className="text-[7px] font-black text-gray-400 uppercase tracking-widest mb-1 block text-center">Rango Horario (Opcional)</label>
+                                            <div className={`flex-shrink-0 p-3 rounded-2xl border transition-colors ${isEditing ? 'bg-white border-gray-200' : 'bg-transparent border-transparent'}`}>
+                                                <label className="text-[7px] font-black text-gray-400 uppercase tracking-widest mb-1 block text-center">Rango Horario</label>
                                                 <div className="flex items-center gap-2">
                                                     <Input
                                                         type="time"
                                                         value={ex.start || ''}
+                                                        readOnly={!isEditing}
                                                         onChange={(e) => {
                                                             const newEx = [...exceptions];
                                                             newEx[i].start = e.target.value;
                                                             setExceptions(newEx);
                                                         }}
-                                                        className="bg-white border-gray-200 rounded-lg h-9 text-[11px] font-bold w-24 pr-1 pl-2"
+                                                        className={`h-9 text-[11px] font-bold w-24 pr-1 pl-2 ${isEditing ? 'bg-white border-gray-200 rounded-lg' : 'bg-transparent border-none shadow-none text-center'}`}
                                                     />
                                                     <span className="text-gray-300 text-sm">-</span>
                                                     <Input
                                                         type="time"
                                                         value={ex.end || ''}
+                                                        readOnly={!isEditing}
                                                         onChange={(e) => {
                                                             const newEx = [...exceptions];
                                                             newEx[i].end = e.target.value;
                                                             setExceptions(newEx);
                                                         }}
-                                                        className="bg-white border-gray-200 rounded-lg h-9 text-[11px] font-bold w-24 pr-1 pl-2"
+                                                        className={`h-9 text-[11px] font-bold w-24 pr-1 pl-2 ${isEditing ? 'bg-white border-gray-200 rounded-lg' : 'bg-transparent border-none shadow-none text-center'}`}
                                                     />
                                                 </div>
                                             </div>
 
-                                            {/* Eliminar */}
-                                            <div className="flex items-end lg:mb-1">
+                                            {/* Acciones */}
+                                            <div className="flex lg:flex-col items-end gap-1 ml-auto">
+                                                {isEditing ? (
+                                                    <button
+                                                        onClick={() => setEditingExceptionIndex(null)}
+                                                        className="p-3 text-green-500 hover:bg-green-50 rounded-xl transition-all"
+                                                        title="Listo"
+                                                    >
+                                                        <Check className="w-5 h-5" />
+                                                    </button>
+                                                ) : (
+                                                    <button
+                                                        onClick={() => setEditingExceptionIndex(i)}
+                                                        className="p-3 text-[#34baab] hover:bg-[#34baab]/10 rounded-xl transition-all opacity-100 md:opacity-0 md:group-hover:opacity-100 focus:opacity-100"
+                                                        title="Editar excepción"
+                                                    >
+                                                        <Pencil className="w-5 h-5" />
+                                                    </button>
+                                                )}
                                                 <button
                                                     onClick={() => handleRemoveException(i)}
-                                                    className="p-3 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
+                                                    className={`p-3 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all ${isEditing ? 'opacity-100' : 'opacity-100 md:opacity-0 md:group-hover:opacity-100'}`}
                                                     title="Eliminar excepción"
                                                 >
                                                     <Trash2 className="w-5 h-5" />
@@ -315,18 +414,21 @@ export function ProfessionalSchedule({ professional, onUpdate }: ProfessionalSch
                                         </div>
 
                                         {/* Selector de tratamientos para Horas Extra */}
-                                        {ex.type === 'extra' && (
-                                            <div className="bg-[#34baab]/5 p-4 rounded-2xl border border-[#34baab]/10 ml-4 md:ml-8 animate-in slide-in-from-top-2 duration-300">
-                                                <p className="text-[10px] font-black text-[#34baab] uppercase tracking-widest mb-3 flex items-center gap-2">
+                                        {ex.type === 'extra' && (isEditing || (ex.services || []).length > 0) && (
+                                            <div className={`p-4 rounded-2xl border transition-all ml-4 md:ml-8 animate-in slide-in-from-top-2 duration-300 ${isEditing ? 'bg-[#34baab]/5 border-[#34baab]/10' : 'bg-gray-50 border-gray-100'}`}>
+                                                <p className={`text-[10px] font-black uppercase tracking-widest mb-3 flex items-center gap-2 ${isEditing ? 'text-[#34baab]' : 'text-gray-400'}`}>
                                                     <Sparkles className="w-3 h-3" /> Tratamientos disponibles para esta excepción:
                                                 </p>
                                                 <div className="flex flex-wrap gap-2">
                                                     {treatments.map(t => {
                                                         const isSelected = (ex.services || []).includes(t.name);
+                                                        if (!isEditing && !isSelected) return null;
+
                                                         return (
                                                             <button
                                                                 key={t.id}
                                                                 type="button"
+                                                                disabled={!isEditing}
                                                                 onClick={() => {
                                                                     const newEx = [...exceptions];
                                                                     const currentServices = newEx[i].services || [];
@@ -341,14 +443,14 @@ export function ProfessionalSchedule({ professional, onUpdate }: ProfessionalSch
                                                                     isSelected 
                                                                         ? 'bg-[#34baab] text-white border-[#34baab] shadow-sm' 
                                                                         : 'bg-white text-gray-500 border-gray-100 hover:border-[#34baab]/30'
-                                                                }`}
+                                                                } ${!isEditing ? 'cursor-default opacity-80' : ''}`}
                                                             >
                                                                 {t.name}
                                                             </button>
                                                         );
                                                     })}
                                                 </div>
-                                                {(ex.services || []).length === 0 && (
+                                                {isEditing && (ex.services || []).length === 0 && (
                                                     <p className="text-[9px] text-amber-600 mt-2 italic font-medium">
                                                         * Si no seleccionas ninguno, se usarán los tratamientos generales del profesional.
                                                     </p>
@@ -356,7 +458,8 @@ export function ProfessionalSchedule({ professional, onUpdate }: ProfessionalSch
                                             </div>
                                         )}
                                     </div>
-                            ))}
+                                );
+                            })}
                             {exceptions.length === 0 && (
                                 <p className="text-center text-gray-400 font-medium py-8 italic border-2 border-dashed border-gray-100 rounded-[32px]">
                                     No hay excepciones registradas.

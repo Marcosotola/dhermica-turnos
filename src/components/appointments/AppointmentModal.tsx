@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Modal } from '../ui/Modal';
 import { Input } from '../ui/Input';
@@ -9,13 +9,15 @@ import { Select } from '../ui/Select';
 import { Button } from '../ui/Button';
 import { Appointment, DURATION_OPTIONS, AppointmentStatus, Payment, SelectedTreatment } from '@/lib/types/appointment';
 import { TreatmentSelectorSheet } from './TreatmentSelectorSheet';
-import { Plus, Trash2, CreditCard, CheckCircle2, Clock, XCircle, ChevronDown, Save, Phone, Sparkles, Gift } from 'lucide-react';
+import { 
+    Plus, Trash2, CreditCard, CheckCircle2, Clock, XCircle, ChevronDown, Save, 
+    Phone, Sparkles, Gift, AlertCircle, Search, UserPlus, User, BadgeDollarSign 
+} from 'lucide-react';
 import { Professional } from '@/lib/types/professional';
 import { UserProfile } from '@/lib/types/user';
 import { getAllUsers, createManualUserProfile } from '@/lib/firebase/users';
-import { capitalizeName } from '@/lib/utils/time';
-import { Search, UserPlus, User, BadgeDollarSign } from 'lucide-react';
-import { validateAppointment, checkOverlap } from '@/lib/utils/validation';
+import { capitalizeName, timeToDecimal } from '@/lib/utils/time';
+import { validateAppointment, checkOverlap, checkAppointmentConflict } from '@/lib/utils/validation';
 import { createAppointment, updateAppointment } from '@/lib/firebase/appointments';
 import { GiftCard } from '@/lib/types/giftCard';
 import { getGiftCardsByClient, updateGiftCardStatus } from '@/lib/firebase/giftCards';
@@ -594,6 +596,38 @@ export function AppointmentModal({
 
     const professionalOptions = professionals.map((p) => ({ value: p.id, label: p.name }));
 
+    // Calcular tratamientos permitidos según excepciones
+    function getAllowedTreatments() {
+        const selectedProf = professionals.find(p => p.id === formData.professionalId);
+        if (!selectedProf) return undefined;
+
+        const aptTimeDecimal = timeToDecimal(formData.time);
+
+        // Buscar si existe una excepción para este día y HORA específica
+        const exception = selectedProf.exceptions?.find(ex => {
+            if (ex.date !== date) return false;
+
+            // Si la excepción tiene rango horario, el turno debe caer dentro
+            if (ex.start && ex.end) {
+                const start = timeToDecimal(ex.start);
+                const end = timeToDecimal(ex.end);
+                return aptTimeDecimal >= start && aptTimeDecimal < end;
+            }
+
+            // Si no tiene rango, aplica a todo el día
+            return true;
+        });
+
+        if (exception && exception.type === 'extra' && (exception.services || []).length > 0) {
+            return exception.services;
+        }
+
+        // Si no hay excepción activa para esa hora, usar servicios generales
+        return selectedProf.services;
+    }
+
+    const treatmentsForSelector = getAllowedTreatments();
+
     return (
     <>
         <Modal
@@ -874,6 +908,32 @@ export function AppointmentModal({
                     onChange={(e) => setFormData({ ...formData, professionalId: e.target.value })}
                     options={professionalOptions}
                 />
+
+                {(() => {
+                    const prof = professionals.find(p => p.id === formData.professionalId);
+                    if (prof && formData.time) {
+                        const { isOrphan, reason } = checkAppointmentConflict({
+                            date,
+                            time: formData.time,
+                            duration: formData.duration
+                        }, prof);
+
+                        if (isOrphan) {
+                            return (
+                                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-3 animate-in shake duration-500">
+                                    <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                                    <div>
+                                        <p className="text-xs font-black text-amber-800 uppercase tracking-tight">Aviso de Conflicto</p>
+                                        <p className="text-[11px] text-amber-700 font-medium leading-relaxed mt-1">
+                                            {reason}
+                                        </p>
+                                    </div>
+                                </div>
+                            );
+                        }
+                    }
+                    return null;
+                })()}
 
                 {/* Status and Price Section */}
                 <div className="space-y-6 border-t border-gray-100 pt-4">
@@ -1284,15 +1344,16 @@ export function AppointmentModal({
             </form>
         </Modal>
 
-        <TreatmentSelectorSheet
-            isOpen={showTreatmentSheet}
-            onClose={() => setShowTreatmentSheet(false)}
-            onAdd={(t) => {
-                setSelectedTreatments(prev => [...prev, t]);
-                toast.success(`${t.name} agregado`);
-                setShowTreatmentSheet(false);
-            }}
-        />
-    </>
+            <TreatmentSelectorSheet
+                isOpen={showTreatmentSheet}
+                onClose={() => setShowTreatmentSheet(false)}
+                allowedTreatments={treatmentsForSelector}
+                onAdd={(t) => {
+                    setSelectedTreatments(prev => [...prev, t]);
+                    toast.success(`${t.name} agregado`);
+                    setShowTreatmentSheet(false);
+                }}
+            />
+        </>
     );
 }

@@ -1,5 +1,6 @@
 import { Appointment } from '../types/appointment';
-import { timeToDecimal } from './time';
+import { Professional } from '../types/professional';
+import { timeToDecimal, getDayOfWeek } from './time';
 
 /**
  * Verifica si un turno se superpone con otro
@@ -61,4 +62,85 @@ export function validateAppointment(data: Partial<Appointment>): string[] {
     }
 
     return errors;
+}
+
+/**
+ * Verifica si un turno está fuera del horario del profesional (es un turno "huérfano")
+ */
+export function checkAppointmentConflict(
+    appointment: Pick<Appointment, 'date' | 'time' | 'duration'>,
+    professional: Professional
+): { isOrphan: boolean; reason?: string; type?: 'absence' | 'schedule' | 'lunch'; note?: string } {
+    if (!professional || !professional.workingHours) return { isOrphan: false };
+
+    const aptStart = timeToDecimal(appointment.time);
+    const aptEnd = aptStart + appointment.duration;
+
+    // 1. Verificar Excepciones (Ausencias)
+    const exception = professional.exceptions?.find(ex => ex.date === appointment.date);
+    if (exception && exception.type === 'absence') {
+        // Si tiene rango horario, verificar si el turno cae dentro
+        if (exception.start && exception.end) {
+            const exStart = timeToDecimal(exception.start);
+            const exEnd = timeToDecimal(exception.end);
+            if (aptStart < exEnd && aptEnd > exStart) {
+                return {
+                    isOrphan: true,
+                    type: 'absence',
+                    note: exception.note,
+                    reason: `Ausencia: ${exception.note || 'No disponible'}`
+                };
+            }
+            // Si tiene rango pero el turno NO cae dentro, no hay conflicto por esta excepción
+        } else {
+            // Si no tiene rango, es todo el día
+            return {
+                isOrphan: true,
+                type: 'absence',
+                note: exception.note,
+                reason: `Ausencia: ${exception.note || 'No disponible'}`
+            };
+        }
+    }
+
+    // 2. Verificar Horario Semanal
+    const dayIndex = getDayOfWeek(appointment.date).toString();
+    const schedule = professional.workingHours[dayIndex];
+
+    if (!schedule || !schedule.enabled) {
+        return {
+            isOrphan: true,
+            type: 'schedule',
+            reason: 'El profesional no trabaja este día de la semana'
+        };
+    }
+
+    const profStart = timeToDecimal(schedule.start);
+    const profEnd = timeToDecimal(schedule.end);
+
+    // 3. Verificar Límites de Jornada (Desborde)
+    if (aptStart < profStart || aptEnd > profEnd) {
+        return {
+            isOrphan: true,
+            type: 'schedule',
+            reason: `Fuera del horario de jornada (${schedule.start} a ${schedule.end})`
+        };
+    }
+
+    // 4. Verificar Almuerzo
+    if (schedule.lunchStart && schedule.lunchEnd) {
+        const lunchStart = timeToDecimal(schedule.lunchStart);
+        const lunchEnd = timeToDecimal(schedule.lunchEnd);
+
+        // Un turno tiene conflicto si se pisa con cualquier parte del almuerzo
+        if (aptStart < lunchEnd && aptEnd > lunchStart) {
+            return {
+                isOrphan: true,
+                type: 'lunch',
+                reason: `Coincide con el horario de almuerzo (${schedule.lunchStart} a ${schedule.lunchEnd})`
+            };
+        }
+    }
+
+    return { isOrphan: false };
 }

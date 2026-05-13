@@ -20,9 +20,10 @@ interface Props {
     isOpen: boolean;
     onClose: () => void;
     onAdd: (treatment: SelectedTreatment) => void;
+    allowedTreatments?: string[];
 }
 
-export function TreatmentSelectorSheet({ isOpen, onClose, onAdd }: Props) {
+export function TreatmentSelectorSheet({ isOpen, onClose, onAdd, allowedTreatments }: Props) {
     const [treatments, setTreatments] = useState<Treatment[]>([]);
     const [loading, setLoading] = useState(false);
     const [search, setSearch] = useState('');
@@ -46,7 +47,9 @@ export function TreatmentSelectorSheet({ isOpen, onClose, onAdd }: Props) {
     const filtered = treatments.filter(t => {
         const matchesSearch = !search || t.name.toLowerCase().includes(search.toLowerCase());
         const matchesCategory = !activeCategory || t.category === activeCategory;
-        return matchesSearch && matchesCategory;
+        // Filtrar por especialidad del profesional si se proporciona la lista
+        const matchesProfessional = !allowedTreatments || allowedTreatments.includes(t.name);
+        return matchesSearch && matchesCategory && matchesProfessional;
     });
 
     const handleSelectPrice = (treatment: Treatment, p: TreatmentPrice) => {
@@ -107,25 +110,42 @@ export function TreatmentSelectorSheet({ isOpen, onClose, onAdd }: Props) {
                     >
                         Todos
                     </button>
-                    {CATEGORIES.map(cat => (
-                        <button
-                            key={cat}
-                            type="button"
-                            onClick={() => setActiveCategory(prev => prev === cat ? null : cat)}
-                            className={`shrink-0 px-5 h-10 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all duration-200 flex items-center justify-center ${activeCategory === cat 
-                                ? 'bg-[#34baab] text-white shadow-lg shadow-[#34baab]/30 ring-4 ring-[#34baab]/10' 
-                                : 'bg-gray-50/50 text-gray-400 border border-gray-100 hover:bg-gray-100'}`}
-                        >
-                            {cat}
-                        </button>
-                    ))}
+                    {CATEGORIES.map(cat => {
+                        // Solo mostrar la categoría si hay al menos un tratamiento que coincida con los permitidos
+                        const hasTreatments = treatments.some(t => 
+                            t.category === cat && 
+                            (!allowedTreatments || allowedTreatments.includes(t.name))
+                        );
+                        
+                        if (!hasTreatments) return null;
+
+                        return (
+                            <button
+                                key={cat}
+                                type="button"
+                                onClick={() => setActiveCategory(prev => prev === cat ? null : cat)}
+                                className={`shrink-0 px-5 h-10 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all duration-200 flex items-center justify-center ${activeCategory === cat 
+                                    ? 'bg-[#34baab] text-white shadow-lg shadow-[#34baab]/30 ring-4 ring-[#34baab]/10' 
+                                    : 'bg-gray-50/50 text-gray-400 border border-gray-100 hover:bg-gray-100'}`}
+                            >
+                                {cat}
+                            </button>
+                        );
+                    })}
                 </div>
 
                 <div className="flex-1 overflow-y-auto px-5 pb-8 space-y-2">
                     {loading ? (
                         <p className="py-12 text-center text-gray-400 text-sm">Cargando tratamientos...</p>
                     ) : filtered.length === 0 ? (
-                        <p className="py-12 text-center text-gray-400 text-sm">No se encontraron tratamientos</p>
+                        <div className="py-12 text-center px-6">
+                            <p className="text-gray-400 text-sm mb-2">No se encontraron tratamientos</p>
+                            {allowedTreatments && (
+                                <p className="text-[10px] text-amber-600 font-bold uppercase tracking-widest leading-relaxed">
+                                    * El profesional seleccionado solo tiene habilitadas sus especialidades configuradas.
+                                </p>
+                            )}
+                        </div>
                     ) : filtered.map(treatment => {
                         const isExpanded = expandedId === treatment.id;
                         const singlePrice = treatment.prices.length === 1 ? treatment.prices[0] : null;

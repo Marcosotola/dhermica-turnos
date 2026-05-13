@@ -17,6 +17,9 @@ import { Appointment } from '@/lib/types/appointment';
 import { cancelAppointment, deleteAppointment } from '@/lib/firebase/appointments';
 import { createClientCredit } from '@/lib/firebase/clientCredits';
 import { getTodayDate } from '@/lib/utils/time';
+import { updateProfessional } from '@/lib/firebase/professionals';
+import { ExceptionModal } from '@/components/professionals/ExceptionModal';
+import { Exception, Professional } from '@/lib/types/professional';
 import { toast, Toaster } from 'sonner';
 import { Calendar, Users, ArrowLeft, Plus, Search, Home } from 'lucide-react';
 import Link from 'next/link';
@@ -51,8 +54,10 @@ function TurnosContent() {
     const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
     const [isSearchOpen, setIsSearchOpen] = useState(false);
     const [quickPaymentModalOpen, setQuickPaymentModalOpen] = useState(false);
+    const [exceptionModalOpen, setExceptionModalOpen] = useState(false);
+    const [selectedExceptionProfessional, setSelectedExceptionProfessional] = useState<Professional | null>(null);
 
-    const { professionals } = useProfessionals();
+    const { professionals, reload: reloadProfessionals } = useProfessionals();
     const { appointments, loading } = useAppointments(selectedDate, professionals);
 
     useEffect(() => {
@@ -215,6 +220,56 @@ function TurnosContent() {
         count: appointments.filter(apt => apt.professionalId === prof.id).length
     })).filter(p => p.count > 0);
 
+    const handleExceptionEdit = (professionalId: string, date: string) => {
+        const prof = professionals.find(p => p.id === professionalId);
+        if (prof) {
+            setSelectedExceptionProfessional(prof);
+            setExceptionModalOpen(true);
+        }
+    };
+
+    const handleExceptionDelete = async (professionalId: string, date: string) => {
+        const prof = professionals.find(p => p.id === professionalId);
+        if (!prof) return;
+
+        if (window.confirm('¿Estás seguro de que deseas eliminar esta excepción?')) {
+            const newExceptions = (prof.exceptions || []).filter(ex => ex.date !== date);
+            try {
+                await updateProfessional(prof.id, { exceptions: newExceptions });
+                toast.success('Excepción eliminada');
+                await reloadProfessionals();
+            } catch (error) {
+                console.error('Error deleting exception:', error);
+                toast.error('Error al eliminar la excepción');
+            }
+        }
+    };
+
+    const handleExceptionSave = async (updatedException: Exception) => {
+        if (!selectedExceptionProfessional) return;
+
+        const prof = selectedExceptionProfessional;
+        const exceptions = prof.exceptions || [];
+        const index = exceptions.findIndex(ex => ex.date === updatedException.date);
+
+        let newExceptions = [...exceptions];
+        if (index >= 0) {
+            newExceptions[index] = updatedException;
+        } else {
+            newExceptions.push(updatedException);
+        }
+
+        try {
+            await updateProfessional(prof.id, { exceptions: newExceptions });
+            toast.success('Excepción actualizada');
+            setExceptionModalOpen(false);
+            await reloadProfessionals();
+        } catch (error) {
+            console.error('Error saving exception:', error);
+            toast.error('Error al guardar la excepción');
+        }
+    };
+
     return (
         <div className="min-h-screen bg-white md:bg-gray-50 pb-32">
             <Toaster position="top-center" richColors />
@@ -223,9 +278,18 @@ function TurnosContent() {
                 {/* Header with Dark Background */}
                 <div className="bg-[#484450] rounded-2xl p-6 md:p-8 mb-6 md:mb-8 shadow-lg flex flex-col md:flex-row items-center justify-between gap-6 transition-all duration-300">
                     <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 md:w-14 md:h-14 bg-[#34baab] rounded-2xl flex items-center justify-center shadow-lg transform hover:scale-105 transition-transform duration-300">
+                        <button 
+                            onClick={async () => {
+                                toast.promise(reloadProfessionals(), {
+                                    loading: 'Actualizando...',
+                                    success: 'Actualizado',
+                                    error: 'Error'
+                                });
+                            }}
+                            className="w-12 h-12 md:w-14 md:h-14 bg-[#34baab] rounded-2xl flex items-center justify-center shadow-lg transform active:scale-95 transition-all duration-300"
+                        >
                             <Calendar className="w-7 h-7 md:w-8 md:h-8 text-white" />
-                        </div>
+                        </button>
                         <div>
                             <h1 className="text-2xl md:text-3xl font-black text-white tracking-tight">
                                 Dhermica
@@ -242,6 +306,19 @@ function TurnosContent() {
                     {/* Desktop Actions */}
                     <div className="hidden md:flex items-center gap-4">
                         <AppointmentSearch onSelectAppointment={handleSearchSelect} />
+                        <Button 
+                            variant="ghost" 
+                            className="text-white hover:bg-white/10 border border-white/20 p-6 rounded-xl font-bold transition-all"
+                            onClick={async () => {
+                                toast.promise(reloadProfessionals(), {
+                                    loading: 'Refrescando datos...',
+                                    success: 'Datos actualizados',
+                                    error: 'Error al refrescar'
+                                });
+                            }}
+                        >
+                            <Calendar className="w-5 h-5 text-[#34baab]" />
+                        </Button>
                         <Link href="/profesionales">
                             <Button variant="ghost" className="text-white hover:bg-white/10 border border-white/20 px-8 py-6 rounded-xl font-bold transition-all">
                                 <Users className="w-5 h-5 mr-3 text-[#34baab]" /> Profesionales
@@ -349,11 +426,14 @@ function TurnosContent() {
                                     <AppointmentTable
                                         appointments={appointments}
                                         professionals={professionals}
+                                        selectedDate={selectedDate}
                                         onCreateClick={handleCreateClick}
                                         onEditClick={handleEditClick}
                                         onCancelClick={handleCancelClick}
                                         onDetailClick={handleDetailClick}
                                         onQuickPaymentClick={handleQuickPaymentClick}
+                                        onExceptionEdit={handleExceptionEdit}
+                                        onExceptionDelete={handleExceptionDelete}
                                     />
                                 </>
                             ))}
@@ -430,6 +510,14 @@ function TurnosContent() {
                 onConfirm={handleConfirmHardDelete}
                 appointment={selectedAppointment}
                 loading={deleting}
+            />
+            <ExceptionModal
+                isOpen={exceptionModalOpen}
+                onClose={() => setExceptionModalOpen(false)}
+                onSave={handleExceptionSave}
+                professionalName={selectedExceptionProfessional?.name || ''}
+                professionalServices={selectedExceptionProfessional?.services || []}
+                exception={selectedExceptionProfessional?.exceptions?.find(ex => ex.date === selectedDate) || null}
             />
         </div>
     );
