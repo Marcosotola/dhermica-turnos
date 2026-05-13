@@ -1290,6 +1290,7 @@ export function AppointmentModal({
             onAdd={(t) => {
                 setSelectedTreatments(prev => [...prev, t]);
                 toast.success(`${t.name} agregado`);
+                setShowTreatmentSheet(false);
             }}
         />
     </>
