@@ -76,30 +76,45 @@ export function checkAppointmentConflict(
     const aptStart = timeToDecimal(appointment.time);
     const aptEnd = aptStart + appointment.duration;
 
-    // 1. Verificar Excepciones (Ausencias)
-    const exception = professional.exceptions?.find(ex => ex.date === appointment.date);
-    if (exception && exception.type === 'absence') {
-        // Si tiene rango horario, verificar si el turno cae dentro
-        if (exception.start && exception.end) {
-            const exStart = timeToDecimal(exception.start);
-            const exEnd = timeToDecimal(exception.end);
-            if (aptStart < exEnd && aptEnd > exStart) {
+    // 1. Verificar Excepciones (Ausencias y Horas Extra)
+    const dayExceptions = professional.exceptions?.filter(ex => ex.date === appointment.date) || [];
+    
+    // Primero buscar si el turno está cubierto por ALGUNA hora extra
+    // Si lo está, es válido y no seguimos buscando otros conflictos (almuerzo, etc)
+    const isCoveredByExtra = dayExceptions.some(ex => {
+        if (ex.type === 'extra' && ex.start && ex.end) {
+            const exStart = timeToDecimal(ex.start);
+            const exEnd = timeToDecimal(ex.end);
+            return aptStart >= exStart && aptEnd <= exEnd;
+        }
+        return false;
+    });
+
+    if (isCoveredByExtra) return { isOrphan: false };
+
+    // Si no está cubierto por horas extra, verificar si hay alguna ausencia que lo bloquee
+    for (const ex of dayExceptions) {
+        if (ex.type === 'absence') {
+            if (ex.start && ex.end) {
+                const exStart = timeToDecimal(ex.start);
+                const exEnd = timeToDecimal(ex.end);
+                if (aptStart < exEnd && aptEnd > exStart) {
+                    return {
+                        isOrphan: true,
+                        type: 'absence',
+                        note: ex.note,
+                        reason: `Ausencia: ${ex.note || 'No disponible'}`
+                    };
+                }
+            } else {
+                // Ausencia de todo el día
                 return {
                     isOrphan: true,
                     type: 'absence',
-                    note: exception.note,
-                    reason: `Ausencia: ${exception.note || 'No disponible'}`
+                    note: ex.note,
+                    reason: `Ausencia: ${ex.note || 'No disponible'}`
                 };
             }
-            // Si tiene rango pero el turno NO cae dentro, no hay conflicto por esta excepción
-        } else {
-            // Si no tiene rango, es todo el día
-            return {
-                isOrphan: true,
-                type: 'absence',
-                note: exception.note,
-                reason: `Ausencia: ${exception.note || 'No disponible'}`
-            };
         }
     }
 

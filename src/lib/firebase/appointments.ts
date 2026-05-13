@@ -532,7 +532,7 @@ export async function getAppointmentsByDateRange(
         promises.push(getDocs(qMainDate).then(snap => {
             snap.docs.forEach(d => {
                 const apt = mapLegacyAppointment(d.id, d.data());
-                allAppointmentsMap.set(`main_date_${d.id}`, apt);
+                allAppointmentsMap.set(d.id, apt);
             });
         }).catch(err => console.error('Error en qMainDate:', err)));
 
@@ -543,26 +543,24 @@ export async function getAppointmentsByDateRange(
         );
         promises.push(getDocs(qMainFecha).then(snap => {
             snap.docs.forEach(d => {
-                const apt = mapLegacyAppointment(d.id, d.data());
-                const key = `main_fecha_${d.id}`;
-                if (!allAppointmentsMap.has(key)) {
-                    allAppointmentsMap.set(key, apt);
+                if (!allAppointmentsMap.has(d.id)) {
+                    const apt = mapLegacyAppointment(d.id, d.data());
+                    allAppointmentsMap.set(d.id, apt);
                 }
             });
         }).catch(err => console.error('Error en qMainFecha:', err)));
 
         // 2. Colecciones legacy de profesionales
-        // NOTA: No usamos filtros de fecha en la query porque el formato legacy (DD/MM/YYYY) 
-        // no es compatible con rangos de Firestore. Filtramos en memoria.
         professionals.forEach(prof => {
             if (prof.legacyCollectionName) {
                 const qLegacy = query(collection(db, prof.legacyCollectionName));
                 promises.push(getDocs(qLegacy).then(snap => {
                     snap.docs.forEach(d => {
-                        const apt = mapLegacyAppointment(d.id, d.data(), prof.id);
-                        // Filtrar por rango en memoria usando la fecha normalizada
-                        if (apt.date >= startDate && apt.date <= endDate) {
-                            allAppointmentsMap.set(`${prof.legacyCollectionName}_${d.id}`, apt);
+                        if (!allAppointmentsMap.has(d.id)) {
+                            const apt = mapLegacyAppointment(d.id, d.data(), prof.id);
+                            if (apt.date >= startDate && apt.date <= endDate) {
+                                allAppointmentsMap.set(d.id, apt);
+                            }
                         }
                     });
                 }).catch(err => console.error(`Error en qLegacy (${prof.legacyCollectionName}):`, err)));
@@ -592,10 +590,9 @@ export async function getAppointmentsByDateRange(
             const addFallbackQuery = (collectionName: string, fieldName: string, value: string) => {
                 fallbackPromises.push(getDocs(query(collection(db, collectionName), where(fieldName, '==', value))).then(snap => {
                     snap.docs.forEach(docSnap => {
-                        const apt = mapLegacyAppointment(docSnap.id, docSnap.data());
-                        const key = `fallback_${collectionName}_${fieldName}_${value}_${docSnap.id}`;
-                        if (!allAppointmentsMap.has(key)) {
-                            allAppointmentsMap.set(key, apt);
+                        if (!allAppointmentsMap.has(docSnap.id)) {
+                            const apt = mapLegacyAppointment(docSnap.id, docSnap.data());
+                            allAppointmentsMap.set(docSnap.id, apt);
                         }
                     });
                 }).catch(() => {}));

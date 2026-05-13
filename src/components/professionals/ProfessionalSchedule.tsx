@@ -48,7 +48,7 @@ export function ProfessionalSchedule({ professional, onUpdate }: ProfessionalSch
     const [selectedServices, setSelectedServices] = useState<string[]>(professional.services || []);
     const [exceptions, setExceptions] = useState(professional.exceptions || []);
     const [editingExceptionIndex, setEditingExceptionIndex] = useState<number | null>(null);
-    const [showConflictConfirm, setShowConflictConfirm] = useState<{ count: number; firstDate: string } | null>(null);
+    const [showConflictConfirm, setShowConflictConfirm] = useState<{ count: number; firstDate: string; conflicts: any[] } | null>(null);
 
     useEffect(() => {
         getTreatments().then(setTreatments);
@@ -79,7 +79,15 @@ export function ProfessionalSchedule({ professional, onUpdate }: ProfessionalSch
     };
 
     const handleAddException = () => {
-        setExceptions([...exceptions, { date: new Date().toISOString().split('T')[0], type: 'absence', note: '' }]);
+        const newIndex = exceptions.length;
+        setExceptions([...exceptions, { 
+            date: new Date().toISOString().split('T')[0], 
+            type: 'absence', 
+            note: '',
+            start: '09:00',
+            end: '18:00'
+        }]);
+        setEditingExceptionIndex(newIndex);
     };
 
     const handleRemoveException = (index: number) => {
@@ -92,7 +100,7 @@ export function ProfessionalSchedule({ professional, onUpdate }: ProfessionalSch
             // Solo verificar conflictos si no se está forzando el guardado
             if (!force) {
                 const appointments = await getAppointmentsByProfessionalId(professional.id);
-                const today = new Date().toISOString().split('-')[0];
+                const today = new Date().toISOString().split('T')[0];
                 
                 // Filtrar solo futuros y no cancelados
                 const futureAppointments = appointments.filter(apt => 
@@ -101,16 +109,17 @@ export function ProfessionalSchedule({ professional, onUpdate }: ProfessionalSch
                     (apt.status as any) !== 'cancelado'
                 );
 
-                const conflicts = futureAppointments.filter(apt => {
+                const conflictsFound = futureAppointments.filter(apt => {
                     // Simular el conflicto con el NUEVO horario que estamos por guardar
                     const simulatedProfessional = { ...professional, workingHours, exceptions };
                     return checkAppointmentConflict(apt, simulatedProfessional).isOrphan;
                 });
 
-                if (conflicts.length > 0) {
+                if (conflictsFound.length > 0) {
                     setShowConflictConfirm({
-                        count: conflicts.length,
-                        firstDate: conflicts[0].date
+                        count: conflictsFound.length,
+                        firstDate: conflictsFound[0].date,
+                        conflicts: conflictsFound
                     });
                     setSubmitting(false);
                     return;
@@ -151,37 +160,49 @@ export function ProfessionalSchedule({ professional, onUpdate }: ProfessionalSch
                 </Button>
             </div>
 
-            {/* Conflict Warning Alert */}
+            {/* Conflict Warning Modal Overlay */}
             {showConflictConfirm && (
-                <div className="bg-red-50 border-2 border-red-200 rounded-[32px] p-6 md:p-8 animate-in zoom-in duration-300 shadow-xl shadow-red-200/20">
-                    <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-                        <div className="flex items-start gap-4">
-                            <div className="w-14 h-14 bg-red-100 rounded-2xl flex items-center justify-center shrink-0 shadow-inner">
-                                <AlertCircle className="w-8 h-8 text-red-600" />
-                            </div>
-                            <div>
-                                <h4 className="text-xl font-black text-red-900 uppercase tracking-tight">¡Atención! Conflicto Detectado</h4>
-                                <p className="text-sm text-red-700 mt-1 font-medium leading-relaxed max-w-2xl">
-                                    Hay <span className="font-black">{showConflictConfirm.count} turnos</span> ya agendados que quedarán fuera del nuevo horario 
-                                    (el primero es el {showConflictConfirm.firstDate.split('-').reverse().join('/')}). 
-                                    ¿Deseas guardar los cambios de todas formas? Los turnos afectados se marcarán con alerta en la agenda.
-                                </p>
+                <div className="fixed inset-0 bg-[#484450]/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-300">
+                    <div className="bg-white rounded-[40px] shadow-2xl w-full max-w-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+                        <div className="bg-red-50 p-8 md:p-10 border-b border-red-100">
+                            <div className="flex items-start gap-6">
+                                <div className="w-16 h-16 bg-red-100 rounded-2xl flex items-center justify-center shrink-0 shadow-inner">
+                                    <AlertCircle className="w-9 h-9 text-red-600" />
+                                </div>
+                                <div>
+                                    <h4 className="text-2xl font-black text-red-900 uppercase tracking-tight leading-none mb-3">¡Conflicto Detectado!</h4>
+                                    <p className="text-base text-red-700 font-medium leading-relaxed">
+                                        Hay <span className="font-black underline decoration-red-300 decoration-4">{showConflictConfirm.count} turnos</span> que quedarían fuera del nuevo horario.
+                                    </p>
+                                    <p className="text-sm text-red-600/70 mt-2 font-bold uppercase tracking-widest">
+                                        Primer conflicto: {showConflictConfirm.firstDate.split('-').reverse().join('/')}
+                                    </p>
+                                </div>
                             </div>
                         </div>
-                        <div className="flex items-center gap-3 shrink-0">
-                            <Button
-                                variant="ghost"
-                                onClick={() => setShowConflictConfirm(null)}
-                                className="text-red-700 hover:bg-red-100 font-black uppercase tracking-widest text-[10px] px-6 h-12 rounded-2xl"
-                            >
-                                Cancelar
-                            </Button>
-                            <Button
-                                onClick={() => handleSave(true)}
-                                className="bg-red-600 hover:bg-red-700 text-white border-none rounded-2xl font-black uppercase tracking-widest text-[10px] px-8 h-12 shadow-lg shadow-red-200"
-                            >
-                                Sí, Guardar de todas formas
-                            </Button>
+
+                        <div className="p-8 md:p-10 space-y-6">
+                            <div className="bg-gray-50 p-6 rounded-3xl border border-gray-100">
+                                <p className="text-sm text-gray-600 leading-relaxed">
+                                    Si guardas estos cambios, los turnos afectados se marcarán con una alerta visual en la agenda general, pero <span className="font-bold text-gray-900">no se cancelarán automáticamente</span>. Deberás reprogramarlos manualmente.
+                                </p>
+                            </div>
+
+                            <div className="flex flex-col sm:flex-row items-center gap-4">
+                                <Button
+                                    variant="ghost"
+                                    onClick={() => setShowConflictConfirm(null)}
+                                    className="w-full sm:flex-1 text-gray-500 hover:bg-gray-100 font-black uppercase tracking-widest text-xs h-14 rounded-2xl"
+                                >
+                                    Revisar Horarios
+                                </Button>
+                                <Button
+                                    onClick={() => handleSave(true)}
+                                    className="w-full sm:flex-1 bg-red-600 hover:bg-red-700 text-white border-none rounded-2xl font-black uppercase tracking-widest text-xs h-14 shadow-xl shadow-red-200 transition-all active:scale-95"
+                                >
+                                    Guardar de todas formas
+                                </Button>
+                            </div>
                         </div>
                     </div>
                 </div>

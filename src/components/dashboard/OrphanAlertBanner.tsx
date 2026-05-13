@@ -110,36 +110,41 @@ export function OrphanAlertBanner() {
                 {/* Detailed List Table */}
                 {isExpanded && (
                     <div className="mt-6 border-t border-red-200 pt-6 animate-in slide-in-from-top duration-300">
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left">
+                        <div className="overflow-x-auto -mx-2 px-2 scrollbar-thin scrollbar-thumb-red-200">
+                            <table className="w-full text-left min-w-[800px]">
                                 <thead>
-                                    <tr className="text-[10px] font-black uppercase tracking-widest text-red-400">
-                                        <th className="pb-3 pl-2">Fecha / Hora</th>
-                                        <th className="pb-3">Cliente</th>
-                                        <th className="pb-3">Profesional</th>
+                                    <tr className="text-[10px] font-black uppercase tracking-widest text-red-400 border-b border-red-100">
+                                        <th className="pb-3 pl-2 w-[120px]">Fecha / Hora</th>
+                                        <th className="pb-3 w-[150px]">Cliente</th>
+                                        <th className="pb-3 w-[200px]">Tratamiento</th>
+                                        <th className="pb-3 w-[150px]">Profesional</th>
                                         <th className="pb-3">Conflicto</th>
-                                        <th className="pb-3 text-right pr-2">Acciones</th>
+                                        <th className="pb-3 text-right pr-2 w-[100px]">Acciones</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-red-100">
                                     {conflicts.map(({ appointment, professional, reason }, index) => (
                                         <tr key={index} className="group hover:bg-red-100/30 transition-colors">
                                             <td className="py-4 pl-2">
-                                                <p className="text-sm font-black text-red-900">{appointment.date.split('-').reverse().join('/')}</p>
+                                                <p className="text-sm font-black text-red-900 whitespace-nowrap">{appointment.date.split('-').reverse().join('/')}</p>
                                                 <p className="text-xs text-red-600 font-bold">{appointment.time} hs</p>
                                             </td>
-                                            <td className="py-4">
+                                            <td className="py-4 pr-4">
                                                 <p className="text-sm font-bold text-gray-900 leading-tight">{appointment.clientName}</p>
-                                                <p className="text-[10px] text-gray-500 font-medium uppercase tracking-tight">{appointment.treatment}</p>
                                             </td>
-                                            <td className="py-4">
+                                            <td className="py-4 pr-4">
+                                                <p className="text-[10px] text-gray-500 font-bold uppercase tracking-tight leading-relaxed max-w-[180px] break-words">
+                                                    {appointment.treatment}
+                                                </p>
+                                            </td>
+                                            <td className="py-4 pr-4">
                                                 <div className="flex items-center gap-2">
-                                                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: professional.color }} />
-                                                    <p className="text-xs font-bold text-gray-700">{professional.name}</p>
+                                                    <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: professional.color }} />
+                                                    <p className="text-xs font-bold text-gray-700 whitespace-nowrap">{professional.name}</p>
                                                 </div>
                                             </td>
-                                            <td className="py-4">
-                                                <span className="text-[10px] font-black bg-red-100 text-red-600 px-2 py-1 rounded-lg uppercase tracking-tight border border-red-200">
+                                            <td className="py-4 pr-4">
+                                                <span className="inline-block text-[10px] font-black bg-red-100 text-red-600 px-2 py-1 rounded-lg uppercase tracking-tight border border-red-200 leading-normal max-w-[200px] break-words">
                                                     {reason}
                                                 </span>
                                             </td>
