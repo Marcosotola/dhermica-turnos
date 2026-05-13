@@ -97,8 +97,8 @@ export function ProfessionalSchedule({ professional, onUpdate }: ProfessionalSch
                 // Filtrar solo futuros y no cancelados
                 const futureAppointments = appointments.filter(apt => 
                     apt.date >= today && 
-                    apt.status !== 'cancelled' && 
-                    apt.status !== 'cancelado'
+                    (apt.status as any) !== 'cancelled' && 
+                    (apt.status as any) !== 'cancelado'
                 );
 
                 const conflicts = futureAppointments.filter(apt => {
@@ -142,7 +142,7 @@ export function ProfessionalSchedule({ professional, onUpdate }: ProfessionalSch
                     <p className="text-xs text-gray-500 font-bold uppercase tracking-widest mt-1">Define horarios y especialidades para auto-agendado</p>
                 </div>
                 <Button
-                    onClick={handleSave}
+                    onClick={() => handleSave()}
                     disabled={submitting}
                     className="bg-[#34baab] hover:bg-[#2aa89a] border-none rounded-2xl font-black uppercase tracking-widest text-[10px] px-8 h-12 shadow-lg shadow-[#34baab]/20"
                 >

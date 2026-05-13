@@ -472,7 +472,7 @@ export function AppointmentModal({
         const otherAppointments = existingAppointments.filter(
             (apt) =>
                 apt.id !== appointment?.id &&
-                apt.status !== 'cancelled' && // No verificar contra turnos cancelados
+                (apt.status as any) !== 'cancelled' && // No verificar contra turnos cancelados
                 (apt.status as any) !== 'cancelado' &&
                 appointmentData.professionalId && // Tiene professionalId
                 appointmentData.professionalId !== '' && // No es string vacío
@@ -494,7 +494,7 @@ export function AppointmentModal({
         if (!appointment) {
             const clientHasAppointment = existingAppointments.some(
                 (apt) =>
-                    apt.status !== 'cancelled' && // No contar turnos cancelados
+                    (apt.status as any) !== 'cancelled' && // No contar turnos cancelados
                     (apt.status as any) !== 'cancelado' &&
                     apt.clientName.toLowerCase() === appointmentData.clientName.toLowerCase()
             );

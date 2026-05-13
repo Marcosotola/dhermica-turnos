@@ -66,7 +66,7 @@ export function AppointmentDetailModal({
         }
     };
 
-    const statusInfo = getStatusInfo(appointment.status || 'pending');
+    const statusInfo = getStatusInfo(appointment.status as any || 'pending');
 
     return (
         <Modal

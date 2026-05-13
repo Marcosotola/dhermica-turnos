@@ -1,3 +1,12 @@
+export interface Exception {
+    date: string; // YYYY-MM-DD
+    type: 'absence' | 'extra';
+    start?: string;
+    end?: string;
+    note?: string;
+    services?: string[];
+}
+
 export interface Professional {
     id: string;
     userId?: string; // UID del usuario en la colección users (opcional para legacy)
@@ -19,14 +28,7 @@ export interface Professional {
             enabled: boolean;
         }
     };
-    exceptions?: {
-        date: string; // YYYY-MM-DD
-        type: 'absence' | 'extra';
-        start?: string;
-        end?: string;
-        note?: string;
-        services?: string[];
-    }[];
+    exceptions?: Exception[];
 }
 
 export const DEFAULT_PROFESSIONALS: Omit<Professional, 'id' | 'createdAt'>[] = [
