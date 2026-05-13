@@ -162,13 +162,6 @@ export default function UsuariosPage() {
                                 <Users className="w-5 h-5 group-hover:scale-110 transition-transform" />
                                 <span className="font-bold">Registrar Cliente</span>
                             </Button>
-                            <Button
-                                onClick={() => setIsCreateModalOpen(true)}
-                                className="bg-[#34baab] hover:bg-[#2da698] text-white px-8 py-4 rounded-2xl shadow-lg shadow-[#34baab]/20 flex items-center gap-2 group"
-                            >
-                                <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform" />
-                                <span className="font-bold">Nuevo Cliente</span>
-                            </Button>
                         </div>
                     </div>
                 </div>

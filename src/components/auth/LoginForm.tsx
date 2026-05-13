@@ -179,17 +179,6 @@ export function LoginForm({ onToggleMode }: LoginFormProps) {
 
     return (
         <div className="space-y-6 animate-in fade-in duration-300">
-            <div className="text-center">
-                <h2 className="text-2xl font-bold text-gray-900">
-                    {loginMode === 'phone_number' ? 'Ingresa tu Teléfono' :
-                        loginMode === 'phone_otp' ? 'Verifica tu Teléfono' :
-                            'Iniciar Sesión'}
-                </h2>
-                <p className="text-sm text-gray-500 mt-2">
-                    {loginMode === 'phone_otp' ? 'Ingresa el código de 6 dígitos que te enviamos.' : '¡Qué bueno verte de nuevo!'}
-                </p>
-            </div>
-
             <div id="recaptcha-container"></div>
 
             {loginMode === 'options' && (
@@ -228,7 +217,7 @@ export function LoginForm({ onToggleMode }: LoginFormProps) {
                     <Button
                         type="button"
                         onClick={() => setLoginMode('email')}
-                        className="w-full py-4 rounded-xl font-bold bg-gray-100 hover:bg-gray-200 text-gray-900"
+                        className="w-full py-4 rounded-xl font-bold bg-[#484450] hover:bg-[#3a3642] text-white flex items-center justify-center gap-2 shadow-md shadow-[#484450]/20 transition-all"
                     >
                         <Mail className="w-5 h-5 mr-2 inline" />
                         Entrar con Email
@@ -353,18 +342,6 @@ export function LoginForm({ onToggleMode }: LoginFormProps) {
                 </div>
             )}
 
-            <div className="pt-6 border-t border-gray-100">
-                <p className="text-center text-sm text-gray-500">
-                    ¿No tienes cuenta?{' '}
-                    <button
-                        onClick={onToggleMode}
-                        type="button"
-                        className="font-black text-[#34baab] hover:underline p-2"
-                    >
-                        Regístrate aquí
-                    </button>
-                </p>
-            </div>
         </div>
     );
 }

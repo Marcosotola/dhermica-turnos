@@ -325,13 +325,6 @@ export default function AgendaPage() {
                                 <Users className="w-5 h-5 group-hover:scale-110 transition-transform" />
                                 <span className="hidden md:inline">Registrar Cliente</span>
                             </button>
-                            <button
-                                onClick={() => setIsCreateModalOpen(true)}
-                                className="bg-[#34baab] hover:bg-[#2da698] text-white px-6 py-3 rounded-2xl font-bold flex items-center gap-2 shadow-lg shadow-[#34baab]/20 transition-all active:scale-95 group"
-                            >
-                                <UserPlus className="w-5 h-5 group-hover:rotate-12 transition-transform" />
-                                <span className="hidden md:inline">Nuevo Cliente</span>
-                            </button>
                         </div>
                     </div>
                 </div>

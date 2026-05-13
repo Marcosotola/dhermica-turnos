@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
 import { registerWithEmail, loginWithGoogle, setupRecaptcha, signInWithPhone } from '@/lib/firebase/auth';
-import { createUserProfile, formatPhone } from '@/lib/firebase/users';
+import { createUserProfile, formatPhone, getUserByPhone, getUserByEmail } from '@/lib/firebase/users';
 import { toast } from 'sonner';
 import { UserProfile } from '@/lib/types/user';
 import { useNotifications } from '@/lib/hooks/useNotifications';
@@ -23,7 +23,7 @@ interface RegisterFormProps {
 export function RegisterForm({ onToggleMode }: RegisterFormProps) {
     const [step, setStep] = useState(1);
     const { requestPermission } = useNotifications();
-    const { user: currentUser, profile: currentProfile } = useAuth();
+    const { user: currentUser, profile: currentProfile, logout } = useAuth();
     const isAdmin = currentProfile?.role === 'admin' || currentProfile?.role === 'secretary';
     const [authOption, setAuthOption] = useState<'options' | 'email' | 'phone_number' | 'phone_otp'>(
         isAdmin ? 'email' : 'options'
@@ -51,7 +51,7 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
     const [resendTimer, setResendTimer] = useState(0);
     const [showPassword, setShowPassword] = useState(false);
 
-    const handleNext = () => {
+    const handleNext = async () => {
         if (step === 1) {
             if (!formData.email || !formData.password || !formData.confirmPassword) {
                 toast.error('Completa todos los campos básicos.');
@@ -65,6 +65,22 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
                 toast.error('La contraseña debe tener al menos 6 caracteres.');
                 return;
             }
+
+            // Check if email already has a profile
+            setLoading(true);
+            try {
+                const existingEmail = await getUserByEmail(formData.email);
+                if (existingEmail) {
+                    toast.error('Este email ya tiene un perfil asociado. Por favor, inicia sesión.');
+                    setLoading(false);
+                    return;
+                }
+            } catch (err) {
+                console.error('Error checking email:', err);
+            } finally {
+                setLoading(false);
+            }
+
             setStep(2);
         }
     };
@@ -133,6 +149,22 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
             const finalPhone = formData.phone
                 ? formatPhone(`${countryCode}${formData.phone}`)
                 : (currentUser?.phoneNumber || '');
+
+            // Check if another profile already exists with this phone
+            const existingWithPhone = await getUserByPhone(finalPhone);
+            if (existingWithPhone && existingWithPhone.uid !== uid) {
+                toast.error('Este número de teléfono ya está registrado con otra cuenta. Si ya tienes cuenta, por favor inicia sesión.');
+                setLoading(false);
+                return;
+            }
+
+            // Check if another profile already exists with this email
+            const existingWithEmail = await getUserByEmail(email);
+            if (existingWithEmail && existingWithEmail.uid !== uid) {
+                toast.error('Este email ya está asociado a otra cuenta (podrías haber usado Email/Contraseña antes). Por favor, intenta iniciar sesión con tu método original.');
+                setLoading(false);
+                return;
+            }
 
             const fullName = `${formData.firstName} ${formData.lastName}`.trim();
 
@@ -244,12 +276,25 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
         return () => clearInterval(interval);
     }, [resendTimer]);
 
+    // Auto-advance to step 2 if user is authenticated but has no profile
+    useEffect(() => {
+        if (currentUser && !currentProfile && !isAdmin) {
+            setStep(2);
+        }
+    }, [currentUser, currentProfile, isAdmin]);
+
     return (
         <div className="space-y-6 animate-in fade-in duration-300">
-            <div className="text-center">
-                <h2 className="text-2xl font-bold text-gray-900">Crear Cuenta</h2>
-                <p className="text-sm text-gray-500 mt-2">Paso {step} de 2</p>
-            </div>
+            {step === 1 && (
+                <p className="text-center text-sm font-bold text-gray-500 uppercase tracking-widest -mt-4">
+                    Paso 1 de 2
+                </p>
+            )}
+            {step === 2 && (
+                <p className="text-center text-sm font-bold text-gray-500 uppercase tracking-widest -mt-4">
+                    Completa tu Perfil (Paso 2 de 2)
+                </p>
+            )}
 
             {step === 1 && (
                 <div className="space-y-6">
@@ -526,7 +571,14 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
                             <Button
                                 type="button"
                                 variant="secondary"
-                                onClick={() => setStep(1)}
+                                onClick={async () => {
+                                    if (currentUser && !currentProfile) {
+                                        await logout();
+                                        onToggleMode();
+                                    } else {
+                                        setStep(1);
+                                    }
+                                }}
                                 className="flex-1 py-4 rounded-xl font-bold"
                             >
                                 Atrás
@@ -543,20 +595,6 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
                 </form>
             )}
 
-            {!isAdmin && (
-                <div className="pt-6 border-t border-gray-100">
-                    <p className="text-center text-sm text-gray-500">
-                        ¿Ya tienes cuenta?{' '}
-                        <button
-                            onClick={onToggleMode}
-                            type="button"
-                            className="font-black text-[#34baab] hover:underline p-2"
-                        >
-                            Inicia sesión aquí
-                        </button>
-                    </p>
-                </div>
-            )}
         </div>
     );
 }

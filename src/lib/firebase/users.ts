@@ -79,6 +79,37 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
     } as UserProfile;
 }
 
+export async function getUserByPhone(phone: string): Promise<UserProfile | null> {
+    const formatted = formatPhone(phone);
+    const q = query(collection(db, USERS_COLLECTION), where('phone', '==', formatted), limit(1));
+    const snap = await getDocs(q);
+    if (snap.empty) return null;
+    
+    const d = snap.docs[0];
+    const data = d.data();
+    return {
+        ...data,
+        uid: d.id,
+        createdAt: data.createdAt?.toDate(),
+        updatedAt: data.updatedAt?.toDate(),
+    } as UserProfile;
+}
+
+export async function getUserByEmail(email: string): Promise<UserProfile | null> {
+    const q = query(collection(db, USERS_COLLECTION), where('email', '==', email.toLowerCase().trim()), limit(1));
+    const snap = await getDocs(q);
+    if (snap.empty) return null;
+
+    const d = snap.docs[0];
+    const data = d.data();
+    return {
+        ...data,
+        uid: d.id,
+        createdAt: data.createdAt?.toDate(),
+        updatedAt: data.updatedAt?.toDate(),
+    } as UserProfile;
+}
+
 export async function createUserProfile(profile: Omit<UserProfile, 'createdAt' | 'updatedAt'>): Promise<void> {
     const now = Timestamp.now();
     // Split fullName if firstName or lastName are missing for legacy compatibility

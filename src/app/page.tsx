@@ -8,15 +8,20 @@ import { RegisterForm } from '@/components/auth/RegisterForm';
 import { Toaster } from 'sonner';
 
 export default function Home() {
-  const { user, loading } = useAuth();
+  const { user, profile, loading } = useAuth();
   const router = useRouter();
-  const [authMode, setAuthMode] = useState<'login' | 'register'>('register');
+  const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
 
   useEffect(() => {
-    if (!loading && user) {
+    // If user is logged in AND has a profile, go to dashboard
+    if (!loading && user && profile) {
       router.push('/dashboard');
     }
-  }, [user, loading, router]);
+    // If user is logged in BUT NO profile, force register mode to complete profile
+    if (!loading && user && !profile) {
+      setAuthMode('register');
+    }
+  }, [user, profile, loading, router]);
 
   if (loading) {
     return (
@@ -33,15 +38,34 @@ export default function Home() {
       <div className="max-w-md w-full bg-white rounded-3xl shadow-2xl overflow-hidden border border-white/20 backdrop-blur-sm bg-white/90">
         <div className="p-8">
           <div className="flex flex-col items-center mb-8">
-            <div className="w-20 h-20 mb-4 flex items-center justify-center">
+            <div className="w-16 h-16 mb-4 flex items-center justify-center">
               <img src="/logo.png" alt="Dhermica Logo" className="w-full h-full object-contain" />
             </div>
-            <h1 className="text-4xl font-black text-gray-900 tracking-tighter">
+            <h1 className="text-3xl font-black text-gray-900 tracking-tighter">
               Dhermica
             </h1>
-            <p className="text-sm font-bold text-gray-500 uppercase tracking-widest mt-1">
-              Estética Unisex
-            </p>
+          </div>
+
+          <div className="flex mb-8 p-1 bg-gray-100 rounded-2xl">
+            <button
+              onClick={() => setAuthMode('login')}
+              disabled={user && !profile} // Can't switch back to login if completing profile
+              className={`flex-1 py-3 text-sm font-black uppercase tracking-wider rounded-xl transition-all ${authMode === 'login'
+                  ? 'bg-white text-[#34baab] shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700'
+                }`}
+            >
+              Iniciar Sesión
+            </button>
+            <button
+              onClick={() => setAuthMode('register')}
+              className={`flex-1 py-3 text-sm font-black uppercase tracking-wider rounded-xl transition-all ${authMode === 'register'
+                  ? 'bg-white text-[#34baab] shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700'
+                }`}
+            >
+              Crear Cuenta
+            </button>
           </div>
 
           {authMode === 'login' ? (
