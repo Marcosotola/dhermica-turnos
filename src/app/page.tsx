@@ -49,7 +49,7 @@ export default function Home() {
           <div className="flex mb-8 p-1 bg-gray-100 rounded-2xl">
             <button
               onClick={() => setAuthMode('login')}
-              disabled={user && !profile} // Can't switch back to login if completing profile
+              disabled={!!(user && !profile)} // Can't switch back to login if completing profile
               className={`flex-1 py-3 text-sm font-black uppercase tracking-wider rounded-xl transition-all ${authMode === 'login'
                   ? 'bg-white text-[#34baab] shadow-sm'
                   : 'text-gray-500 hover:text-gray-700'
