@@ -14,7 +14,8 @@ import {
     Check,
     X,
     AlertCircle,
-    Coffee
+    Coffee,
+    Sparkles
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -116,7 +117,7 @@ export function ProfessionalSchedule({ professional, onUpdate }: ProfessionalSch
                 </Button>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 2xl:grid-cols-3 gap-8">
                 {/* Working Hours */}
                 <div className="lg:col-span-2 space-y-6">
                     <div className="bg-white p-8 rounded-[40px] shadow-sm border border-gray-100">
@@ -144,14 +145,14 @@ export function ProfessionalSchedule({ professional, onUpdate }: ProfessionalSch
                                             </div>
 
                                             {config.enabled && (
-                                                <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-4">
+                                                <div className="flex-1 grid grid-cols-2 2xl:grid-cols-4 gap-4">
                                                     <div className="space-y-1">
                                                         <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest ml-1">Entrada</label>
                                                         <Input
                                                             type="time"
                                                             value={config.start}
                                                             onChange={(e) => handleTimeChange(day.id, 'start', e.target.value)}
-                                                            className="bg-white border-none rounded-xl h-10 text-xs font-bold"
+                                                            className="bg-white border-none rounded-xl h-11 text-sm font-bold pr-1 pl-3"
                                                         />
                                                     </div>
                                                     <div className="space-y-1">
@@ -160,7 +161,7 @@ export function ProfessionalSchedule({ professional, onUpdate }: ProfessionalSch
                                                             type="time"
                                                             value={config.end}
                                                             onChange={(e) => handleTimeChange(day.id, 'end', e.target.value)}
-                                                            className="bg-white border-none rounded-xl h-10 text-xs font-bold"
+                                                            className="bg-white border-none rounded-xl h-11 text-sm font-bold pr-1 pl-3"
                                                         />
                                                     </div>
                                                     <div className="space-y-1">
@@ -171,8 +172,8 @@ export function ProfessionalSchedule({ professional, onUpdate }: ProfessionalSch
                                                             type="time"
                                                             value={config.lunchStart || ''}
                                                             onChange={(e) => handleTimeChange(day.id, 'lunchStart', e.target.value)}
-                                                            className="bg-white border-none rounded-xl h-10 text-xs font-bold"
-                                                            placeholder="Opional"
+                                                            className="bg-white border-none rounded-xl h-11 text-sm font-bold pr-1 pl-3"
+                                                            placeholder="Opcional"
                                                         />
                                                     </div>
                                                     <div className="space-y-1">
@@ -183,8 +184,8 @@ export function ProfessionalSchedule({ professional, onUpdate }: ProfessionalSch
                                                             type="time"
                                                             value={config.lunchEnd || ''}
                                                             onChange={(e) => handleTimeChange(day.id, 'lunchEnd', e.target.value)}
-                                                            className="bg-white border-none rounded-xl h-10 text-xs font-bold"
-                                                            placeholder="Opional"
+                                                            className="bg-white border-none rounded-xl h-11 text-sm font-bold pr-1 pl-3"
+                                                            placeholder="Opcional"
                                                         />
                                                     </div>
                                                 </div>
@@ -221,76 +222,140 @@ export function ProfessionalSchedule({ professional, onUpdate }: ProfessionalSch
 
                         <div className="space-y-3">
                             {exceptions.map((ex, i) => (
-                                <div key={i} className="flex flex-col md:flex-row items-center gap-4 bg-gray-50 p-4 rounded-3xl border border-gray-100">
-                                    <Input
-                                        type="date"
-                                        value={ex.date}
-                                        onChange={(e) => {
-                                            const newEx = [...exceptions];
-                                            newEx[i].date = e.target.value;
-                                            setExceptions(newEx);
-                                        }}
-                                        className="bg-white border-none rounded-xl md:w-48 font-bold text-xs"
-                                    />
-                                    <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <select
-                                            value={ex.type}
-                                            onChange={(e) => {
-                                                const newEx = [...exceptions];
-                                                newEx[i].type = e.target.value as any;
-                                                setExceptions(newEx);
-                                            }}
-                                            className="bg-white border-none rounded-xl px-4 py-2 h-10 text-xs font-bold focus:ring-2 focus:ring-[#34baab]/20 outline-none w-full"
-                                        >
-                                            <option value="absence">Ausencia / Vacaciones</option>
-                                            <option value="extra">Horas Extra</option>
-                                        </select>
-                                        <Input
-                                            placeholder="Nota (ej: Médico, Feriado...)"
-                                            value={ex.note || ''}
-                                            onChange={(e) => {
-                                                const newEx = [...exceptions];
-                                                newEx[i].note = e.target.value;
-                                                setExceptions(newEx);
-                                            }}
-                                            className="bg-white border-none rounded-xl font-medium text-xs w-full"
-                                        />
-                                    </div>
-                                    <div className="flex items-center gap-3 bg-white/50 p-2 rounded-2xl border border-gray-100/50">
-                                        <div className="flex flex-col gap-1">
-                                            <label className="text-[7px] font-black text-gray-400 uppercase tracking-widest ml-1 text-center">Rango Horario (Opcional)</label>
-                                            <div className="flex items-center gap-2">
+                                    <div key={i} className="flex flex-col gap-3 w-full">
+                                        <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-4 bg-gray-50 p-4 md:p-6 rounded-[2rem] border border-gray-100 shadow-sm">
+                                            {/* Fecha */}
+                                            <div className="flex-shrink-0">
+                                                <label className="text-[7px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">Fecha</label>
                                                 <Input
-                                                    type="time"
-                                                    value={ex.start || ''}
+                                                    type="date"
+                                                    value={ex.date}
                                                     onChange={(e) => {
                                                         const newEx = [...exceptions];
-                                                        newEx[i].start = e.target.value;
+                                                        newEx[i].date = e.target.value;
                                                         setExceptions(newEx);
                                                     }}
-                                                    className="bg-white border-none rounded-lg h-8 text-[10px] font-bold w-20"
-                                                />
-                                                <span className="text-gray-300 text-[10px]">-</span>
-                                                <Input
-                                                    type="time"
-                                                    value={ex.end || ''}
-                                                    onChange={(e) => {
-                                                        const newEx = [...exceptions];
-                                                        newEx[i].end = e.target.value;
-                                                        setExceptions(newEx);
-                                                    }}
-                                                    className="bg-white border-none rounded-lg h-8 text-[10px] font-bold w-20"
+                                                    className="bg-white border-gray-200 rounded-xl w-full md:w-44 font-bold text-xs"
                                                 />
                                             </div>
+
+                                            {/* Tipo y Nota */}
+                                            <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                <div className="flex flex-col">
+                                                    <label className="text-[7px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">Tipo de Excepción</label>
+                                                    <select
+                                                        value={ex.type}
+                                                        onChange={(e) => {
+                                                            const newEx = [...exceptions];
+                                                            newEx[i].type = e.target.value as any;
+                                                            if (e.target.value === 'absence') {
+                                                                newEx[i].services = [];
+                                                            }
+                                                            setExceptions(newEx);
+                                                        }}
+                                                        className="bg-white border border-gray-200 rounded-xl px-4 py-2 h-[44px] text-xs font-bold focus:ring-2 focus:ring-[#34baab]/20 outline-none w-full appearance-none cursor-pointer hover:border-[#34baab]/30 transition-colors"
+                                                    >
+                                                        <option value="absence">🚫 Ausencia / Vacaciones</option>
+                                                        <option value="extra">✨ Horas / Días Extra</option>
+                                                    </select>
+                                                </div>
+                                                <div className="flex flex-col">
+                                                    <label className="text-[7px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">Nota Interna</label>
+                                                    <Input
+                                                        placeholder="Ej: Médico, Feriado..."
+                                                        value={ex.note || ''}
+                                                        onChange={(e) => {
+                                                            const newEx = [...exceptions];
+                                                            newEx[i].note = e.target.value;
+                                                            setExceptions(newEx);
+                                                        }}
+                                                        className="bg-white border-gray-200 rounded-xl font-medium text-xs w-full"
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            {/* Rango Horario */}
+                                            <div className="flex-shrink-0 bg-white/60 p-3 rounded-2xl border border-gray-100">
+                                                <label className="text-[7px] font-black text-gray-400 uppercase tracking-widest mb-1 block text-center">Rango Horario (Opcional)</label>
+                                                <div className="flex items-center gap-2">
+                                                    <Input
+                                                        type="time"
+                                                        value={ex.start || ''}
+                                                        onChange={(e) => {
+                                                            const newEx = [...exceptions];
+                                                            newEx[i].start = e.target.value;
+                                                            setExceptions(newEx);
+                                                        }}
+                                                        className="bg-white border-gray-200 rounded-lg h-9 text-[11px] font-bold w-24 pr-1 pl-2"
+                                                    />
+                                                    <span className="text-gray-300 text-sm">-</span>
+                                                    <Input
+                                                        type="time"
+                                                        value={ex.end || ''}
+                                                        onChange={(e) => {
+                                                            const newEx = [...exceptions];
+                                                            newEx[i].end = e.target.value;
+                                                            setExceptions(newEx);
+                                                        }}
+                                                        className="bg-white border-gray-200 rounded-lg h-9 text-[11px] font-bold w-24 pr-1 pl-2"
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            {/* Eliminar */}
+                                            <div className="flex items-end lg:mb-1">
+                                                <button
+                                                    onClick={() => handleRemoveException(i)}
+                                                    className="p-3 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
+                                                    title="Eliminar excepción"
+                                                >
+                                                    <Trash2 className="w-5 h-5" />
+                                                </button>
+                                            </div>
                                         </div>
+
+                                        {/* Selector de tratamientos para Horas Extra */}
+                                        {ex.type === 'extra' && (
+                                            <div className="bg-[#34baab]/5 p-4 rounded-2xl border border-[#34baab]/10 ml-4 md:ml-8 animate-in slide-in-from-top-2 duration-300">
+                                                <p className="text-[10px] font-black text-[#34baab] uppercase tracking-widest mb-3 flex items-center gap-2">
+                                                    <Sparkles className="w-3 h-3" /> Tratamientos disponibles para esta excepción:
+                                                </p>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {treatments.map(t => {
+                                                        const isSelected = (ex.services || []).includes(t.name);
+                                                        return (
+                                                            <button
+                                                                key={t.id}
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    const newEx = [...exceptions];
+                                                                    const currentServices = newEx[i].services || [];
+                                                                    if (isSelected) {
+                                                                        newEx[i].services = currentServices.filter(s => s !== t.name);
+                                                                    } else {
+                                                                        newEx[i].services = [...currentServices, t.name];
+                                                                    }
+                                                                    setExceptions(newEx);
+                                                                }}
+                                                                className={`px-3 py-1.5 rounded-xl text-[9px] font-bold uppercase tracking-tight transition-all border ${
+                                                                    isSelected 
+                                                                        ? 'bg-[#34baab] text-white border-[#34baab] shadow-sm' 
+                                                                        : 'bg-white text-gray-500 border-gray-100 hover:border-[#34baab]/30'
+                                                                }`}
+                                                            >
+                                                                {t.name}
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+                                                {(ex.services || []).length === 0 && (
+                                                    <p className="text-[9px] text-amber-600 mt-2 italic font-medium">
+                                                        * Si no seleccionas ninguno, se usarán los tratamientos generales del profesional.
+                                                    </p>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
-                                    <button
-                                        onClick={() => handleRemoveException(i)}
-                                        className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors"
-                                    >
-                                        <Trash2 className="w-4 h-4" />
-                                    </button>
-                                </div>
                             ))}
                             {exceptions.length === 0 && (
                                 <p className="text-center text-gray-400 font-medium py-8 italic border-2 border-dashed border-gray-100 rounded-[32px]">

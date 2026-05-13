@@ -443,22 +443,20 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
                                 required
                             />
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <Input
-                                label="Fecha de Nacimiento"
-                                type="date"
-                                value={formData.birthDate}
-                                onChange={(e) => setFormData({ ...formData, birthDate: e.target.value })}
-                            />
-                            <PhoneInput
-                                label="WhatsApp"
-                                countryCode={countryCode}
-                                onCountryCodeChange={setCountryCode}
-                                phoneNumber={formData.phone}
-                                onPhoneNumberChange={(number) => setFormData({ ...formData, phone: number })}
-                                required
-                            />
-                        </div>
+                        <Input
+                            label="Fecha de Nacimiento"
+                            type="date"
+                            value={formData.birthDate}
+                            onChange={(e) => setFormData({ ...formData, birthDate: e.target.value })}
+                        />
+                        <PhoneInput
+                            label="WhatsApp"
+                            countryCode={countryCode}
+                            onCountryCodeChange={setCountryCode}
+                            phoneNumber={formData.phone}
+                            onPhoneNumberChange={(number) => setFormData({ ...formData, phone: number })}
+                            required
+                        />
 
                         <div className="grid grid-cols-2 gap-4">
                             <Select

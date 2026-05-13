@@ -25,6 +25,7 @@ export interface Professional {
         start?: string;
         end?: string;
         note?: string;
+        services?: string[];
     }[];
 }
 

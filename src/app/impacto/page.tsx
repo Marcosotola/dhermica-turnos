@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/contexts/AuthContext';
-import { Heart, Plus, Trash2, X, Upload, Sparkles, ImageIcon, Calendar, Maximize2, Edit2 } from 'lucide-react';
+import { Heart, Plus, Trash2, X, Upload, Sparkles, ImageIcon, Calendar, Maximize2, Edit2, ArrowLeft, Info } from 'lucide-react';
+import Link from 'next/link';
 import { getImpactImages, uploadImpactImage, deleteImpactImage, updateImpactDescription } from '@/lib/firebase/impact';
 import { ImpactImage } from '@/lib/types/impact';
 import { toast, Toaster } from 'sonner';
@@ -124,12 +125,33 @@ export default function ImpactPage() {
             <div className="container mx-auto px-4 py-8">
                 {/* Header */}
                 <div className="bg-[#484450] rounded-[2rem] md:rounded-[2.5rem] p-8 md:p-16 mb-8 md:mb-12 shadow-xl text-white text-center relative overflow-hidden">
+                    {/* Navigation inside Header */}
+                    <div className="absolute top-6 left-6 md:top-10 md:left-10 flex gap-4 z-20">
+                        <Link 
+                            href="/dashboard" 
+                            className="bg-white/10 backdrop-blur-md text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-white/20 transition-all border border-white/10"
+                        >
+                            <ArrowLeft className="w-3 h-3" />
+                            Volver
+                        </Link>
+                    </div>
+
+                    <div className="absolute top-6 right-6 md:top-10 md:right-10 flex gap-4 z-20">
+                        <Link 
+                            href="/about" 
+                            className="bg-[#34baab]/20 backdrop-blur-md text-[#34baab] px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-[#34baab]/30 transition-all border border-[#34baab]/20"
+                        >
+                            <Info className="w-3 h-3" />
+                            Quiénes Somos
+                        </Link>
+                    </div>
+
                     <div className="absolute top-0 right-0 p-4 opacity-10">
                         <Heart className="w-48 h-48 md:w-64 md:h-64" />
                     </div>
-                    <h1 className="text-3xl md:text-5xl font-black mb-4 md:mb-6 text-white leading-tight tracking-tighter">
+                    <h1 className="text-3xl md:text-5xl font-black mb-4 md:mb-6 text-white leading-tight tracking-tighter mt-8 md:mt-0">
                         Un Momento para <span className="text-[#34baab]">Vos</span>, <br className="md:hidden" />
-                        una Bendición para <span className="text-[#34baab]">Otros</span>
+                        una Bendición para <span className="text-[#34baab]"> Otros</span>
                     </h1>
 
                     <p className="text-sm md:text-xl opacity-90 font-light max-w-2xl mx-auto leading-relaxed">
