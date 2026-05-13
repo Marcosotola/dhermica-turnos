@@ -461,6 +461,7 @@ export function AppointmentModal({
         const validationErrors = validateAppointment(appointmentData);
         if (validationErrors.length > 0) {
             setErrors(validationErrors);
+            toast.error(validationErrors[0]); // Mostrar el primer error en un toast para feedback inmediato
             return;
         }
 
@@ -469,6 +470,8 @@ export function AppointmentModal({
         const otherAppointments = existingAppointments.filter(
             (apt) =>
                 apt.id !== appointment?.id &&
+                apt.status !== 'cancelled' && // No verificar contra turnos cancelados
+                (apt.status as any) !== 'cancelado' &&
                 appointmentData.professionalId && // Tiene professionalId
                 appointmentData.professionalId !== '' && // No es string vacío
                 apt.professionalId === appointmentData.professionalId // Y coincide con otro turno
@@ -479,7 +482,9 @@ export function AppointmentModal({
         );
 
         if (overlappingAppointments.length > 0) {
-            setErrors(['Este horario se superpone con otro turno del mismo profesional']);
+            const errorMsg = 'Este horario se superpone con otro turno del mismo profesional';
+            setErrors([errorMsg]);
+            toast.error(errorMsg);
             return;
         }
 
@@ -487,6 +492,8 @@ export function AppointmentModal({
         if (!appointment) {
             const clientHasAppointment = existingAppointments.some(
                 (apt) =>
+                    apt.status !== 'cancelled' && // No contar turnos cancelados
+                    (apt.status as any) !== 'cancelado' &&
                     apt.clientName.toLowerCase() === appointmentData.clientName.toLowerCase()
             );
 
