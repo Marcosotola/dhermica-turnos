@@ -40,6 +40,7 @@ import { getAppointmentsByClientId, getAppointmentsByProfessionalId } from '@/li
 import { useNotifications } from '@/lib/hooks/useNotifications';
 import { ProfileSection } from '@/components/dashboard/ProfileSection';
 import { OrphanAlertBanner } from '@/components/dashboard/OrphanAlertBanner';
+import { NotificationPermissionModal } from '@/components/pwa/NotificationPermissionModal';
 
 export default function DashboardPage() {
     const { user, profile, loading } = useAuth();
@@ -148,6 +149,7 @@ export default function DashboardPage() {
     return (
         <div className="min-h-screen bg-gray-50 pb-24">
             <Toaster position="top-center" richColors />
+            <NotificationPermissionModal />
             <div className="container mx-auto px-4 py-8">
                 {/* Header Section */}
                 <Link href="/about" className="block bg-[#484450] rounded-3xl p-8 mb-8 shadow-lg text-white hover:bg-[#524d5c] transition-colors group">
@@ -194,7 +196,7 @@ export default function DashboardPage() {
                             </Link>
 
                             <Link href="/agenda" className="flex flex-col items-center justify-center bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-all group">
-                                <BookOpen className="w-10 h-10 text-[#34baab] mb-4 group-hover:scale-110 transition-transform" />
+                                <BookOpen className="w-10 h-10 text-violet-500 mb-4 group-hover:scale-110 transition-transform" />
                                 <span className="text-xl font-bold text-gray-900 text-center">Fichas</span>
                                 <p className="hidden md:block text-gray-500 text-sm mt-2 text-center">Consultar fichas e historial.</p>
                             </Link>
@@ -206,25 +208,25 @@ export default function DashboardPage() {
                             </Link>
 
                             <Link href="/tratamientos" className="flex flex-col items-center justify-center bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-all group">
-                                <Sparkles className="w-10 h-10 text-[#34baab] mb-4 group-hover:scale-110 transition-transform" />
+                                <Sparkles className="w-10 h-10 text-purple-500 mb-4 group-hover:scale-110 transition-transform" />
                                 <span className="text-xl font-bold text-gray-900 text-center">Servicios</span>
                                 <p className="hidden md:block text-gray-500 text-sm mt-2 text-center">Gestionar servicios y precios.</p>
                             </Link>
 
                             <Link href="/productos" className="flex flex-col items-center justify-center bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-all group">
-                                <ShoppingBag className="w-10 h-10 text-[#34baab] mb-4 group-hover:scale-110 transition-transform" />
+                                <ShoppingBag className="w-10 h-10 text-fuchsia-500 mb-4 group-hover:scale-110 transition-transform" />
                                 <span className="text-xl font-bold text-gray-900 text-center">Productos</span>
                                 <p className="hidden md:block text-gray-500 text-sm mt-2 text-center">Gestionar stock y catálogo.</p>
                             </Link>
 
                             <Link href="/usuarios" className="flex flex-col items-center justify-center bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-all group">
-                                <Settings className="w-10 h-10 text-gray-400 mb-4 group-hover:scale-110 transition-transform" />
+                                <Settings className="w-10 h-10 text-slate-500 mb-4 group-hover:scale-110 transition-transform" />
                                 <span className="text-xl font-bold text-gray-900 text-center">Usuarios</span>
                                 <p className="hidden md:block text-gray-500 text-sm mt-2 text-center">Asignar roles y ver clientes.</p>
                             </Link>
 
                             <Link href="/profesionales" className="flex flex-col items-center justify-center bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-all group">
-                                <Briefcase className="w-10 h-10 text-[#34baab] mb-4 group-hover:scale-110 transition-transform" />
+                                <Briefcase className="w-10 h-10 text-indigo-500 mb-4 group-hover:scale-110 transition-transform" />
                                 <span className="text-xl font-bold text-gray-900 text-center">Profesionales</span>
                                 <p className="hidden md:block text-gray-500 text-sm mt-2 text-center">Gestionar profesionales.</p>
                             </Link>
@@ -242,7 +244,7 @@ export default function DashboardPage() {
                             </Link>
 
                             <Link href="/comunidad" className="flex flex-col items-center justify-center bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-all group">
-                                <Users className="w-10 h-10 text-[#34baab] mb-4 group-hover:scale-110 transition-transform" />
+                                <Users className="w-10 h-10 text-sky-500 mb-4 group-hover:scale-110 transition-transform" />
                                 <span className="text-xl font-bold text-gray-900 text-center">Comunidad</span>
                                 <p className="hidden md:block text-gray-500 text-sm mt-2 text-center">Resultados e inspiración.</p>
                             </Link>
@@ -255,7 +257,7 @@ export default function DashboardPage() {
 
 
                             <Link href="/aparatos" className="flex flex-col items-center justify-center bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-all group">
-                                <Zap className="w-10 h-10 text-amber-500 mb-4 group-hover:scale-110 transition-transform" />
+                                <Zap className="w-10 h-10 text-cyan-500 mb-4 group-hover:scale-110 transition-transform" />
                                 <span className="text-xl font-bold text-gray-900 text-center">Aparatos</span>
                                 <p className="hidden md:block text-gray-500 text-sm mt-2 text-center">Sesiones de aparatología.</p>
                             </Link>
@@ -283,13 +285,13 @@ export default function DashboardPage() {
                             </Link>
 
                             <Link href="/agenda" className="flex flex-col items-center justify-center bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-all group">
-                                <BookOpen className="w-10 h-10 text-[#34baab] mb-4 group-hover:scale-110 transition-transform" />
+                                <BookOpen className="w-10 h-10 text-violet-500 mb-4 group-hover:scale-110 transition-transform" />
                                 <span className="text-xl font-bold text-gray-900 text-center">Fichas</span>
                                 <p className="hidden md:block text-gray-500 text-sm mt-2 text-center">Consultar fichas e historial.</p>
                             </Link>
 
                             <Link href="/aparatos" className="flex flex-col items-center justify-center bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-all group">
-                                <Zap className="w-10 h-10 text-amber-500 mb-4 group-hover:scale-110 transition-transform" />
+                                <Zap className="w-10 h-10 text-cyan-500 mb-4 group-hover:scale-110 transition-transform" />
                                 <span className="text-xl font-bold text-gray-900 text-center">Aparatos</span>
                                 <p className="hidden md:block text-gray-500 text-sm mt-2 text-center">Ver mis sesiones de aparatos.</p>
                             </Link>
@@ -313,7 +315,7 @@ export default function DashboardPage() {
                             </Link>
 
                             <Link href="/productos" className="flex flex-col items-center justify-center bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-all group">
-                                <ShoppingBag className="w-10 h-10 text-[#34baab] mb-4 group-hover:scale-110 transition-transform" />
+                                <ShoppingBag className="w-10 h-10 text-orange-500 mb-4 group-hover:scale-110 transition-transform" />
                                 <span className="text-xl font-bold text-gray-900 text-center">Productos</span>
                                 <p className="hidden md:block text-gray-500 text-sm mt-2 text-center">Catálogo para el hogar.</p>
                             </Link>
@@ -325,7 +327,7 @@ export default function DashboardPage() {
                             </Link>
 
                             <Link href="/comunidad" className="flex flex-col items-center justify-center bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-all group">
-                                <Users className="w-10 h-10 text-[#34baab] mb-4 group-hover:scale-110 transition-transform" />
+                                <Users className="w-10 h-10 text-sky-500 mb-4 group-hover:scale-110 transition-transform" />
                                 <span className="text-xl font-bold text-gray-900 text-center">Comunidad</span>
                                 <p className="hidden md:block text-gray-500 text-sm mt-2 text-center">Resultados e inspiración.</p>
                             </Link>
@@ -337,7 +339,7 @@ export default function DashboardPage() {
                             </Link>
 
                             <Link href="/ubicacion" className="flex flex-col items-center justify-center bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-all group">
-                                <MapPin className="w-10 h-10 text-[#34baab] mb-4 group-hover:scale-110 transition-transform" />
+                                <MapPin className="w-10 h-10 text-green-500 mb-4 group-hover:scale-110 transition-transform" />
                                 <span className="text-xl font-bold text-gray-900 text-center">Ubicación</span>
                                 <p className="hidden md:block text-gray-500 text-sm mt-2 text-center">Dirección y mapa del salón.</p>
                             </Link>

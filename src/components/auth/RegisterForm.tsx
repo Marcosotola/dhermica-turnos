@@ -8,7 +8,6 @@ import { registerWithEmail, loginWithGoogle, setupRecaptcha, signInWithPhone } f
 import { createUserProfile, formatPhone, getUserByPhone, getUserByEmail } from '@/lib/firebase/users';
 import { toast } from 'sonner';
 import { UserProfile } from '@/lib/types/user';
-import { useNotifications } from '@/lib/hooks/useNotifications';
 import { Checkbox } from '@/components/ui/Checkbox';
 import { PhoneInput } from '@/components/ui/PhoneInput';
 import { Phone, Mail, ChevronLeft, Eye, EyeOff } from 'lucide-react';
@@ -22,7 +21,6 @@ interface RegisterFormProps {
 
 export function RegisterForm({ onToggleMode }: RegisterFormProps) {
     const [step, setStep] = useState(1);
-    const { requestPermission } = useNotifications();
     const { user: currentUser, profile: currentProfile, logout } = useAuth();
     const isAdmin = currentProfile?.role === 'admin' || currentProfile?.role === 'secretary';
     const [authOption, setAuthOption] = useState<'options' | 'email' | 'phone_number' | 'phone_otp'>(
@@ -184,9 +182,9 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
                 notificationsEnabled: formData.wantNotifications,
             });
 
-            // Request push notification permission if requested
+            // Signal the dashboard to show the native notification permission prompt
             if (formData.wantNotifications) {
-                await requestPermission();
+                localStorage.setItem('show_notification_prompt', 'new_registration');
             }
 
             toast.success('¡Cuenta creada exitosamente!');
