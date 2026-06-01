@@ -25,14 +25,22 @@ export function PhoneInput({
     required,
     className = ''
 }: PhoneInputProps) {
-    const selectedCountry = [
-        { value: '+54', label: '🇦🇷' },
-        { value: '+598', label: '🇺🇾' },
-        { value: '+56', label: '🇨🇱' },
-        { value: '+55', label: '🇧🇷' },
-        { value: '+34', label: '🇪🇸' },
-        { value: '+1', label: '🇺🇸' },
-    ].find(c => c.value === countryCode) || { value: '+54', label: '🇦🇷' };
+    const countries = [
+        { value: '+54', label: '🇦🇷', name: 'Argentina' },
+        { value: '+598', label: '🇺🇾', name: 'Uruguay' },
+        { value: '+56', label: '🇨🇱', name: 'Chile' },
+        { value: '+55', label: '🇧🇷', name: 'Brasil' },
+        { value: '+595', label: '🇵🇾', name: 'Paraguay' },
+        { value: '+591', label: '🇧🇴', name: 'Bolivia' },
+        { value: '+58', label: '🇻🇪', name: 'Venezuela' },
+        { value: '+57', label: '🇨🇴', name: 'Colombia' },
+        { value: '+51', label: '🇵🇪', name: 'Perú' },
+        { value: '+593', label: '🇪🇨', name: 'Ecuador' },
+        { value: '+34', label: '🇪🇸', name: 'España' },
+        { value: '+39', label: '🇮🇹', name: 'Italia' },
+        { value: '+1', label: '🇺🇸', name: 'EE.UU.' },
+    ];
+    const selectedCountry = countries.find(c => c.value === countryCode) || countries[0];
 
     return (
         <div className={`w-full flex flex-col gap-1.5 ${className}`}>
@@ -49,16 +57,15 @@ export function PhoneInput({
                         <span className="text-xl">{selectedCountry.label}</span>
                         <span className="font-bold text-gray-600 text-sm whitespace-nowrap">{countryCode}</span>
                         <select
+                            title="Código de país"
+                            aria-label="Código de país"
                             value={countryCode}
                             onChange={(e) => onCountryCodeChange(e.target.value)}
                             className="absolute inset-0 cursor-pointer w-full opacity-0 appearance-none"
                         >
-                            <option value="+54">AR +54</option>
-                            <option value="+598">UY +598</option>
-                            <option value="+56">CL +56</option>
-                            <option value="+55">BR +55</option>
-                            <option value="+34">ES +34</option>
-                            <option value="+1">US +1</option>
+                            {countries.map(c => (
+                                <option key={c.value} value={c.value}>{c.name} {c.value}</option>
+                            ))}
                         </select>
                     </div>
 
@@ -66,8 +73,8 @@ export function PhoneInput({
                     <input
                         type="tel"
                         value={phoneNumber}
-                        onChange={(e) => onPhoneNumberChange(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                        placeholder="Cód. Área + Número"
+                        onChange={(e) => onPhoneNumberChange(e.target.value.replace(/\D/g, '').slice(0, 15))}
+                        placeholder="Número de teléfono"
                         className="flex-1 px-4 py-3 bg-transparent outline-none text-gray-900 font-bold placeholder:text-gray-300 text-base"
                         required={required}
                     />
@@ -76,12 +83,20 @@ export function PhoneInput({
             </div>
 
             <div className="flex flex-col gap-0.5 ml-1">
-                <p className="text-[11px] font-black text-[#34baab] uppercase tracking-wide">
-                    ⚠️ Importante: Sin el 0 y sin el 15
-                </p>
-                <p className="text-[10px] text-gray-400 font-medium">
-                    Ej: si es 0351 152345678, poné: <span className="font-bold text-gray-600">3512345678</span>
-                </p>
+                {countryCode === '+54' ? (
+                    <>
+                        <p className="text-[11px] font-black text-[#34baab] uppercase tracking-wide">
+                            ⚠️ Importante: Sin el 0 y sin el 15
+                        </p>
+                        <p className="text-[10px] text-gray-400 font-medium">
+                            Ej: si es 0351 152345678, poné: <span className="font-bold text-gray-600">3512345678</span>
+                        </p>
+                    </>
+                ) : (
+                    <p className="text-[11px] font-black text-[#34baab] uppercase tracking-wide">
+                        Solo el número, sin espacios ni el código de país
+                    </p>
+                )}
             </div>
         </div>
     );
