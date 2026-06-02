@@ -21,7 +21,8 @@ const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0
 export const db = initializeFirestore(app, {
     localCache: persistentLocalCache({
         tabManager: persistentMultipleTabManager()
-    })
+    }),
+    ignoreUndefinedProperties: true,
 });
 
 export const auth = getAuth(app);

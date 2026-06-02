@@ -9,6 +9,7 @@ import {
     query,
     orderBy,
     Timestamp,
+    deleteField,
 } from 'firebase/firestore';
 import { db } from './config';
 import { Treatment } from '../types/treatment';
@@ -64,6 +65,8 @@ export async function updateTreatment(id: string, data: Partial<Omit<Treatment, 
     const docRef = doc(db, TREATMENTS_COLLECTION, id);
     await updateDoc(docRef, {
         ...data,
+        // Explicitly delete the field when policy is removed; ignoreUndefinedProperties would just skip it otherwise
+        cancellationPolicy: data.cancellationPolicy === undefined ? deleteField() : data.cancellationPolicy,
         updatedAt: Timestamp.now(),
     });
 }
