@@ -9,7 +9,7 @@ import { Appointment, AppointmentStatus, Payment } from '@/lib/types/appointment
 import { GiftCard } from '@/lib/types/giftCard';
 import { ClientCredit } from '@/lib/types/clientCredit';
 import { updateAppointment } from '@/lib/firebase/appointments';
-import { getGiftCardsByClient, updateGiftCardStatus } from '@/lib/firebase/giftCards';
+import { getGiftCardByCode, redeemGiftCard } from '@/lib/firebase/giftCards';
 import { getClientCredits, useCredit } from '@/lib/firebase/clientCredits';
 import { formatArgentineCurrency } from '@/lib/utils/currency';
 import { toast } from 'sonner';
@@ -42,10 +42,16 @@ export function QuickPaymentModal({
     const [price, setPrice] = useState(0);
     const [payments, setPayments] = useState<Payment[]>([]);
     const [showPaymentForm, setShowPaymentForm] = useState(false);
-    const [activeGiftCards, setActiveGiftCards] = useState<GiftCard[]>([]);
-    const [selectedGiftCardId, setSelectedGiftCardId] = useState<string>('');
     const [activeCredits, setActiveCredits] = useState<ClientCredit[]>([]);
     const [selectedCreditId, setSelectedCreditId] = useState<string>('');
+
+    // Gift card por código
+    const [gcCode, setGcCode] = useState('');
+    const [gcSearching, setGcSearching] = useState(false);
+    const [gcFound, setGcFound] = useState<GiftCard | null>(null);
+    const [gcError, setGcError] = useState('');
+    const [gcAmountToApply, setGcAmountToApply] = useState(0);
+
     const [newPayment, setNewPayment] = useState({
         amount: 0,
         method: 'cash' as Payment['method'],
@@ -69,19 +75,13 @@ export function QuickPaymentModal({
                 date: today
             });
             setShowPaymentForm(false);
-            setSelectedGiftCardId('');
             setSelectedCreditId('');
+            setGcCode('');
+            setGcFound(null);
+            setGcError('');
+            setGcAmountToApply(0);
 
             const clientId = appointment.clientId || `legacy-${appointment.clientName?.replace(/\s+/g, '-').toLowerCase()}`;
-            getGiftCardsByClient(clientId, appointment.clientName).then(cards => {
-                const active = cards.filter(c => c.status === 'active' && (!c.expiryDate || c.expiryDate >= today));
-                console.log('[GiftCards] clientId:', clientId, '| clientName:', appointment.clientName, '| total:', cards.length, '| activas:', active.length);
-                setActiveGiftCards(active);
-            }).catch(err => {
-                console.error('[GiftCards] Error al buscar gift cards:', err);
-                setActiveGiftCards([]);
-            });
-
             getClientCredits(clientId, appointment.clientName).then(credits => {
                 setActiveCredits(credits.filter(c => c.status === 'available'));
             }).catch(err => {
@@ -96,29 +96,75 @@ export function QuickPaymentModal({
     const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
     const balance = price - totalPaid;
 
-    const handleAddPayment = () => {
-        if (newPayment.method === 'gift_card') {
-            if (!selectedGiftCardId) {
-                toast.error('Seleccioná una gift card');
+    const handleSearchGiftCard = async () => {
+        if (!gcCode.trim()) return;
+        setGcSearching(true);
+        setGcError('');
+        setGcFound(null);
+        try {
+            const card = await getGiftCardByCode(gcCode.trim());
+            if (!card) {
+                setGcError('Código no encontrado');
                 return;
             }
-            const gc = activeGiftCards.find(c => c.id === selectedGiftCardId);
-            if (!gc) return;
-            const payment: Payment = {
-                id: Math.random().toString(36).substring(2, 9),
-                amount: gc.amount,
-                method: 'gift_card',
-                label: `Gift Card (${gc.code})`,
-                bankAccount: null,
-                giftCardId: gc.id,
-                date: newPayment.date,
-                createdAt: new Date().toISOString() as any
-            };
-            setPayments(prev => [...prev, payment]);
-            setActiveGiftCards(prev => prev.filter(c => c.id !== gc.id));
-            setSelectedGiftCardId('');
-            setShowPaymentForm(false);
-            toast.success(`Gift Card ${gc.code} agregada`);
+            if (card.status === 'redeemed') {
+                setGcError('Esta gift card ya fue utilizada completamente');
+                return;
+            }
+            if (card.status === 'cancelled') {
+                setGcError('Esta gift card fue cancelada');
+                return;
+            }
+            if (card.status === 'expired' || (card.expiryDate && card.expiryDate < today)) {
+                setGcError('Esta gift card está vencida');
+                return;
+            }
+            if (payments.some(p => p.giftCardId === card.id)) {
+                setGcError('Esta gift card ya fue agregada al pago');
+                return;
+            }
+            setGcFound(card);
+            const pendingBalance = price - payments.reduce((s, p) => s + p.amount, 0);
+            setGcAmountToApply(Math.min(card.remainingBalance, pendingBalance > 0 ? pendingBalance : card.remainingBalance));
+        } catch {
+            setGcError('Error al buscar la gift card');
+        } finally {
+            setGcSearching(false);
+        }
+    };
+
+    const handleAddGiftCardPayment = () => {
+        if (!gcFound) return;
+        if (gcAmountToApply <= 0) {
+            toast.error('El monto a aplicar debe ser mayor a 0');
+            return;
+        }
+        if (gcAmountToApply > gcFound.remainingBalance) {
+            toast.error(`El monto supera el saldo disponible ($${gcFound.remainingBalance.toLocaleString('es-AR')})`);
+            return;
+        }
+        const payment: Payment = {
+            id: Math.random().toString(36).substring(2, 9),
+            amount: gcAmountToApply,
+            method: 'gift_card',
+            label: `Gift Card (${gcFound.code})`,
+            bankAccount: null,
+            giftCardId: gcFound.id,
+            date: newPayment.date,
+            createdAt: new Date().toISOString() as any,
+        };
+        setPayments(prev => [...prev, payment]);
+        setGcCode('');
+        setGcFound(null);
+        setGcError('');
+        setGcAmountToApply(0);
+        setShowPaymentForm(false);
+        toast.success(`Gift Card ${gcFound.code} agregada`);
+    };
+
+    const handleAddPayment = () => {
+        if (newPayment.method === 'gift_card') {
+            handleAddGiftCardPayment();
             return;
         }
 
@@ -174,13 +220,6 @@ export function QuickPaymentModal({
     const removePayment = (id: string) => {
         const removed = payments.find(p => p.id === id);
         setPayments(prev => prev.filter(p => p.id !== id));
-        if (removed?.method === 'gift_card' && removed.giftCardId) {
-            const clientId = appointment!.clientId || `legacy-${appointment!.clientName?.replace(/\s+/g, '-').toLowerCase()}`;
-            getGiftCardsByClient(clientId, appointment!.clientName).then(cards => {
-                const restored = cards.find(c => c.id === removed.giftCardId && c.status === 'active' && (!c.expiryDate || c.expiryDate >= today));
-                if (restored) setActiveGiftCards(prev => [...prev, restored]);
-            }).catch(() => {});
-        }
         if (removed?.method === 'client_credit' && removed.creditId) {
             const clientId = appointment!.clientId || `legacy-${appointment!.clientName?.replace(/\s+/g, '-').toLowerCase()}`;
             getClientCredits(clientId, appointment!.clientName).then(credits => {
@@ -212,13 +251,17 @@ export function QuickPaymentModal({
                 payments: finalPayments
             });
 
-            // Redimir las gift cards usadas en este turno
+            // Redimir las gift cards usadas en este turno (soporta redención parcial)
             const gcPayments = finalPayments.filter(p => p.method === 'gift_card' && p.giftCardId);
             await Promise.all(gcPayments.map(p =>
-                updateGiftCardStatus(p.giftCardId!, 'redeemed', {
-                    redeemedDate: today,
-                    redeemedInAppointmentId: appointment.id,
-                })
+                redeemGiftCard(
+                    p.giftCardId!,
+                    p.amount,
+                    appointment.id,
+                    today,
+                    appointment.clientId,
+                    appointment.clientName,
+                )
             ));
 
             // Marcar créditos usados (crea crédito residual si se usó parcialmente)
@@ -425,7 +468,9 @@ export function QuickPaymentModal({
                             value={newPayment.method}
                             onChange={(e) => {
                                 setNewPayment({ ...newPayment, method: e.target.value as Payment['method'] });
-                                setSelectedGiftCardId('');
+                                setGcCode('');
+                                setGcFound(null);
+                                setGcError('');
                                 setSelectedCreditId('');
                             }}
                             options={[
@@ -434,35 +479,71 @@ export function QuickPaymentModal({
                                 { value: 'debit', label: 'Débito' },
                                 { value: 'credit', label: 'Crédito' },
                                 { value: 'qr', label: 'QR' },
-                                ...(activeGiftCards.length > 0 ? [{ value: 'gift_card', label: 'Gift Card' }] : []),
+                                { value: 'gift_card', label: 'Gift Card' },
                                 ...(activeCredits.length > 0 ? [{ value: 'client_credit', label: 'Saldo a Favor' }] : []),
                             ]}
                         />
 
                         {newPayment.method === 'gift_card' ? (
-                            <div className="space-y-2">
-                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Gift Card activa</p>
-                                {activeGiftCards.map(gc => (
+                            <div className="space-y-3">
+                                <div className="flex gap-2">
+                                    <input
+                                        type="text"
+                                        value={gcCode}
+                                        onChange={e => { setGcCode(e.target.value.toUpperCase()); setGcFound(null); setGcError(''); }}
+                                        onKeyDown={e => e.key === 'Enter' && handleSearchGiftCard()}
+                                        placeholder="Ej: GC-260603-A7K2"
+                                        className="flex-1 px-3 py-2 border border-gray-200 rounded-xl text-sm font-mono focus:outline-none focus:border-teal-400 bg-white text-gray-900 uppercase"
+                                    />
                                     <button
-                                        key={gc.id}
                                         type="button"
-                                        onClick={() => setSelectedGiftCardId(gc.id)}
-                                        className={`w-full flex items-center justify-between p-3 rounded-xl border-2 transition-all ${
-                                            selectedGiftCardId === gc.id
-                                                ? 'border-teal-400 bg-teal-50'
-                                                : 'border-gray-100 bg-white hover:border-teal-200'
-                                        }`}
+                                        onClick={handleSearchGiftCard}
+                                        disabled={gcSearching || !gcCode.trim()}
+                                        className="px-4 py-2 rounded-xl bg-teal-500 hover:bg-teal-600 text-white text-xs font-black uppercase tracking-wide disabled:opacity-50 transition-colors"
                                     >
-                                        <div className="flex items-center gap-2">
-                                            <Gift className="w-4 h-4 text-teal-500 shrink-0" />
-                                            <span className="font-mono text-xs text-gray-600">{gc.code}</span>
-                                            {gc.expiryDate && (
-                                                <span className="text-[9px] text-gray-400">vence {gc.expiryDate.split('-').reverse().join('/')}</span>
+                                        {gcSearching ? '...' : 'Buscar'}
+                                    </button>
+                                </div>
+
+                                {gcError && (
+                                    <p className="text-xs text-red-500 font-medium">{gcError}</p>
+                                )}
+
+                                {gcFound && (
+                                    <div className="bg-teal-50 border border-teal-200 rounded-xl p-3 space-y-2">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                <Gift className="w-4 h-4 text-teal-600 shrink-0" />
+                                                <span className="font-mono text-xs font-bold text-teal-800">{gcFound.code}</span>
+                                            </div>
+                                            <span className="text-xs text-teal-600 font-bold">
+                                                Saldo: $ {formatArgentineCurrency(gcFound.remainingBalance)}
+                                            </span>
+                                        </div>
+                                        <div className="text-xs text-gray-600 space-y-0.5">
+                                            <p>Comprador: <span className="font-semibold">{gcFound.purchaserName}</span></p>
+                                            {gcFound.recipientName && <p>Para: <span className="font-semibold">{gcFound.recipientName}</span></p>}
+                                            {gcFound.message && <p className="italic text-gray-500">"{gcFound.message}"</p>}
+                                            {gcFound.expiryDate && <p>Vence: {gcFound.expiryDate.split('-').reverse().join('/')}</p>}
+                                        </div>
+                                        <div className="pt-1">
+                                            <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-1">Monto a aplicar ($)</label>
+                                            <input
+                                                type="number"
+                                                value={gcAmountToApply}
+                                                onChange={e => setGcAmountToApply(Math.min(parseFloat(e.target.value) || 0, gcFound.remainingBalance))}
+                                                min={1}
+                                                max={gcFound.remainingBalance}
+                                                className="w-full px-3 py-2 border border-teal-300 rounded-xl text-sm focus:outline-none focus:border-teal-500 bg-white text-gray-900"
+                                            />
+                                            {gcAmountToApply < gcFound.remainingBalance && (
+                                                <p className="text-[10px] text-teal-600 mt-1">
+                                                    Saldo restante: $ {formatArgentineCurrency(gcFound.remainingBalance - gcAmountToApply)}
+                                                </p>
                                             )}
                                         </div>
-                                        <span className="font-black text-sm text-teal-700">$ {formatArgentineCurrency(gc.amount)}</span>
-                                    </button>
-                                ))}
+                                    </div>
+                                )}
                             </div>
                         ) : newPayment.method === 'client_credit' ? (
                             <div className="space-y-2">

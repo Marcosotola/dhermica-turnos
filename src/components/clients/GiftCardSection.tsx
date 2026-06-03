@@ -1,21 +1,23 @@
 'use client';
 
 import { useState } from 'react';
-import { Gift, Plus, CheckCircle2, XCircle, Clock, ChevronDown, ChevronUp, History, Pencil, Trash2 } from 'lucide-react';
+import { Gift, Plus, CheckCircle2, XCircle, Clock, ChevronDown, ChevronUp, History, Pencil, Trash2, MessageCircle } from 'lucide-react';
 import { GiftCard } from '@/lib/types/giftCard';
-import { createGiftCard, updateGiftCard, deleteGiftCard, updateGiftCardStatus, generateGiftCardCode } from '@/lib/firebase/giftCards';
+import { createGiftCard, updateGiftCard, deleteGiftCard, updateGiftCardStatus, generateGiftCardCode, defaultExpiryDate } from '@/lib/firebase/giftCards';
 import { formatArgentineCurrency } from '@/lib/utils/currency';
 import { Button } from '../ui/Button';
 import { toast } from 'sonner';
+import { GiftCardDownloadButton } from './GiftCardDownloadButton';
+import { ClientNameAutocomplete } from '../ui/ClientNameAutocomplete';
 
 interface GiftCardSectionProps {
-    clientId: string;
-    clientName: string;
+    purchaserClientId: string;
+    purchaserName: string;
     giftCards: GiftCard[];
     onRefresh: () => void;
     createdBy?: string;
+    readonly?: boolean; // modo solo lectura (ej: receptor)
 }
-
 
 function formatDate(d?: string): string {
     if (!d) return '';
@@ -40,52 +42,75 @@ interface CreateFormState {
     amount: string;
     purchaseMethod: 'cash' | 'transfer' | 'debit' | 'credit' | 'qr';
     bankAccount: 'cuenta1' | 'cuenta2';
-    purchasedByName: string;
+    recipientName: string;
+    message: string;
     expiryDate: string;
     notes: string;
+    // override del comprador (cuando se crea desde la ficha de un cliente ya registrado,
+    // purchaserClientId viene por prop, pero se puede cambiar desde aquí también)
 }
 
-const EMPTY_FORM: CreateFormState = { amount: '', purchaseMethod: 'cash', bankAccount: 'cuenta1', purchasedByName: '', expiryDate: '', notes: '' };
+function getEmptyForm(): CreateFormState {
+    return {
+        amount: '',
+        purchaseMethod: 'cash',
+        bankAccount: 'cuenta1',
+        recipientName: '',
+        message: '',
+        expiryDate: defaultExpiryDate(),
+        notes: '',
+    };
+}
 
-export function GiftCardSection({ clientId, clientName, giftCards, onRefresh, createdBy }: GiftCardSectionProps) {
+export function GiftCardSection({
+    purchaserClientId,
+    purchaserName,
+    giftCards,
+    onRefresh,
+    createdBy,
+    readonly = false,
+}: GiftCardSectionProps) {
     const [showForm, setShowForm] = useState(false);
-    const [form, setForm] = useState<CreateFormState>(EMPTY_FORM);
+    const [form, setForm] = useState<CreateFormState>(getEmptyForm);
     const [creating, setCreating] = useState(false);
-    const [redeemingId, setRedeemingId] = useState<string | null>(null);
+    const [cancellingId, setCancellingId] = useState<string | null>(null);
     const [showAll, setShowAll] = useState(false);
     const [editingCard, setEditingCard] = useState<GiftCard | null>(null);
-    const [editForm, setEditForm] = useState<CreateFormState>(EMPTY_FORM);
+    const [editForm, setEditForm] = useState<CreateFormState>(getEmptyForm);
     const [saving, setSaving] = useState(false);
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
-    const activeCards = giftCards.filter(g => g.status === 'active');
-    const inactiveCards = giftCards.filter(g => g.status !== 'active');
+    const today = todayString();
+    const activeCards = giftCards.filter(g =>
+        (g.status === 'active' || g.status === 'partially_used') &&
+        (!g.expiryDate || g.expiryDate >= today)
+    );
+    const inactiveCards = giftCards.filter(g => !activeCards.includes(g));
 
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
         const amount = parseFloat(form.amount);
-        if (!amount || amount <= 0) {
-            toast.error('Ingresá un monto válido');
-            return;
-        }
+        if (!amount || amount <= 0) { toast.error('Ingresá un monto válido'); return; }
         setCreating(true);
         try {
             await createGiftCard({
                 code: generateGiftCardCode(),
-                amount,
+                originalAmount: amount,
+                remainingBalance: amount,
+                purchaserClientId,
+                purchaserName,
+                recipientName: form.recipientName || undefined,
+                message: form.message || undefined,
                 purchaseMethod: form.purchaseMethod,
                 bankAccount: form.purchaseMethod === 'transfer' ? form.bankAccount : null,
-                clientId,
-                clientName,
-                purchasedByName: form.purchasedByName || undefined,
                 status: 'active',
                 expiryDate: form.expiryDate || undefined,
                 notes: form.notes || undefined,
                 createdBy,
             });
             toast.success('Gift card creada');
-            setForm(EMPTY_FORM);
+            setForm(getEmptyForm());
             setShowForm(false);
             onRefresh();
         } catch (err) {
@@ -96,21 +121,8 @@ export function GiftCardSection({ clientId, clientName, giftCards, onRefresh, cr
         }
     };
 
-    const handleRedeem = async (card: GiftCard) => {
-        setRedeemingId(card.id);
-        try {
-            await updateGiftCardStatus(card.id, 'redeemed', { redeemedDate: todayString() });
-            toast.success(`Gift card ${card.code} marcada como usada`);
-            onRefresh();
-        } catch {
-            toast.error('Error al redimir la gift card');
-        } finally {
-            setRedeemingId(null);
-        }
-    };
-
     const handleCancel = async (card: GiftCard) => {
-        setRedeemingId(card.id);
+        setCancellingId(card.id);
         try {
             await updateGiftCardStatus(card.id, 'cancelled');
             toast.success(`Gift card ${card.code} cancelada`);
@@ -118,17 +130,18 @@ export function GiftCardSection({ clientId, clientName, giftCards, onRefresh, cr
         } catch {
             toast.error('Error al cancelar la gift card');
         } finally {
-            setRedeemingId(null);
+            setCancellingId(null);
         }
     };
 
     const handleEditOpen = (card: GiftCard) => {
         setEditingCard(card);
         setEditForm({
-            amount: String(card.amount),
+            amount: String(card.originalAmount),
             purchaseMethod: (card.purchaseMethod as CreateFormState['purchaseMethod']) || 'cash',
             bankAccount: (card.bankAccount as 'cuenta1' | 'cuenta2') || 'cuenta1',
-            purchasedByName: card.purchasedByName || '',
+            recipientName: card.recipientName || '',
+            message: card.message || '',
             expiryDate: card.expiryDate || '',
             notes: card.notes || '',
         });
@@ -142,10 +155,11 @@ export function GiftCardSection({ clientId, clientName, giftCards, onRefresh, cr
         setSaving(true);
         try {
             await updateGiftCard(editingCard.id, {
-                amount,
+                originalAmount: amount,
                 purchaseMethod: editForm.purchaseMethod,
                 bankAccount: editForm.purchaseMethod === 'transfer' ? editForm.bankAccount : null,
-                purchasedByName: editForm.purchasedByName || undefined,
+                recipientName: editForm.recipientName || undefined,
+                message: editForm.message || undefined,
                 expiryDate: editForm.expiryDate || undefined,
                 notes: editForm.notes || undefined,
             });
@@ -179,29 +193,27 @@ export function GiftCardSection({ clientId, clientName, giftCards, onRefresh, cr
             <div className="flex items-center justify-between">
                 <h4 className="font-black text-gray-900 uppercase tracking-widest text-xs flex items-center gap-2">
                     <Gift className="w-3.5 h-3.5 text-teal-500" /> Gift Cards
+                    {!readonly && <span className="text-gray-400 font-medium normal-case tracking-normal">compradas</span>}
                 </h4>
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setShowForm(v => !v)}
-                    className="text-teal-600 text-xs"
-                >
-                    <Plus className="w-3.5 h-3.5 mr-1" /> Nueva
-                </Button>
+                {!readonly && (
+                    <Button variant="ghost" size="sm" onClick={() => setShowForm(v => !v)} className="text-teal-600 text-xs">
+                        <Plus className="w-3.5 h-3.5 mr-1" /> Nueva
+                    </Button>
+                )}
             </div>
 
-            {/* Create form */}
-            {showForm && (
-                <form
-                    onSubmit={handleCreate}
-                    className="bg-teal-50 border border-teal-200 rounded-2xl p-4 space-y-3 animate-in slide-in-from-top-2"
-                >
-                    <p className="text-xs font-bold text-teal-800 uppercase tracking-wider">Nueva Gift Card</p>
+            {/* Formulario de creación */}
+            {showForm && !readonly && (
+                <form onSubmit={handleCreate} className="bg-teal-50 border border-teal-200 rounded-2xl p-4 space-y-3 animate-in slide-in-from-top-2">
+                    <div className="flex items-center justify-between">
+                        <p className="text-xs font-bold text-teal-800 uppercase tracking-wider">Nueva Gift Card</p>
+                        <span className="text-[10px] text-teal-600 font-medium">Comprador: {purchaserName}</span>
+                    </div>
+
                     <div className="grid grid-cols-2 gap-3">
                         <div>
-                            <label htmlFor="gc-amount" className="block text-xs font-medium text-gray-600 mb-1">Monto ($)</label>
+                            <label className="block text-xs font-medium text-gray-600 mb-1">Monto ($)</label>
                             <input
-                                id="gc-amount"
                                 type="number"
                                 value={form.amount}
                                 onChange={e => setForm(f => ({ ...f, amount: e.target.value }))}
@@ -212,9 +224,8 @@ export function GiftCardSection({ clientId, clientName, giftCards, onRefresh, cr
                             />
                         </div>
                         <div>
-                            <label htmlFor="gc-expiry" className="block text-xs font-medium text-gray-600 mb-1">Vence (opcional)</label>
+                            <label className="block text-xs font-medium text-gray-600 mb-1">Vence</label>
                             <input
-                                id="gc-expiry"
                                 type="date"
                                 value={form.expiryDate}
                                 onChange={e => setForm(f => ({ ...f, expiryDate: e.target.value }))}
@@ -222,6 +233,31 @@ export function GiftCardSection({ clientId, clientName, giftCards, onRefresh, cr
                             />
                         </div>
                     </div>
+
+                    <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Para (destinatario, opcional)</label>
+                        <input
+                            type="text"
+                            value={form.recipientName}
+                            onChange={e => setForm(f => ({ ...f, recipientName: e.target.value }))}
+                            placeholder="Nombre de quien recibe el regalo"
+                            className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 bg-white focus:outline-none focus:border-teal-400 text-gray-900"
+                        />
+                    </div>
+
+                    <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1 flex items-center gap-1">
+                            <MessageCircle className="w-3 h-3" /> Mensaje personalizado (opcional)
+                        </label>
+                        <input
+                            type="text"
+                            value={form.message}
+                            onChange={e => setForm(f => ({ ...f, message: e.target.value }))}
+                            placeholder="Ej: ¡Feliz cumple! Te lo mereces 🎉"
+                            className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 bg-white focus:outline-none focus:border-teal-400 text-gray-900"
+                        />
+                    </div>
+
                     <div>
                         <label className="block text-xs font-medium text-gray-600 mb-1">Método de pago</label>
                         <div className="flex flex-wrap gap-1.5">
@@ -259,40 +295,29 @@ export function GiftCardSection({ clientId, clientName, giftCards, onRefresh, cr
                             </div>
                         )}
                     </div>
+
                     <div>
-                        <label htmlFor="gc-buyer" className="block text-xs font-medium text-gray-600 mb-1">Comprada por (opcional)</label>
-                        <input
-                            id="gc-buyer"
-                            type="text"
-                            value={form.purchasedByName}
-                            onChange={e => setForm(f => ({ ...f, purchasedByName: e.target.value }))}
-                            placeholder="Nombre de quien la compró"
-                            className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 bg-white focus:outline-none focus:border-teal-400 text-gray-900"
-                        />
-                    </div>
-                    <div>
-                        <label htmlFor="gc-notes" className="block text-xs font-medium text-gray-600 mb-1">Observaciones (opcional)</label>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Notas (opcional)</label>
                         <textarea
-                            id="gc-notes"
                             value={form.notes}
                             onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
                             rows={2}
-                            placeholder="Notas adicionales..."
+                            placeholder="Observaciones adicionales..."
                             className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 bg-white focus:outline-none focus:border-teal-400 text-gray-900 resize-none"
                         />
                     </div>
+
                     <div className="flex gap-2">
                         <Button type="submit" disabled={creating} className="flex-1 bg-teal-500 hover:bg-teal-600 text-white text-sm py-2 rounded-xl">
                             {creating ? 'Creando...' : 'Crear Gift Card'}
                         </Button>
-                        <Button type="button" variant="ghost" onClick={() => { setShowForm(false); setForm(EMPTY_FORM); }} className="flex-1 text-sm py-2 rounded-xl">
+                        <Button type="button" variant="ghost" onClick={() => { setShowForm(false); setForm(getEmptyForm()); }} className="flex-1 text-sm py-2 rounded-xl">
                             Cancelar
                         </Button>
                     </div>
                 </form>
             )}
 
-            {/* Active cards */}
             {activeCards.length === 0 && !showForm && (
                 <p className="text-xs text-gray-400 text-center py-3">Sin gift cards activas</p>
             )}
@@ -301,15 +326,13 @@ export function GiftCardSection({ clientId, clientName, giftCards, onRefresh, cr
                 <GiftCardRow
                     key={card.id}
                     card={card}
-                    onRedeem={() => handleRedeem(card)}
-                    onCancel={() => handleCancel(card)}
-                    onEdit={() => handleEditOpen(card)}
-                    onDelete={() => setConfirmDeleteId(card.id)}
-                    loading={redeemingId === card.id}
+                    onCancel={readonly ? undefined : () => handleCancel(card)}
+                    onEdit={readonly ? undefined : () => handleEditOpen(card)}
+                    onDelete={readonly ? undefined : () => setConfirmDeleteId(card.id)}
+                    loading={cancellingId === card.id}
                 />
             ))}
 
-            {/* Historial colapsable */}
             {inactiveCards.length > 0 && (
                 <div className="border border-gray-100 rounded-2xl overflow-hidden bg-white shadow-sm">
                     <button
@@ -330,8 +353,8 @@ export function GiftCardSection({ clientId, clientName, giftCards, onRefresh, cr
                                 <GiftCardRow
                                     key={card.id}
                                     card={card}
-                                    onEdit={() => handleEditOpen(card)}
-                                    onDelete={() => setConfirmDeleteId(card.id)}
+                                    onEdit={readonly ? undefined : () => handleEditOpen(card)}
+                                    onDelete={readonly ? undefined : () => setConfirmDeleteId(card.id)}
                                     loading={false}
                                 />
                             ))}
@@ -343,23 +366,28 @@ export function GiftCardSection({ clientId, clientName, giftCards, onRefresh, cr
             {/* Modal de edición */}
             {editingCard && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-                    <form
-                        onSubmit={handleEditSave}
-                        className="bg-white rounded-3xl shadow-2xl p-5 w-full max-w-sm space-y-4"
-                    >
+                    <form onSubmit={handleEditSave} className="bg-white rounded-3xl shadow-2xl p-5 w-full max-w-sm space-y-4 max-h-[90vh] overflow-y-auto">
                         <div className="flex items-center justify-between">
                             <p className="font-black text-gray-900 text-sm uppercase tracking-wider">Editar Gift Card</p>
                             <span className="font-mono text-xs text-gray-400">{editingCard.code}</span>
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                             <div>
-                                <label className="block text-xs font-medium text-gray-600 mb-1">Monto ($)</label>
-                                <input type="number" value={editForm.amount} onChange={e => setEditForm(f => ({ ...f, amount: e.target.value }))} min={1} required className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 bg-white focus:outline-none focus:border-teal-400 text-gray-900" />
+                                <label className="block text-xs font-medium text-gray-600 mb-1">Monto original ($)</label>
+                                <input type="number" value={editForm.amount} onChange={e => setEditForm(f => ({ ...f, amount: e.target.value }))} min={1} required title="Monto original" placeholder="0" className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 bg-white focus:outline-none focus:border-teal-400 text-gray-900" />
                             </div>
                             <div>
-                                <label className="block text-xs font-medium text-gray-600 mb-1">Vence (opcional)</label>
-                                <input type="date" value={editForm.expiryDate} onChange={e => setEditForm(f => ({ ...f, expiryDate: e.target.value }))} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:border-teal-400 text-gray-700" />
+                                <label className="block text-xs font-medium text-gray-600 mb-1">Vence</label>
+                                <input type="date" value={editForm.expiryDate} onChange={e => setEditForm(f => ({ ...f, expiryDate: e.target.value }))} title="Fecha de vencimiento" className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:border-teal-400 text-gray-700" />
                             </div>
+                        </div>
+                        <div>
+                            <label className="block text-xs font-medium text-gray-600 mb-1">Para (destinatario)</label>
+                            <input type="text" value={editForm.recipientName} onChange={e => setEditForm(f => ({ ...f, recipientName: e.target.value }))} placeholder="Nombre del destinatario" className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:border-teal-400 text-gray-900" />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-medium text-gray-600 mb-1">Mensaje</label>
+                            <input type="text" value={editForm.message} onChange={e => setEditForm(f => ({ ...f, message: e.target.value }))} placeholder="Mensaje personalizado" className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:border-teal-400 text-gray-900" />
                         </div>
                         <div>
                             <label className="block text-xs font-medium text-gray-600 mb-1">Método de pago</label>
@@ -383,12 +411,8 @@ export function GiftCardSection({ clientId, clientName, giftCards, onRefresh, cr
                             )}
                         </div>
                         <div>
-                            <label className="block text-xs font-medium text-gray-600 mb-1">Comprada por (opcional)</label>
-                            <input type="text" value={editForm.purchasedByName} onChange={e => setEditForm(f => ({ ...f, purchasedByName: e.target.value }))} placeholder="Nombre de quien la compró" className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:border-teal-400 text-gray-900" />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-medium text-gray-600 mb-1">Observaciones (opcional)</label>
-                            <textarea value={editForm.notes} onChange={e => setEditForm(f => ({ ...f, notes: e.target.value }))} rows={2} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:border-teal-400 text-gray-900 resize-none" />
+                            <label className="block text-xs font-medium text-gray-600 mb-1">Notas</label>
+                            <textarea value={editForm.notes} onChange={e => setEditForm(f => ({ ...f, notes: e.target.value }))} rows={2} placeholder="Observaciones adicionales..." className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:border-teal-400 text-gray-900 resize-none" />
                         </div>
                         <div className="flex gap-2">
                             <Button type="submit" disabled={saving} className="flex-1 bg-teal-500 hover:bg-teal-600 text-white text-sm py-2 rounded-xl">
@@ -433,24 +457,24 @@ export function GiftCardSection({ clientId, clientName, giftCards, onRefresh, cr
 
 interface GiftCardRowProps {
     card: GiftCard;
-    onRedeem?: () => void;
     onCancel?: () => void;
     onEdit?: () => void;
     onDelete?: () => void;
     loading: boolean;
 }
 
-function GiftCardRow({ card, onRedeem, onCancel, onEdit, onDelete, loading }: GiftCardRowProps) {
+function GiftCardRow({ card, onCancel, onEdit, onDelete, loading }: GiftCardRowProps) {
+    const today = todayString();
     const isActive = card.status === 'active';
+    const isPartial = card.status === 'partially_used';
     const isRedeemed = card.status === 'redeemed';
     const isCancelled = card.status === 'cancelled';
-    const isExpired = isActive && card.expiryDate && card.expiryDate < todayString();
+    const isExpired = (isActive || isPartial) && card.expiryDate && card.expiryDate < today;
 
-    // ── HISTORIAL: flat card con borde izquierdo de color ──
-    if (!isActive || isExpired) {
+    if ((!isActive && !isPartial) || isExpired) {
         const leftBorder = isRedeemed ? 'border-l-[#34baab]' : isCancelled ? 'border-l-red-300' : 'border-l-amber-400';
         const BadgeIcon = isRedeemed ? CheckCircle2 : isCancelled ? XCircle : Clock;
-        const badgeLabel = isRedeemed ? 'Usada' : isCancelled ? 'Cancelada' : 'Vencida';
+        const badgeLabel = isRedeemed ? 'Usada' : isCancelled ? 'Cancelada' : isPartial ? 'Vencida (parcial)' : 'Vencida';
         const badgeClass = isRedeemed
             ? 'text-teal-600 bg-teal-50 border-teal-200'
             : isCancelled
@@ -468,22 +492,29 @@ function GiftCardRow({ card, onRedeem, onCancel, onEdit, onDelete, loading }: Gi
                         <span className="font-mono text-xs text-gray-400 truncate">{card.code}</span>
                     </div>
                     <span className={`font-bold text-sm shrink-0 ${isCancelled ? 'text-gray-400 line-through' : 'text-gray-700'}`}>
-                        $ {formatArgentineCurrency(card.amount)}
+                        $ {formatArgentineCurrency(card.originalAmount)}
                     </span>
                 </div>
-                {card.purchasedByName && (
-                    <p className="text-xs text-gray-400">De: {card.purchasedByName}</p>
+                {card.recipientName && (
+                    <p className="text-xs text-gray-400">Para: {card.recipientName}</p>
                 )}
-                {card.redeemedDate && (
-                    <p className="text-xs text-gray-400 flex items-center gap-1">
-                        <CheckCircle2 className="w-3 h-3 text-[#34baab]" />
-                        Usada el {formatDate(card.redeemedDate)}
-                    </p>
+                {card.message && (
+                    <p className="text-xs text-gray-400 italic">"{card.message}"</p>
+                )}
+                {card.redemptions?.length > 0 && (
+                    <div className="space-y-0.5 pt-1">
+                        {card.redemptions.map((r, i) => (
+                            <p key={i} className="text-xs text-gray-400 flex items-center gap-1">
+                                <CheckCircle2 className="w-3 h-3 text-[#34baab]" />
+                                Usado $ {formatArgentineCurrency(r.amount)} el {formatDate(r.date)}
+                                {r.recipientName && ` · por ${r.recipientName}`}
+                            </p>
+                        ))}
+                    </div>
                 )}
                 {isExpired && card.expiryDate && (
                     <p className="text-xs text-amber-500 flex items-center gap-1">
-                        <Clock className="w-3 h-3" />
-                        Venció el {formatDate(card.expiryDate)}
+                        <Clock className="w-3 h-3" /> Venció el {formatDate(card.expiryDate)}
                     </p>
                 )}
                 {card.notes && <p className="text-xs text-gray-400 italic">{card.notes}</p>}
@@ -503,25 +534,45 @@ function GiftCardRow({ card, onRedeem, onCancel, onEdit, onDelete, loading }: Gi
         );
     }
 
-    // ── ACTIVA: gradient card prominente ──
+    // Tarjeta activa o parcialmente usada
+    const usedAmount = card.originalAmount - card.remainingBalance;
+
     return (
         <div className="relative rounded-2xl overflow-hidden bg-gradient-to-br from-teal-500 via-teal-400 to-cyan-400 p-4 shadow-sm">
             <Gift className="absolute right-2 top-1/2 -translate-y-1/2 w-20 h-20 text-white/10 pointer-events-none" />
 
             <div className="flex items-center gap-1.5 mb-2">
                 <Gift className="w-3.5 h-3.5 text-white/70" />
-                <span className="text-[10px] font-black text-white/70 uppercase tracking-widest">Gift Card · Activa</span>
+                <span className="text-[10px] font-black text-white/70 uppercase tracking-widest">
+                    Gift Card · {isPartial ? 'Uso Parcial' : 'Activa'}
+                </span>
             </div>
 
-            <p className="text-2xl font-black text-white tracking-tight leading-none mb-3">
-                $ {formatArgentineCurrency(card.amount)}
-            </p>
+            <div className="flex items-end gap-3 mb-1">
+                <p className="text-2xl font-black text-white tracking-tight leading-none">
+                    $ {formatArgentineCurrency(card.remainingBalance)}
+                </p>
+                {isPartial && (
+                    <p className="text-xs text-white/60 mb-1">
+                        de $ {formatArgentineCurrency(card.originalAmount)} originales
+                    </p>
+                )}
+            </div>
+
+            {isPartial && usedAmount > 0 && (
+                <p className="text-xs text-white/50 mb-1">
+                    Usado: $ {formatArgentineCurrency(usedAmount)}
+                </p>
+            )}
 
             <p className="font-mono text-[11px] text-white/60 tracking-widest mb-2">{card.code}</p>
 
             <div className="space-y-0.5">
-                {card.purchasedByName && (
-                    <p className="text-xs text-white/70">De: <span className="font-semibold">{card.purchasedByName}</span></p>
+                {card.recipientName && (
+                    <p className="text-xs text-white/70">Para: <span className="font-semibold">{card.recipientName}</span></p>
+                )}
+                {card.message && (
+                    <p className="text-xs text-white/60 italic">"{card.message}"</p>
                 )}
                 {card.expiryDate && (
                     <p className="text-xs text-white/70 flex items-center gap-1">
@@ -532,31 +583,28 @@ function GiftCardRow({ card, onRedeem, onCancel, onEdit, onDelete, loading }: Gi
                 {card.notes && <p className="text-xs text-white/60 italic">{card.notes}</p>}
             </div>
 
-            <div className="flex gap-2 mt-3">
-                {onRedeem && (
-                    <button type="button" onClick={onRedeem} disabled={loading}
-                        className="flex-1 text-xs font-bold text-teal-700 bg-white hover:bg-teal-50 rounded-xl py-1.5 transition-colors disabled:opacity-50 shadow-sm">
-                        {loading ? '...' : 'Marcar como usada'}
-                    </button>
-                )}
+            <div className="flex gap-2 mt-3 items-center">
                 {onCancel && (
                     <button type="button" onClick={onCancel} disabled={loading}
                         className="text-xs font-semibold text-white/80 hover:text-white px-3 py-1.5 rounded-xl hover:bg-white/20 transition-colors disabled:opacity-50">
                         Cancelar
                     </button>
                 )}
-                {onEdit && (
-                    <button type="button" onClick={onEdit}
-                        className="p-1.5 rounded-xl bg-white/20 hover:bg-white/30 transition-colors" title="Editar">
-                        <Pencil className="w-3.5 h-3.5 text-white/80" />
-                    </button>
-                )}
-                {onDelete && (
-                    <button type="button" onClick={onDelete}
-                        className="p-1.5 rounded-xl bg-white/20 hover:bg-red-400/40 transition-colors" title="Eliminar">
-                        <Trash2 className="w-3.5 h-3.5 text-white/80" />
-                    </button>
-                )}
+                <div className="ml-auto flex gap-1.5">
+                    <GiftCardDownloadButton card={card} variant="icon" />
+                    {onEdit && (
+                        <button type="button" onClick={onEdit}
+                            className="p-1.5 rounded-xl bg-white/20 hover:bg-white/30 transition-colors" title="Editar">
+                            <Pencil className="w-3.5 h-3.5 text-white/80" />
+                        </button>
+                    )}
+                    {onDelete && (
+                        <button type="button" onClick={onDelete}
+                            className="p-1.5 rounded-xl bg-white/20 hover:bg-red-400/40 transition-colors" title="Eliminar">
+                            <Trash2 className="w-3.5 h-3.5 text-white/80" />
+                        </button>
+                    )}
+                </div>
             </div>
         </div>
     );

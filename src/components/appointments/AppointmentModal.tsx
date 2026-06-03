@@ -20,7 +20,7 @@ import { capitalizeName, timeToDecimal } from '@/lib/utils/time';
 import { validateAppointment, checkOverlap, checkAppointmentConflict } from '@/lib/utils/validation';
 import { createAppointment, updateAppointment } from '@/lib/firebase/appointments';
 import { GiftCard } from '@/lib/types/giftCard';
-import { getGiftCardsByClient, updateGiftCardStatus } from '@/lib/firebase/giftCards';
+import { getGiftCardByCode, redeemGiftCard } from '@/lib/firebase/giftCards';
 import { ClientCredit } from '@/lib/types/clientCredit';
 import { getClientCredits, useCredit } from '@/lib/firebase/clientCredits';
 import { formatArgentineCurrency } from '@/lib/utils/currency';
@@ -82,8 +82,11 @@ export function AppointmentModal({
         date: new Date().toLocaleDateString('en-CA') // Default to today
     });
     const [showPaymentForm, setShowPaymentForm] = useState(false);
-    const [activeGiftCards, setActiveGiftCards] = useState<GiftCard[]>([]);
-    const [selectedGiftCardId, setSelectedGiftCardId] = useState<string>('');
+    const [gcCode, setGcCode] = useState('');
+    const [gcSearching, setGcSearching] = useState(false);
+    const [gcFound, setGcFound] = useState<GiftCard | null>(null);
+    const [gcError, setGcError] = useState('');
+    const [gcAmountToApply, setGcAmountToApply] = useState(0);
     const [activeCredits, setActiveCredits] = useState<ClientCredit[]>([]);
     const [selectedCreditId, setSelectedCreditId] = useState<string>('');
     const [loading, setLoading] = useState(false);
@@ -130,14 +133,26 @@ export function AppointmentModal({
         }
     }, [isOpen]);
 
-    const fetchActiveGiftCards = (clientId: string, clientName?: string) => {
-        if (!clientId) { setActiveGiftCards([]); return; }
-        getGiftCardsByClient(clientId, clientName).then(cards => {
-            setActiveGiftCards(cards.filter(c => c.status === 'active' && (!c.expiryDate || c.expiryDate >= today)));
-        }).catch(err => {
-            console.error('[GiftCards] Error al buscar gift cards:', err);
-            setActiveGiftCards([]);
-        });
+    const handleSearchGiftCard = async () => {
+        if (!gcCode.trim()) return;
+        setGcSearching(true);
+        setGcError('');
+        setGcFound(null);
+        try {
+            const card = await getGiftCardByCode(gcCode.trim());
+            if (!card) { setGcError('Código no encontrado'); return; }
+            if (card.status === 'redeemed') { setGcError('Esta gift card ya fue utilizada completamente'); return; }
+            if (card.status === 'cancelled') { setGcError('Esta gift card fue cancelada'); return; }
+            if (card.status === 'expired' || (card.expiryDate && card.expiryDate < today)) { setGcError('Esta gift card está vencida'); return; }
+            if (formData.payments.some(p => p.giftCardId === card.id)) { setGcError('Esta gift card ya fue agregada'); return; }
+            setGcFound(card);
+            const pending = (formData.price || 0) - formData.payments.reduce((s, p) => s + p.amount, 0);
+            setGcAmountToApply(Math.min(card.remainingBalance, pending > 0 ? pending : card.remainingBalance));
+        } catch {
+            setGcError('Error al buscar la gift card');
+        } finally {
+            setGcSearching(false);
+        }
     };
 
     const fetchActiveCredits = (clientId: string, clientName?: string) => {
@@ -269,8 +284,11 @@ export function AppointmentModal({
         setErrors([]);
         setSearchQuery('');
         setShowSuggestions(false);
-        setSelectedGiftCardId('');
         setSelectedCreditId('');
+        setGcCode('');
+        setGcFound(null);
+        setGcError('');
+        setGcAmountToApply(0);
         setNewPayment({
             amount: 0,
             method: 'cash',
@@ -280,10 +298,8 @@ export function AppointmentModal({
         });
         setShowPaymentForm(false);
         if (appointment?.clientId) {
-            fetchActiveGiftCards(appointment.clientId, appointment.clientName);
             fetchActiveCredits(appointment.clientId, appointment.clientName);
         } else {
-            setActiveGiftCards([]);
             setActiveCredits([]);
         }
     }, [appointment, defaultTime, defaultProfessionalId, isOpen]);
@@ -314,30 +330,31 @@ export function AppointmentModal({
         }));
         setSearchQuery(client.fullName);
         setShowSuggestions(false);
-        fetchActiveGiftCards(client.uid, client.fullName);
         fetchActiveCredits(client.uid, client.fullName);
     };
 
     const handleAddPayment = () => {
         if (newPayment.method === 'gift_card') {
-            if (!selectedGiftCardId) { toast.error('Seleccioná una gift card'); return; }
-            const gc = activeGiftCards.find(c => c.id === selectedGiftCardId);
-            if (!gc) return;
+            if (!gcFound) { toast.error('Buscá una gift card primero'); return; }
+            if (gcAmountToApply <= 0) { toast.error('El monto a aplicar debe ser mayor a 0'); return; }
+            if (gcAmountToApply > gcFound.remainingBalance) { toast.error(`El monto supera el saldo disponible`); return; }
             const payment: Payment = {
                 id: Math.random().toString(36).substring(2, 9),
-                amount: gc.amount,
+                amount: gcAmountToApply,
                 method: 'gift_card',
-                label: `Gift Card (${gc.code})`,
+                label: `Gift Card (${gcFound.code})`,
                 bankAccount: null,
-                giftCardId: gc.id,
+                giftCardId: gcFound.id,
                 date: newPayment.date,
                 createdAt: new Date().toISOString() as any,
             };
             setFormData(prev => ({ ...prev, payments: [...prev.payments, payment] }));
-            setActiveGiftCards(prev => prev.filter(c => c.id !== gc.id));
-            setSelectedGiftCardId('');
+            setGcCode('');
+            setGcFound(null);
+            setGcError('');
+            setGcAmountToApply(0);
             setShowPaymentForm(false);
-            toast.success(`Gift Card ${gc.code} agregada`);
+            toast.success(`Gift Card ${payment.label} agregada`);
             return;
         }
 
@@ -396,13 +413,6 @@ export function AppointmentModal({
     const removePayment = (id: string) => {
         const removed = formData.payments.find(p => p.id === id);
         setFormData(prev => ({ ...prev, payments: prev.payments.filter(p => p.id !== id) }));
-        if (removed?.method === 'gift_card' && removed.giftCardId) {
-            const clientId = formData.clientId || `legacy-${formData.clientName?.replace(/\s+/g, '-').toLowerCase()}`;
-            getGiftCardsByClient(clientId, formData.clientName).then(cards => {
-                const restored = cards.find(c => c.id === removed.giftCardId && c.status === 'active' && (!c.expiryDate || c.expiryDate >= today));
-                if (restored) setActiveGiftCards(prev => [...prev, restored]);
-            }).catch(() => {});
-        }
         if (removed?.method === 'client_credit' && removed.creditId) {
             const clientId = formData.clientId || `legacy-${formData.clientName?.replace(/\s+/g, '-').toLowerCase()}`;
             getClientCredits(clientId, formData.clientName).then(credits => {
@@ -570,10 +580,14 @@ export function AppointmentModal({
             const gcPayments = finalPayments.filter(p => p.method === 'gift_card' && p.giftCardId);
             if (gcPayments.length > 0) {
                 await Promise.all(gcPayments.map(p =>
-                    updateGiftCardStatus(p.giftCardId!, 'redeemed', {
-                        redeemedDate: today,
-                        redeemedInAppointmentId: savedId,
-                    })
+                    redeemGiftCard(
+                        p.giftCardId!,
+                        p.amount,
+                        savedId,
+                        today,
+                        formData.clientId,
+                        formData.clientName,
+                    )
                 ));
             }
 
@@ -1023,7 +1037,9 @@ export function AppointmentModal({
                                 value={newPayment.method}
                                 onChange={(e) => {
                                     setNewPayment({ ...newPayment, method: e.target.value as any });
-                                    setSelectedGiftCardId('');
+                                    setGcCode('');
+                                    setGcFound(null);
+                                    setGcError('');
                                     setSelectedCreditId('');
                                 }}
                                 options={[
@@ -1032,29 +1048,58 @@ export function AppointmentModal({
                                     { value: 'debit', label: 'Débito' },
                                     { value: 'credit', label: 'Crédito' },
                                     { value: 'qr', label: 'QR' },
-                                    ...(activeGiftCards.length > 0 ? [{ value: 'gift_card', label: 'Gift Card' }] : []),
+                                    { value: 'gift_card', label: 'Gift Card' },
                                     ...(activeCredits.length > 0 ? [{ value: 'client_credit', label: 'Saldo a Favor' }] : []),
                                 ]}
                             />
 
                             {newPayment.method === 'gift_card' ? (
-                                <div className="space-y-2">
-                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Gift Card activa</p>
-                                    {activeGiftCards.map(gc => (
+                                <div className="space-y-3">
+                                    <div className="flex gap-2">
+                                        <input
+                                            type="text"
+                                            value={gcCode}
+                                            onChange={e => { setGcCode(e.target.value.toUpperCase()); setGcFound(null); setGcError(''); }}
+                                            onKeyDown={e => e.key === 'Enter' && handleSearchGiftCard()}
+                                            placeholder="Ej: GC-260603-A7K2"
+                                            className="flex-1 px-3 py-2 border border-gray-200 rounded-xl text-sm font-mono focus:outline-none focus:border-teal-400 bg-white text-gray-900 uppercase"
+                                        />
                                         <button
-                                            key={gc.id}
                                             type="button"
-                                            onClick={() => setSelectedGiftCardId(gc.id)}
-                                            className={`w-full flex items-center justify-between p-3 rounded-xl border-2 transition-all ${selectedGiftCardId === gc.id ? 'border-teal-400 bg-teal-50' : 'border-gray-100 bg-white hover:border-teal-200'}`}
+                                            onClick={handleSearchGiftCard}
+                                            disabled={gcSearching || !gcCode.trim()}
+                                            className="px-4 py-2 rounded-xl bg-teal-500 hover:bg-teal-600 text-white text-xs font-black uppercase tracking-wide disabled:opacity-50 transition-colors"
                                         >
-                                            <div className="flex items-center gap-2">
-                                                <Gift className="w-4 h-4 text-teal-500 shrink-0" />
-                                                <span className="font-mono text-xs text-gray-600">{gc.code}</span>
-                                                {gc.expiryDate && <span className="text-[9px] text-gray-400">vence {gc.expiryDate.split('-').reverse().join('/')}</span>}
-                                            </div>
-                                            <span className="font-black text-sm text-teal-700">$ {formatArgentineCurrency(gc.amount)}</span>
+                                            {gcSearching ? '...' : 'Buscar'}
                                         </button>
-                                    ))}
+                                    </div>
+                                    {gcError && <p className="text-xs text-red-500 font-medium">{gcError}</p>}
+                                    {gcFound && (
+                                        <div className="bg-teal-50 border border-teal-200 rounded-xl p-3 space-y-2">
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-2">
+                                                    <Gift className="w-4 h-4 text-teal-600 shrink-0" />
+                                                    <span className="font-mono text-xs font-bold text-teal-800">{gcFound.code}</span>
+                                                </div>
+                                                <span className="text-xs text-teal-600 font-bold">Saldo: $ {formatArgentineCurrency(gcFound.remainingBalance)}</span>
+                                            </div>
+                                            <p className="text-xs text-gray-600">Comprador: <span className="font-semibold">{gcFound.purchaserName}</span></p>
+                                            {gcFound.message && <p className="text-xs text-gray-400 italic">"{gcFound.message}"</p>}
+                                            <div className="pt-1">
+                                                <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-1">Monto a aplicar ($)</label>
+                                                <input
+                                                    type="number"
+                                                    value={gcAmountToApply}
+                                                    onChange={e => setGcAmountToApply(Math.min(parseFloat(e.target.value) || 0, gcFound.remainingBalance))}
+                                                    min={1}
+                                                    max={gcFound.remainingBalance}
+                                                    title="Monto a aplicar"
+                                                    placeholder="0"
+                                                    className="w-full px-3 py-2 border border-teal-300 rounded-xl text-sm focus:outline-none focus:border-teal-500 bg-white text-gray-900"
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             ) : newPayment.method === 'client_credit' ? (
                                 <div className="space-y-2">

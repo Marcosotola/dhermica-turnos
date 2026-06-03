@@ -26,7 +26,7 @@ import { ClientCredit } from '@/lib/types/clientCredit';
 import { getClientCredits } from '@/lib/firebase/clientCredits';
 import { ClientLedger } from '@/components/clients/ClientLedger';
 import { GiftCard } from '@/lib/types/giftCard';
-import { getGiftCardsByClient } from '@/lib/firebase/giftCards';
+import { getGiftCardsByPurchaser } from '@/lib/firebase/giftCards';
 import { getClientLedgerSummary, BALANCE_SINCE } from '@/lib/utils/clientLedger';
 
 export default function MisTurnosPage() {
@@ -52,7 +52,7 @@ export default function MisTurnosPage() {
                 const [apts, creds, gcs] = await Promise.all([
                     getAppointmentsByClientId(user.uid, profile.fullName),
                     getClientCredits(user.uid, profile.fullName),
-                    getGiftCardsByClient(user.uid, profile.fullName),
+                    getGiftCardsByPurchaser(user.uid, profile.fullName),
                 ]);
                 setAppointments(apts);
                 setCredits(creds);
@@ -78,7 +78,11 @@ export default function MisTurnosPage() {
     }
 
     const summary = getClientLedgerSummary(appointments, credits);
-    const activeGiftCards = giftCards.filter(g => g.status === 'active');
+    const today = new Date().toISOString().split('T')[0];
+    const activeGiftCards = giftCards.filter(g =>
+        (g.status === 'active' || g.status === 'partially_used') &&
+        (!g.expiryDate || g.expiryDate >= today)
+    );
 
     return (
         <div className="min-h-screen bg-gray-50 pb-24">
@@ -237,7 +241,7 @@ export default function MisTurnosPage() {
                                     <div className="flex items-start justify-between">
                                         <div>
                                             <p className="text-[10px] font-black text-white/70 uppercase tracking-widest mb-1">Gift Card activa</p>
-                                            <p className="text-2xl font-black text-white">$ {formatArgentineCurrency(gc.amount)}</p>
+                                            <p className="text-2xl font-black text-white">$ {formatArgentineCurrency(gc.remainingBalance)}</p>
                                             <p className="text-xs font-mono text-white/80 mt-1">{gc.code}</p>
                                         </div>
                                         {gc.expiryDate && (

@@ -26,7 +26,7 @@ import { getClientCredits } from '@/lib/firebase/clientCredits';
 import { ClientLedger } from '@/components/clients/ClientLedger';
 import { getClientLedgerSummary } from '@/lib/utils/clientLedger';
 import { GiftCard } from '@/lib/types/giftCard';
-import { getGiftCardsByClient } from '@/lib/firebase/giftCards';
+import { getGiftCardsByPurchaser } from '@/lib/firebase/giftCards';
 import { GiftCardSection } from '@/components/clients/GiftCardSection';
 
 export default function AgendaPage() {
@@ -201,7 +201,7 @@ export default function AgendaPage() {
             const [apts, credits, gCards] = await Promise.all([
                 getAppointmentsByClientId(selectedUser.uid, selectedUser.fullName),
                 getClientCredits(selectedUser.uid, selectedUser.fullName),
-                getGiftCardsByClient(selectedUser.uid, selectedUser.fullName),
+                getGiftCardsByPurchaser(selectedUser.uid, selectedUser.fullName),
             ]);
             setAppointments(apts);
             setClientCredits(credits);
@@ -548,8 +548,8 @@ export default function AgendaPage() {
                                         </div>
                                     ) : (
                                         <GiftCardSection
-                                            clientId={selectedUser.uid}
-                                            clientName={selectedUser.fullName}
+                                            purchaserClientId={selectedUser.uid}
+                                            purchaserName={selectedUser.fullName}
                                             giftCards={giftCards}
                                             onRefresh={fetchHistory}
                                             createdBy={user?.uid}
@@ -831,7 +831,11 @@ export default function AgendaPage() {
             {/* Vista del cliente modal */}
             {showClientView && selectedUser && (() => {
                 const cvSummary = getClientLedgerSummary(appointments, clientCredits);
-                const activeGiftCards = giftCards.filter(g => g.status === 'active');
+                const today = new Date().toISOString().split('T')[0];
+                const activeGiftCards = giftCards.filter(g =>
+                    (g.status === 'active' || g.status === 'partially_used') &&
+                    (!g.expiryDate || g.expiryDate >= today)
+                );
                 return (
                 <div className="fixed inset-0 z-50 flex flex-col bg-gray-50 overflow-y-auto">
                     {/* Header */}
@@ -974,7 +978,7 @@ export default function AgendaPage() {
                                         <div className="flex items-start justify-between">
                                             <div>
                                                 <p className="text-[10px] font-black text-white/70 uppercase tracking-widest mb-1">Gift Card activa</p>
-                                                <p className="text-2xl font-black text-white">$ {formatArgentineCurrency(gc.amount)}</p>
+                                                <p className="text-2xl font-black text-white">$ {formatArgentineCurrency(gc.remainingBalance)}</p>
                                                 <p className="text-xs font-mono text-white/80 mt-1">{gc.code}</p>
                                             </div>
                                             {gc.expiryDate && (

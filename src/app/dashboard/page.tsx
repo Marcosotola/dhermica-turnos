@@ -29,7 +29,8 @@ import {
     DollarSign,
     Zap,
     TrendingDown,
-    Heart
+    Heart,
+    Gift
 } from 'lucide-react';
 
 import Link from 'next/link';
@@ -266,6 +267,12 @@ export default function DashboardPage() {
                                 <TrendingDown className="w-10 h-10 text-red-500 mb-4 group-hover:scale-110 transition-transform" />
                                 <span className="text-xl font-bold text-gray-900 text-center">Egresos</span>
                                 <p className="hidden md:block text-gray-500 text-sm mt-2 text-center">Registro de gastos del local.</p>
+                            </Link>
+
+                            <Link href="/gift-cards" className="flex flex-col items-center justify-center bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-all group">
+                                <Gift className="w-10 h-10 text-teal-500 mb-4 group-hover:scale-110 transition-transform" />
+                                <span className="text-xl font-bold text-gray-900 text-center">Gift Cards</span>
+                                <p className="hidden md:block text-gray-500 text-sm mt-2 text-center">Gestionar tarjetas de regalo.</p>
                             </Link>
                         </>
                     )}

@@ -5,7 +5,7 @@
 import { useState, useEffect, ElementType } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Menu, X, Home, Calendar, Truck, Users, LayoutDashboard, LogOut, BookOpen, Settings, Sparkles, Tag, ShoppingBag, Bell, Share2, MapPin, DollarSign, Zap, TrendingDown, Download, Heart } from 'lucide-react';
+import { Menu, X, Home, Calendar, Truck, Users, LayoutDashboard, LogOut, BookOpen, Settings, Sparkles, Tag, ShoppingBag, Bell, Share2, MapPin, DollarSign, Zap, TrendingDown, Download, Heart, Gift } from 'lucide-react';
 
 import { Button } from '../ui/Button';
 import { useAuth } from '@/lib/contexts/AuthContext';
@@ -76,6 +76,7 @@ export function TopNavbar() {
             { href: '/finanzas', label: 'Finanzas', icon: DollarSign },
             { href: '/egresos', label: 'Egresos', icon: TrendingDown },
             { href: '/agenda', label: 'Fichas', icon: BookOpen },
+            { href: '/gift-cards', label: 'Gift Cards', icon: Gift },
             { href: '/aparatos', label: 'Aparatos', icon: Zap },
             { href: '/promociones', label: 'Promos', icon: Tag },
             { href: '/tratamientos', label: 'Servicios', icon: Sparkles },
@@ -105,11 +106,12 @@ export function TopNavbar() {
             { href: '/turnos', label: 'Turnos', icon: Calendar },
             { href: '/finanzas', label: 'Finanzas', icon: DollarSign },
             { href: '/egresos', label: 'Egresos', icon: TrendingDown },
+            { href: '/agenda', label: 'Fichas', icon: BookOpen },
+            { href: '/gift-cards', label: 'Gift Cards', icon: Gift },
             { href: '/aparatos', label: 'Aparatos', icon: Zap },
             { href: '/promociones', label: 'Promos', icon: Tag },
             { href: '/tratamientos', label: 'Servicios', icon: Sparkles },
             { href: '/productos', label: 'Productos', icon: ShoppingBag },
-            { href: '/agenda', label: 'Fichas', icon: BookOpen },
             { href: '/secretaria/notificaciones', label: 'Avisos', icon: Bell },
             { href: '/usuarios', label: 'Usuarios', icon: Settings },
             { href: '/ubicacion', label: 'Ubicación', icon: MapPin },
