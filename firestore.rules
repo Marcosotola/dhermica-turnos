@@ -31,10 +31,22 @@ service cloud.firestore {
       );
     }
 
+    // Helper: true for any authenticated non-client role
+    function isNotClient() {
+      return request.auth != null &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role != 'client';
+    }
+
     // --- Users Collection ---
     match /users/{userId} {
       allow read: if request.auth != null;
       allow write: if request.auth != null && (request.auth.uid == userId || isAdmin());
+    }
+
+    // --- Aparato Sessions (internal scheduling — clients cannot read) ---
+    match /aparato_sessions/{sessionId} {
+      allow read: if isNotClient();
+      allow write: if isAdmin();
     }
 
     // --- Default rules for all other collections ---

@@ -27,9 +27,9 @@ const PAYMENT_METHOD_LABELS: Record<string, string> = {
 };
 
 const TREATMENT_COLORS: Record<AparatoTreatment, string> = {
-    Definitiva: 'bg-violet-100 text-violet-700 border-violet-200',
-    HiFu: 'bg-amber-100 text-amber-700 border-amber-200',
-    Liposonix: 'bg-blue-100 text-blue-700 border-blue-200',
+    Definitiva: 'bg-red-100 text-red-700 border-red-200',
+    HiFu: 'bg-orange-100 text-orange-700 border-orange-200',
+    Liposonix: 'bg-cyan-100 text-cyan-700 border-cyan-200',
 };
 
 interface SessionFormData {

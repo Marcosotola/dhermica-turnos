@@ -8,7 +8,7 @@ import { AppointmentModal } from '@/components/appointments/AppointmentModal';
 import { AppointmentDetailModal } from '@/components/appointments/AppointmentDetailModal';
 import { CancelAppointmentDialog, CreditAction } from '@/components/appointments/CancelAppointmentDialog';
 import { DeleteAppointmentDialog } from '@/components/appointments/DeleteAppointmentDialog';
-import { DatePicker } from '@/components/appointments/DatePicker';
+import { CalendarWithSessions } from '@/components/appointments/CalendarWithSessions';
 import { AppointmentSearch } from '@/components/appointments/AppointmentSearch';
 import { QuickPaymentModal } from '@/components/appointments/QuickPaymentModal';
 import { useAppointments } from '@/lib/hooks/useAppointments';
@@ -52,6 +52,7 @@ function TurnosContent() {
     const [defaultProfessionalId, setDefaultProfessionalId] = useState<string | undefined>();
     const [deleting, setDeleting] = useState(false);
     const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+    const [isDesktopCalendarOpen, setIsDesktopCalendarOpen] = useState(false);
     const [isSearchOpen, setIsSearchOpen] = useState(false);
     const [quickPaymentModalOpen, setQuickPaymentModalOpen] = useState(false);
     const [exceptionModalOpen, setExceptionModalOpen] = useState(false);
@@ -339,8 +340,34 @@ function TurnosContent() {
                                 <p className="text-sm font-bold text-gray-900">Agenda del día</p>
                             </div>
                         </div>
-                        <div className="w-64">
-                            <DatePicker value={selectedDate} onChange={setSelectedDate} />
+                        <div className="relative">
+                            <button
+                                onClick={() => setIsDesktopCalendarOpen(prev => !prev)}
+                                className="flex items-center gap-2 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-700 hover:border-gray-300 transition-colors bg-white min-w-[180px]"
+                            >
+                                <Calendar className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                                <span>
+                                    {selectedDate ? (() => {
+                                        const [y, m, d] = selectedDate.split('-').map(Number);
+                                        const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+                                        return `${d} ${months[m - 1]} ${y}`;
+                                    })() : 'Seleccionar fecha'}
+                                </span>
+                            </button>
+                            {isDesktopCalendarOpen && (
+                                <>
+                                    <div className="fixed inset-0 z-10" onClick={() => setIsDesktopCalendarOpen(false)} />
+                                    <div className="absolute top-full left-0 mt-2 z-20 bg-white rounded-2xl shadow-xl border border-gray-100 p-4 min-w-[340px]">
+                                        <CalendarWithSessions
+                                            value={selectedDate}
+                                            onChange={(date) => {
+                                                setSelectedDate(date);
+                                                setIsDesktopCalendarOpen(false);
+                                            }}
+                                        />
+                                    </div>
+                                </>
+                            )}
                         </div>
                         
                         <div className="flex items-center gap-2 ml-auto">
@@ -449,7 +476,7 @@ function TurnosContent() {
                     <div className="fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl p-6 z-50 animate-in slide-in-from-bottom duration-300">
                         <div className="w-12 h-1 bg-gray-200 rounded-full mx-auto mb-6" />
                         <h3 className="text-lg font-bold text-gray-900 mb-4 text-center">Selecciona una fecha</h3>
-                        <DatePicker
+                        <CalendarWithSessions
                             value={selectedDate}
                             onChange={(date) => {
                                 setSelectedDate(date);
