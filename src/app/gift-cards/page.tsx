@@ -243,7 +243,7 @@ export default function GiftCardsPage() {
             <div className="max-w-3xl mx-auto px-4 pt-8 space-y-6">
 
                 {/* Header */}
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between pr-16 lg:pr-0">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-2xl bg-teal-500 flex items-center justify-center shadow-lg shadow-teal-500/20">
                             <Gift className="w-5 h-5 text-white" />

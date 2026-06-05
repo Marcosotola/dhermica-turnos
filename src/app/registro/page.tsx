@@ -9,7 +9,7 @@ export default function RegistroPage() {
     const router = useRouter();
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-violet-50 via-pink-50 to-blue-50 flex items-center justify-center p-4">
+        <div className="min-h-screen bg-gradient-to-br from-violet-50 via-pink-50 to-blue-50 flex items-center justify-center p-4 pb-28 sm:pb-4">
             <Toaster position="top-center" richColors />
             
             <div className="max-w-md w-full">
