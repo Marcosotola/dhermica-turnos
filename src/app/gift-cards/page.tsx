@@ -243,25 +243,23 @@ export default function GiftCardsPage() {
             <div className="max-w-3xl mx-auto px-4 pt-8 space-y-6">
 
                 {/* Header */}
-                <div className="flex items-center justify-between pr-16 lg:pr-0">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-2xl bg-teal-500 flex items-center justify-center shadow-lg shadow-teal-500/20">
-                            <Gift className="w-5 h-5 text-white" />
-                        </div>
-                        <div>
-                            <h1 className="text-xl font-black text-gray-900 leading-none">Gift Cards</h1>
-                            <p className="text-xs text-gray-400 font-medium mt-0.5">Gestión de tarjetas de regalo</p>
-                        </div>
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-teal-500 flex items-center justify-center shadow-lg shadow-teal-500/20">
+                        <Gift className="w-5 h-5 text-white" />
                     </div>
-                    {canManage && (
-                        <Button
-                            onClick={() => setShowCreateForm(v => !v)}
-                            className="bg-teal-500 hover:bg-teal-600 text-white text-sm font-black rounded-2xl px-4 py-2.5 flex items-center gap-2"
-                        >
-                            <Plus className="w-4 h-4" /> Nueva
-                        </Button>
-                    )}
+                    <div>
+                        <h1 className="text-xl font-black text-gray-900 leading-none">Gift Cards</h1>
+                        <p className="text-xs text-gray-400 font-medium mt-0.5">Gestión de tarjetas de regalo</p>
+                    </div>
                 </div>
+                {canManage && (
+                    <Button
+                        onClick={() => setShowCreateForm(v => !v)}
+                        className="bg-teal-500 hover:bg-teal-600 text-white text-sm font-black rounded-2xl px-4 py-2.5 flex items-center gap-2 w-fit"
+                    >
+                        <Plus className="w-4 h-4" /> Nueva Gift Card
+                    </Button>
+                )}
 
                 {/* Stats */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
