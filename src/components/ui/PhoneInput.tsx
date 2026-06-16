@@ -33,6 +33,7 @@ export function PhoneInput({
         { value: '+595', label: '🇵🇾', name: 'Paraguay' },
         { value: '+591', label: '🇧🇴', name: 'Bolivia' },
         { value: '+58', label: '🇻🇪', name: 'Venezuela' },
+        { value: '+52', label: '🇲🇽', name: 'México' },
         { value: '+57', label: '🇨🇴', name: 'Colombia' },
         { value: '+51', label: '🇵🇪', name: 'Perú' },
         { value: '+593', label: '🇪🇨', name: 'Ecuador' },
