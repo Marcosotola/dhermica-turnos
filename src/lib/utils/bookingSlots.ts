@@ -166,11 +166,15 @@ export async function findAvailableBookingOptions(
     }));
 
     // 2. Para cada grupo, filtrar qué profesionales pueden hacerlo
-    const eligiblePerGroup: Professional[][] = groups.map(group =>
-        professionals.filter(p =>
-            !p.services?.length || p.services.includes(group.treatmentId) || p.services.includes(group.treatmentName)
-        )
-    );
+    const eligiblePerGroup: Professional[][] = groups.map(group => {
+        const nameNorm = group.treatmentName.trim().toLowerCase();
+        return professionals.filter(p => {
+            if (!p.services?.length) return true;
+            if (p.services.includes(group.treatmentId)) return true;
+            // comparación tolerante: ignora espacios extra y mayúsculas
+            return p.services.some(s => s.trim().toLowerCase() === nameNorm);
+        });
+    });
 
     const results: BookingOption[] = [];
     const today = new Date();
@@ -314,9 +318,14 @@ export async function assignBestProfessional(
         .where('active', '==', true)
         .get();
 
+    const nameNorm = treatmentName.trim().toLowerCase();
     const candidates: Professional[] = profsSnap.docs
         .map(d => ({ id: d.id, ...(d.data() as Omit<Professional, 'id'>), createdAt: d.data().createdAt?.toDate() || new Date() }))
-        .filter(p => !p.services?.length || p.services.includes(treatmentId) || p.services.includes(treatmentName));
+        .filter(p => {
+            if (!p.services?.length) return true;
+            if (p.services.includes(treatmentId)) return true;
+            return p.services.some(s => s.trim().toLowerCase() === nameNorm);
+        });
 
     // Contar turnos de cada candidato en ese día y elegir el que tenga menos
     const counts = await Promise.all(candidates.map(async prof => {
