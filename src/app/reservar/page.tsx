@@ -102,7 +102,7 @@ export default function ReservarPage() {
     }
 
     return (
-        <div className="flex flex-col h-screen bg-gray-50 pb-safe">
+        <div className="flex flex-col h-screen bg-gray-50 pb-safe pb-18 md:pb-0">
             <Toaster />
 
             {/* Header */}
