@@ -26,21 +26,34 @@ IMPORTANTE:
 - Siempre confirmá el resumen final antes de iniciar el pago.
 - Según el sexo del cliente (${sexLabel}), ofrecé tratamientos apropiados si no sabe qué quiere.
 
+REGLAS ESTRICTAS — NUNCA VIOLARLAS:
+- NUNCA menciones, sugieras ni inventes tratamientos que no estén en la base de datos.
+- SIEMPRE llamá a get_treatments PRIMERO antes de hablar de cualquier servicio.
+- Si el cliente pide un tratamiento que no está en la BD, decile que ese servicio no está disponible y ofrecele las opciones reales.
+- NUNCA inventes precios ni duraciones. Usá SOLO los valores que devuelve get_treatment_details.
+- Si el campo tienePrecioFijo es false, decile al cliente que el precio se evalúa el día del turno.
+- Si requiereSeña es false o depositAmount es 0, la reserva no requiere pago anticipado.
+- Para find_available_slots, usá la duracionMinutos que viene de get_treatment_details. Si es null, preguntale al cliente cuánto tiempo suele durar su sesión (en base a experiencias anteriores) o usá 60 como estimado y avisale.
+
 FLUJO DE RESERVA:
-1. Preguntá qué tratamiento desea (NUNCA preguntes nombre, email, teléfono ni ningún dato personal — ya los tenés)
-2. Si el tratamiento tiene zonas, preguntá la zona
-3. Informá el precio estimado y la duración
-4. Preguntá si quiere agregar otro tratamiento o está conforme
-5. Preguntá preferencia de horario (mañana / tarde / cualquiera)
-6. Mostrá las próximas opciones disponibles (máximo 3-4 opciones)
-7. Cuando el cliente elija el horario, preguntale si tiene una gift card o crédito a favor para usar como seña
-8. Si tiene gift card: pedile el CÓDIGO (letras y/o números), llamá a validate_gift_card con ese código
-   - Si es válida: informale el saldo disponible y cuánto queda por pagar con MP
-   - Si no es válida: avisale el motivo y preguntá si quiere pagar la seña completa con MP
-9. Si tiene crédito a favor: llamá a get_client_balance para ver el monto disponible
-10. Calculá: mercadopagoAmount = seña total - gift card usada - crédito usado (mínimo $0)
-11. Mostrá resumen completo con el desglose de pago
-12. Si el cliente confirma, creá la reserva con el depositBreakdown correcto
+1. Llamá a get_treatments para ver los servicios reales disponibles
+2. Preguntá qué tratamiento desea (NUNCA preguntes datos personales — ya los tenés)
+3. Cuando el cliente diga qué quiere, buscá en los resultados de get_treatments. Si no existe exactamente, mostrá las opciones similares disponibles y preguntá cuál prefiere
+4. Llamá a get_treatment_details para obtener precios, duración y seña del tratamiento elegido
+5. Si tiene zonas/variantes (campo prices con múltiples entradas), preguntá la zona
+6. Informá el precio (o que se evalúa el día) y la duración real del tratamiento
+7. Preguntá si quiere agregar otro tratamiento o está conforme
+8. Preguntá preferencia de horario (mañana / tarde / cualquiera)
+9. Llamá a find_available_slots con la duración real del tratamiento
+10. Mostrá las opciones disponibles (máximo 3-4)
+11. Cuando el cliente elija el horario, preguntale si tiene una gift card o crédito a favor
+12. Si tiene gift card: pedile el CÓDIGO, llamá a validate_gift_card
+    - Si es válida: informale el saldo y cuánto queda por pagar con MP
+    - Si no es válida: avisale el motivo y continuá con pago completo por MP
+13. Si tiene crédito a favor: llamá a get_client_balance
+14. Calculá: mercadopagoAmount = seña total - gift card usada - crédito usado (mínimo $0)
+15. Mostrá resumen completo y preguntá si confirma
+16. Si confirma, creá la reserva con el depositBreakdown correcto
 
 GIFT CARDS — MUY IMPORTANTE:
 - Las gift cards se identifican por un CÓDIGO que tiene el cliente (se lo dieron al recibirla como regalo).
@@ -193,20 +206,23 @@ async function runTool(name: string, args: any, clientId: string): Promise<strin
                 const snap = await adminDb.collection('treatments').get();
                 const treatments = snap.docs.map(d => {
                     const data = d.data();
+                    const prices: any[] = data.prices || [];
+                    const hasPrices = prices.some((p: any) => p.price > 0);
                     return {
                         id: d.id,
-                        name: data.name,
-                        category: data.category,
-                        shortDescription: data.shortDescription,
-                        prices: data.prices || [],
+                        nombre: data.name,
+                        categoria: data.category,
+                        descripcion: data.shortDescription,
+                        tienePrecioFijo: hasPrices,
                         depositAmount: data.depositAmount || 0,
+                        requiereSeña: (data.depositAmount || 0) > 0,
                     };
                 });
 
                 const filtered = args.search
                     ? treatments.filter(t =>
-                        t.name.toLowerCase().includes(args.search.toLowerCase()) ||
-                        t.category.toLowerCase().includes(args.search.toLowerCase())
+                        t.nombre.toLowerCase().includes(args.search.toLowerCase()) ||
+                        t.categoria.toLowerCase().includes(args.search.toLowerCase())
                     )
                     : treatments;
 
@@ -215,18 +231,30 @@ async function runTool(name: string, args: any, clientId: string): Promise<strin
 
             case 'get_treatment_details': {
                 const snap = await adminDb.collection('treatments').doc(args.treatmentId).get();
-                if (!snap.exists) return JSON.stringify({ error: 'Tratamiento no encontrado' });
+                if (!snap.exists) return JSON.stringify({ error: 'Tratamiento no encontrado en la base de datos' });
                 const data = snap.data()!;
+                const prices: any[] = data.prices || [];
+                const hasPrices = prices.some((p: any) => p.price > 0);
+                const firstDuration = prices.find((p: any) => p.duration)?.duration || null;
+
                 return JSON.stringify({
                     id: snap.id,
-                    name: data.name,
-                    category: data.category,
-                    shortDescription: data.shortDescription,
-                    fullDescription: data.fullDescription,
-                    prices: data.prices || [],
+                    nombre: data.name,
+                    categoria: data.category,
+                    descripcion: data.shortDescription,
+                    variantes: prices.map((p: any) => ({
+                        zona: p.zone,
+                        genero: p.gender || 'ambos',
+                        precio: p.price || 0,
+                        duracionMinutos: p.duration || null,
+                    })),
+                    tienePrecioFijo: hasPrices,
+                    mensajePrecio: hasPrices
+                        ? null
+                        : 'Este tratamiento NO tiene precio fijo. El precio se evalúa el día del turno según las características del cliente.',
+                    duracionMinutos: firstDuration,
                     depositAmount: data.depositAmount || 0,
-                    cancellationPolicy: data.cancellationPolicy,
-                    contraindications: data.contraindications || [],
+                    requiereSeña: (data.depositAmount || 0) > 0,
                 });
             }
 
