@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { GoogleGenerativeAI, FunctionCallingMode } from '@google/generative-ai';
+import { GoogleGenAI } from '@google/genai';
 import { adminDb } from '@/lib/firebase/admin';
 import { findAvailableBookingOptions, TreatmentGroup } from '@/lib/utils/bookingSlots';
 import { createPendingBookingAdmin } from '@/lib/firebase/pendingBookingsAdmin';
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
 
 const SYSTEM_PROMPT = `Sos la asistente virtual de Dhermica Estética Unisex. Tu trabajo es ayudar a los clientes a reservar turnos de forma amigable y simple, como lo haría una secretaria real.
 
@@ -276,13 +276,6 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Gemini API key no configurada' }, { status: 500 });
         }
 
-        const model = genAI.getGenerativeModel({
-            model: 'gemini-2.0-flash',
-            systemInstruction: SYSTEM_PROMPT,
-            tools: [{ functionDeclarations: tools as any }],
-            toolConfig: { functionCallingConfig: { mode: FunctionCallingMode.AUTO } },
-        });
-
         // Construir historial en formato Gemini — debe empezar con 'user'
         const allHistory = (messages as any[]).slice(0, -1).map((m: any) => ({
             role: m.role === 'user' ? 'user' : 'model',
@@ -293,40 +286,45 @@ export async function POST(req: NextRequest) {
 
         const lastUserMessage = messages[messages.length - 1].content;
 
-        const chat = model.startChat({ history });
-        let response = await chat.sendMessage(lastUserMessage);
+        const chat = ai.chats.create({
+            model: 'gemini-2.0-flash',
+            history,
+            config: {
+                systemInstruction: SYSTEM_PROMPT,
+                tools: [{ functionDeclarations: tools as any }],
+            },
+        });
+
+        let response = await chat.sendMessage({ message: lastUserMessage });
 
         // Loop de function calling hasta que Gemini dé respuesta final
         let iterations = 0;
         while (iterations < 5) {
             iterations++;
-            const candidate = response.response.candidates?.[0];
-            const parts = candidate?.content?.parts || [];
-
-            const functionCalls = parts.filter((p: any) => p.functionCall);
-            if (functionCalls.length === 0) break;
+            const functionCalls = response.functionCalls;
+            if (!functionCalls || functionCalls.length === 0) break;
 
             // Ejecutar todas las herramientas solicitadas en paralelo
             const toolResults = await Promise.all(
-                functionCalls.map(async (part: any) => {
+                functionCalls.map(async (fc: any) => {
                     const result = await runTool(
-                        part.functionCall.name,
-                        { ...part.functionCall.args, clientId },
+                        fc.name,
+                        { ...fc.args, clientId },
                         clientId
                     );
                     return {
                         functionResponse: {
-                            name: part.functionCall.name,
+                            name: fc.name,
                             response: { result },
                         },
                     };
                 })
             );
 
-            response = await chat.sendMessage(toolResults as any);
+            response = await chat.sendMessage({ message: toolResults as any });
         }
 
-        const text = response.response.text();
+        const text = response.text ?? '';
 
         // Detectar si Gemini creó una reserva pendiente (para redirigir al pago)
         let paymentUrl: string | null = null;
