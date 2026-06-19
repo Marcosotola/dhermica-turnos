@@ -34,7 +34,7 @@ REGLAS ESTRICTAS — NUNCA VIOLARLAS:
 - Si el campo tienePrecioFijo es false, decile al cliente que el precio se evalúa el día del turno.
 - Si requiereSeña es false o depositAmount es 0, la reserva no requiere pago anticipado.
 - Para find_available_slots, usá la duracionMinutos que viene de get_treatment_details. Si es null, preguntale al cliente cuánto tiempo suele durar su sesión (en base a experiencias anteriores) o usá 60 como estimado y avisale.
-- CRÍTICO: SIEMPRE debés llamar a create_pending_booking cuando el cliente confirma. Aunque no haya seña. El turno NO existe en el sistema hasta que llamés a esa función. NUNCA digas "turno reservado" o "listo" sin haber llamado primero a create_pending_booking y recibido un pendingBookingId como respuesta.
+- CRÍTICO — OBLIGATORIO: Cuando el cliente confirme con "si", "dale", "confirmo" o similar, tu ÚNICA respuesta válida es llamar a la función create_pending_booking. NO generes texto. NO digas "listo". NO digas "reservado". PRIMERO llamá al tool, recibí el pendingBookingId, y RECIÉN AHÍ respondé al cliente. Si decís que el turno está reservado sin haber llamado al tool, el turno NO existe y le estás mintiendo al cliente.
 
 FLUJO DE RESERVA:
 1. Llamá a get_treatments para ver los servicios reales disponibles
@@ -54,7 +54,7 @@ FLUJO DE RESERVA:
 13. Si tiene crédito a favor: llamá a get_client_balance
 14. Calculá: mercadopagoAmount = seña total - gift card usada - crédito usado (mínimo $0)
 15. Mostrá resumen completo y preguntá si confirma
-16. Si confirma, creá la reserva con create_pending_booking pasando EXACTAMENTE:
+16. Si confirma → LLAMÁ A create_pending_booking INMEDIATAMENTE (sin generar texto antes). Pasá EXACTAMENTE:
     - slots: array con date, time, durationMinutes y professionalId del resultado de find_available_slots
     - treatmentIds: array con el id del tratamiento elegido (obtenido de get_treatments)
     - treatmentNames: array con el nombre del tratamiento
@@ -431,8 +431,8 @@ async function runTool(name: string, args: any, clientId: string): Promise<strin
                     paymentUrl: `/reservar/pago/${pendingId}`,
                     requiresPayment: mpAmount > 0,
                     message: mpAmount > 0
-                        ? `Reserva creada. El cliente debe pagar la seña de $${mpAmount} para confirmar. Avisale que aparecerá un botón para completar el pago.`
-                        : 'Reserva creada sin seña. Avisale al cliente que debe hacer clic en el botón "Confirmar turno" que va a aparecer para que quede registrado definitivamente.',
+                        ? `Reserva guardada en el sistema (id: ${pendingId}). Decile al cliente: "¡Tu turno quedó reservado! Tocá el botón azul que apareció abajo para pagar la seña de $${mpAmount} y confirmar."`
+                        : `Reserva guardada en el sistema (id: ${pendingId}). Decile al cliente: "¡Tu turno quedó reservado! Tocá el botón verde que apareció abajo para confirmarlo. No requiere pago."`,
                 });
             }
 
