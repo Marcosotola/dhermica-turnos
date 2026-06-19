@@ -283,11 +283,13 @@ export async function POST(req: NextRequest) {
             toolConfig: { functionCallingConfig: { mode: FunctionCallingMode.AUTO } },
         });
 
-        // Construir historial de conversación en formato Gemini
-        const history = (messages as any[]).slice(0, -1).map((m: any) => ({
+        // Construir historial en formato Gemini — debe empezar con 'user'
+        const allHistory = (messages as any[]).slice(0, -1).map((m: any) => ({
             role: m.role === 'user' ? 'user' : 'model',
             parts: [{ text: m.content }],
         }));
+        const firstUserIdx = allHistory.findIndex((m: any) => m.role === 'user');
+        const history = firstUserIdx >= 0 ? allHistory.slice(firstUserIdx) : [];
 
         const lastUserMessage = messages[messages.length - 1].content;
 
