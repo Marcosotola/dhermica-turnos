@@ -14,7 +14,7 @@ interface Message {
 
 const WELCOME_MESSAGE: Message = {
     role: 'assistant',
-    content: '¡Hola! Soy la asistente de Dhermica 😊 Estoy acá para ayudarte a reservar tu turno. ¿Qué tratamiento te gustaría hacerte?',
+    content: '¡Hola! Soy la asistente de Dhermica 😊 Estoy acá para ayudarte a reservar tu turno.\n\n¿Qué tipo de servicio buscás? Por ejemplo: depilación, facial, aparatos, corporal, manos y pies… ¡Contame y te ayudo a encontrar la opción ideal!',
 };
 
 export default function ReservarPage() {
