@@ -192,7 +192,7 @@ const tools = [
                     required: ['mercadopagoAmount'],
                 },
             },
-            required: ['clientId', 'clientName', 'slots', 'totalEstimatedPrice', 'depositAmount', 'depositBreakdown'],
+            required: ['clientId', 'clientName', 'slots'],
         },
     },
 ];
@@ -327,35 +327,60 @@ async function runTool(name: string, args: any, clientId: string): Promise<strin
             }
 
             case 'create_pending_booking': {
-                const totalDurationMinutes = (args.slots as any[]).reduce(
-                    (sum: number, s: any) => sum + s.durationMinutes, 0
+                console.log('[create_pending_booking] args recibidos de Gemini:', JSON.stringify(args, null, 2));
+
+                const rawSlots: any[] = Array.isArray(args.slots) ? args.slots : [];
+                if (rawSlots.length === 0) {
+                    return JSON.stringify({ error: 'No se recibieron slots en la reserva. Volvé a llamar find_available_slots para obtener fecha y hora.' });
+                }
+
+                const totalDurationMinutes = rawSlots.reduce(
+                    (sum: number, s: any) => sum + (s.durationMinutes || 60), 0
                 );
 
-                // Resolver nombres de profesionales desde sus IDs (Gemini no los conoce)
+                // Normalizar slots — Gemini a veces manda singular en vez de arrays
                 const profCache: Record<string, string> = {};
                 const slotsWithNames = await Promise.all(
-                    (args.slots as any[]).map(async (slot: any) => {
-                        const profId = slot.professionalId;
+                    rawSlots.map(async (slot: any) => {
+                        const profId = slot.professionalId || '';
                         if (profId && !profCache[profId]) {
-                            const profSnap = await adminDb.collection('professionals').doc(profId).get();
-                            profCache[profId] = profSnap.data()?.name || '';
+                            try {
+                                const profSnap = await adminDb.collection('professionals').doc(profId).get();
+                                profCache[profId] = profSnap.data()?.name || '';
+                            } catch {
+                                profCache[profId] = '';
+                            }
                         }
-                        return { ...slot, professionalName: profCache[profId] || '' };
+                        return {
+                            treatmentIds: Array.isArray(slot.treatmentIds) ? slot.treatmentIds
+                                : slot.treatmentId ? [slot.treatmentId] : [],
+                            treatmentNames: Array.isArray(slot.treatmentNames) ? slot.treatmentNames
+                                : slot.treatmentName ? [slot.treatmentName] : [],
+                            zones: Array.isArray(slot.zones) ? slot.zones
+                                : slot.zone ? [slot.zone] : [''],
+                            professionalId: profId,
+                            professionalName: profCache[profId] || '',
+                            date: slot.date || '',
+                            time: slot.time || '',
+                            durationMinutes: slot.durationMinutes || 60,
+                            estimatedPrice: slot.estimatedPrice || 0,
+                        };
                     })
                 );
 
-                const breakdown = args.depositBreakdown || { mercadopagoAmount: args.depositAmount };
-                breakdown.mercadopagoAmount = Math.max(0, breakdown.mercadopagoAmount ?? args.depositAmount);
+                const depositAmount = args.depositAmount ?? 0;
+                const breakdown = args.depositBreakdown || { mercadopagoAmount: depositAmount };
+                breakdown.mercadopagoAmount = Math.max(0, breakdown.mercadopagoAmount ?? depositAmount);
 
                 const pendingId = await createPendingBookingAdmin({
-                    clientId: args.clientId,
-                    clientName: args.clientName,
+                    clientId: args.clientId || clientId,
+                    clientName: args.clientName || '',
                     clientEmail: args.clientEmail,
                     clientPhone: args.clientPhone,
                     slots: slotsWithNames,
                     totalDurationMinutes,
-                    totalEstimatedPrice: args.totalEstimatedPrice,
-                    depositAmount: args.depositAmount,
+                    totalEstimatedPrice: args.totalEstimatedPrice ?? 0,
+                    depositAmount,
                     depositBreakdown: breakdown,
                 });
 
