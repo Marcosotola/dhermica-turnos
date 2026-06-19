@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
 import { adminDb } from '@/lib/firebase/admin';
-import { findAvailableBookingOptions, TreatmentGroup } from '@/lib/utils/bookingSlots';
+import { findAvailableBookingOptions, assignBestProfessional, TreatmentGroup } from '@/lib/utils/bookingSlots';
 import { createPendingBookingAdmin } from '@/lib/firebase/pendingBookingsAdmin';
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
@@ -352,18 +352,7 @@ async function runTool(name: string, args: any, clientId: string): Promise<strin
 
                 const slotsWithNames = await Promise.all(
                     rawSlots.map(async (slot: any) => {
-                        // Resolver nombre del profesional desde Firestore
-                        const profId = slot.professionalId || '';
-                        if (profId && !profCache[profId]) {
-                            try {
-                                const profSnap = await adminDb.collection('professionals').doc(profId).get();
-                                profCache[profId] = profSnap.data()?.name || '';
-                            } catch {
-                                profCache[profId] = '';
-                            }
-                        }
-
-                        // Normalizar tratamientos y zonas contra la BD
+                        // 1. Normalizar tratamientos y zonas contra la BD (se necesitan para el fallback de profesional)
                         const rawTreatmentIds: string[] = Array.isArray(slot.treatmentIds) ? slot.treatmentIds
                             : slot.treatmentId ? [slot.treatmentId] : [];
                         const rawZones: string[] = Array.isArray(slot.zones) ? slot.zones
@@ -383,16 +372,41 @@ async function runTool(name: string, args: any, clientId: string): Promise<strin
                                 }
                             }
                             const tData = treatCache[tid];
-                            // Nombre exacto desde la BD
                             normalizedTreatmentNames.push(tData?.name || slot.treatmentName || slot.treatmentNames?.[i] || '');
 
-                            // Zona: buscar match case-insensitive en las zonas reales del tratamiento
                             const rawZone = rawZones[i] || '';
                             const dbZones: string[] = (tData?.prices || []).map((p: any) => p.zone).filter(Boolean);
                             const matched = dbZones.find(z => z.toLowerCase() === rawZone.toLowerCase())
                                 || dbZones.find(z => rawZone.toLowerCase().includes(z.toLowerCase()))
-                                || rawZone; // fallback al valor que mandó Gemini
+                                || rawZone;
                             normalizedZones.push(matched);
+                        }
+
+                        // 2. Resolver professionalId — fallback a assignBestProfessional si Gemini lo omitió
+                        let profId: string = slot.professionalId || '';
+                        if (!profId && slot.date && slot.time) {
+                            try {
+                                const assigned = await assignBestProfessional(
+                                    rawTreatmentIds[0] || '',
+                                    normalizedTreatmentNames[0] || '',
+                                    slot.date,
+                                    slot.time,
+                                    slot.durationMinutes || 60
+                                );
+                                if (assigned) {
+                                    profId = assigned.professionalId;
+                                    profCache[profId] = assigned.professionalName;
+                                }
+                            } catch (e) {
+                                console.error('[create_pending_booking] Error buscando profesional fallback:', e);
+                            }
+                        } else if (profId && !profCache[profId]) {
+                            try {
+                                const profSnap = await adminDb.collection('professionals').doc(profId).get();
+                                profCache[profId] = profSnap.data()?.name || '';
+                            } catch {
+                                profCache[profId] = '';
+                            }
                         }
 
                         return {
