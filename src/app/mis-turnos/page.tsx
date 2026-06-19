@@ -28,6 +28,7 @@ import { ClientLedger } from '@/components/clients/ClientLedger';
 import { GiftCard } from '@/lib/types/giftCard';
 import { getGiftCardsByPurchaser } from '@/lib/firebase/giftCards';
 import { getClientLedgerSummary, BALANCE_SINCE } from '@/lib/utils/clientLedger';
+import { ClientCancelButton } from '@/components/appointments/ClientCancelButton';
 
 export default function MisTurnosPage() {
     const { user, profile, loading } = useAuth();
@@ -215,6 +216,19 @@ export default function MisTurnosPage() {
                                                     </div>
                                                     {apt.notes && (
                                                         <p className="mt-2 pt-2 border-t border-gray-100 text-[11px] italic text-gray-400">"{apt.notes}"</p>
+                                                    )}
+                                                    {/* Botón de cancelación: solo para turnos pendientes futuros */}
+                                                    {(status === 'pending') && apt.date >= today && (
+                                                        <ClientCancelButton
+                                                            appointment={apt}
+                                                            clientId={user!.uid}
+                                                            clientName={profile!.fullName}
+                                                            onCancelled={() => {
+                                                                setAppointments(prev =>
+                                                                    prev.map(a => a.id === apt.id ? { ...a, status: 'cancelled' } : a)
+                                                                );
+                                                            }}
+                                                        />
                                                     )}
                                                 </div>
                                             );

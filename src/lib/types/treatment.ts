@@ -26,6 +26,7 @@ export interface Treatment {
     postCare?: string[];
     imageUrl?: string;
     cancellationPolicy?: CancellationPolicy;
+    depositAmount?: number; // monto fijo de seña para reserva online (0 = sin seña)
     createdAt?: Date;
     updatedAt?: Date;
 }
