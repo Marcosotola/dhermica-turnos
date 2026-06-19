@@ -29,6 +29,7 @@ import { GiftCard } from '@/lib/types/giftCard';
 import { getGiftCardsByPurchaser } from '@/lib/firebase/giftCards';
 import { getClientLedgerSummary, BALANCE_SINCE } from '@/lib/utils/clientLedger';
 import { ClientCancelButton } from '@/components/appointments/ClientCancelButton';
+import { CalendarPlus } from 'lucide-react';
 
 export default function MisTurnosPage() {
     const { user, profile, loading } = useAuth();
@@ -101,9 +102,14 @@ export default function MisTurnosPage() {
                                 <p className="text-gray-300 text-sm font-medium">Tu historial y estado de cuenta.</p>
                             </div>
                         </div>
-                        <Link href="/dashboard" className="hidden md:flex items-center gap-2 bg-white/10 hover:bg-white/20 transition-colors px-4 py-2 rounded-xl text-sm font-bold">
-                            <ChevronLeft className="w-4 h-4" /> Volver
-                        </Link>
+                        <div className="flex items-center gap-2">
+                            <Link href="/reservar" className="flex items-center gap-2 bg-[#34baab] hover:bg-[#2aa89a] transition-colors px-4 py-2 rounded-xl text-sm font-bold shadow">
+                                <CalendarPlus className="w-4 h-4" /> Reservar
+                            </Link>
+                            <Link href="/dashboard" className="hidden md:flex items-center gap-2 bg-white/10 hover:bg-white/20 transition-colors px-4 py-2 rounded-xl text-sm font-bold">
+                                <ChevronLeft className="w-4 h-4" /> Volver
+                            </Link>
+                        </div>
                     </div>
                 </div>
 

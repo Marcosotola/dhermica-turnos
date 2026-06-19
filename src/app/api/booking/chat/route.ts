@@ -6,7 +6,15 @@ import { createPendingBookingAdmin } from '@/lib/firebase/pendingBookingsAdmin';
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
 
-const SYSTEM_PROMPT = `Sos la asistente virtual de Dhermica Estética Unisex. Tu trabajo es ayudar a los clientes a reservar turnos de forma amigable y simple, como lo haría una secretaria real.
+function buildSystemPrompt(clientName: string, clientEmail: string, clientPhone: string, clientSex: string): string {
+    const sexLabel = clientSex === 'male' ? 'masculino' : 'femenino';
+    return `Sos la asistente virtual de Dhermica Estética Unisex. Tu trabajo es ayudar a los clientes a reservar turnos de forma amigable y simple, como lo haría una secretaria real.
+
+DATOS DEL CLIENTE (ya los tenés — NUNCA los preguntes):
+- Nombre: ${clientName}
+- Email: ${clientEmail || 'no disponible'}
+- Teléfono: ${clientPhone || 'no disponible'}
+- Sexo: ${sexLabel}
 
 IMPORTANTE:
 - Adaptá tu forma de hablar según cómo escribe el cliente. Si usa slang, abreviaciones o emojis → respondé informal y cercano. Si escribe formal → respondé con vos (tuteo) pero cálido y profesional.
@@ -16,19 +24,29 @@ IMPORTANTE:
 - Nunca menciones precios internos, comisiones ni datos de profesionales.
 - Cuando propongas horarios, usá formato amigable: "el martes 24 a las 10:00" en vez de "2025-06-24T10:00".
 - Siempre confirmá el resumen final antes de iniciar el pago.
+- Según el sexo del cliente (${sexLabel}), ofrecé tratamientos apropiados si no sabe qué quiere.
 
 FLUJO DE RESERVA:
-1. Preguntá qué tratamiento desea
+1. Preguntá qué tratamiento desea (NUNCA preguntes nombre, email, teléfono ni ningún dato personal — ya los tenés)
 2. Si el tratamiento tiene zonas, preguntá la zona
 3. Informá el precio estimado y la duración
 4. Preguntá si quiere agregar otro tratamiento o está conforme
 5. Preguntá preferencia de horario (mañana / tarde / cualquiera)
 6. Mostrá las próximas opciones disponibles (máximo 3-4 opciones)
-7. Una vez elegido el horario, mostrá un resumen completo
-8. Preguntá si confirma y quiere proceder al pago de la seña
-9. Si confirma, creá la reserva pendiente y devolvé la URL de pago
+7. Cuando el cliente elija el horario, ANTES de mostrar el resumen: llamá a get_client_balance
+8. Si tiene gift cards o créditos disponibles, informale: "Tenés $X disponible. ¿Querés aplicarlo a la seña?"
+9. Calculá: mercadopagoAmount = seña total - gift cards usadas - créditos usados (mínimo $0)
+10. Mostrá resumen completo con el desglose de pago
+11. Si el cliente confirma, creá la reserva con el depositBreakdown correcto
+
+GIFT CARDS Y CRÉDITOS — MUY IMPORTANTE:
+- NUNCA le preguntes al cliente ningún código, número, DNI ni dato de su gift card.
+- Ya tenés los IDs de sus gift cards del resultado de get_client_balance — usalos directamente.
+- Si el cliente quiere usar una gift card con id "abc123", poné ese ID en depositBreakdown.giftCardId.
+- Si mercadopagoAmount llega a $0 porque el saldo cubre todo, informale que no necesita pagar por MP.
 
 IMPORTANTE SOBRE LA SEÑA: Explicá siempre que la seña garantiza el turno. Si cancela con más de 24 horas de anticipación, la seña queda como crédito. Si cancela con menos de 24 horas, la seña se pierde.`;
+}
 
 // ── Herramientas disponibles para Gemini ────────────────────────────────────
 
@@ -128,8 +146,20 @@ const tools = [
                 },
                 totalEstimatedPrice: { type: 'number' },
                 depositAmount: { type: 'number' },
+                depositBreakdown: {
+                    type: 'object',
+                    description: 'Desglose de cómo se paga la seña. mercadopagoAmount es lo que paga por MP.',
+                    properties: {
+                        giftCardId: { type: 'string' },
+                        giftCardAmount: { type: 'number' },
+                        clientCreditId: { type: 'string' },
+                        clientCreditAmount: { type: 'number' },
+                        mercadopagoAmount: { type: 'number', description: 'Monto a pagar por MercadoPago. Puede ser 0 si el saldo lo cubre todo.' },
+                    },
+                    required: ['mercadopagoAmount'],
+                },
             },
-            required: ['clientId', 'clientName', 'slots', 'totalEstimatedPrice', 'depositAmount'],
+            required: ['clientId', 'clientName', 'slots', 'totalEstimatedPrice', 'depositAmount', 'depositBreakdown'],
         },
     },
 ];
@@ -238,6 +268,9 @@ async function runTool(name: string, args: any, clientId: string): Promise<strin
                     (sum: number, s: any) => sum + s.durationMinutes, 0
                 );
 
+                const breakdown = args.depositBreakdown || { mercadopagoAmount: args.depositAmount };
+                breakdown.mercadopagoAmount = Math.max(0, breakdown.mercadopagoAmount ?? args.depositAmount);
+
                 const pendingId = await createPendingBookingAdmin({
                     clientId: args.clientId,
                     clientName: args.clientName,
@@ -247,7 +280,7 @@ async function runTool(name: string, args: any, clientId: string): Promise<strin
                     totalDurationMinutes,
                     totalEstimatedPrice: args.totalEstimatedPrice,
                     depositAmount: args.depositAmount,
-                    depositBreakdown: { mercadopagoAmount: args.depositAmount },
+                    depositBreakdown: breakdown,
                 });
 
                 return JSON.stringify({
@@ -270,11 +303,13 @@ async function runTool(name: string, args: any, clientId: string): Promise<strin
 
 export async function POST(req: NextRequest) {
     try {
-        const { messages, clientId, clientName, clientEmail, clientPhone } = await req.json();
+        const { messages, clientId, clientName, clientEmail, clientPhone, clientSex } = await req.json();
 
         if (!process.env.GEMINI_API_KEY) {
             return NextResponse.json({ error: 'Gemini API key no configurada' }, { status: 500 });
         }
+
+        const SYSTEM_PROMPT = buildSystemPrompt(clientName || '', clientEmail || '', clientPhone || '', clientSex || '');
 
         // Construir historial en formato Gemini — debe empezar con 'user'
         const allHistory = (messages as any[]).slice(0, -1).map((m: any) => ({

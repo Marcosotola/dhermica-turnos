@@ -9,7 +9,7 @@ const mp = new MercadoPagoConfig({
 
 export async function POST(req: NextRequest) {
     try {
-        const { pendingBookingId } = await req.json();
+        const { pendingBookingId, payerEmail } = await req.json();
 
         if (!pendingBookingId) {
             return NextResponse.json({ error: 'pendingBookingId requerido' }, { status: 400 });
@@ -44,13 +44,13 @@ export async function POST(req: NextRequest) {
                         title: `Seña - ${treatmentNames}`,
                         description: `Reserva de turno en Dhermica Estética`,
                         quantity: 1,
-                        unit_price: booking.depositAmount,
+                        unit_price: booking.depositBreakdown?.mercadopagoAmount ?? booking.depositAmount,
                         currency_id: 'ARS',
                     },
                 ],
                 payer: {
                     name: booking.clientName,
-                    email: booking.clientEmail || undefined,
+                    email: payerEmail || booking.clientEmail || undefined,
                 },
                 back_urls: {
                     success: `${baseUrl}/reservar/pago/${pendingBookingId}/confirmado`,

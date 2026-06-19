@@ -55,6 +55,7 @@ export default function ReservarPage() {
                     clientName: profile?.fullName || '',
                     clientEmail: profile?.email || user?.email || '',
                     clientPhone: profile?.phone || '',
+                    clientSex: profile?.sex || '',
                 }),
             });
 
