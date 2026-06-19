@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI, FunctionCallingMode } from '@google/generative-ai';
 import { adminDb } from '@/lib/firebase/admin';
 import { findAvailableBookingOptions, TreatmentGroup } from '@/lib/utils/bookingSlots';
-import { createPendingBooking } from '@/lib/firebase/pendingBookings';
+import { createPendingBookingAdmin } from '@/lib/firebase/pendingBookingsAdmin';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
@@ -238,7 +238,7 @@ async function runTool(name: string, args: any, clientId: string): Promise<strin
                     (sum: number, s: any) => sum + s.durationMinutes, 0
                 );
 
-                const pendingId = await createPendingBooking({
+                const pendingId = await createPendingBookingAdmin({
                     clientId: args.clientId,
                     clientName: args.clientName,
                     clientEmail: args.clientEmail,
