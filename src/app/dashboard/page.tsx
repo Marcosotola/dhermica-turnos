@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import {
     LayoutDashboard,
     Calendar,
+    CalendarPlus,
     Users,
     User as UserIcon,
     Settings,
@@ -309,6 +310,12 @@ export default function DashboardPage() {
                     {/* Client & Promotor Specific Flow */}
                     {(role === 'client' || role === 'promotor') && (
                         <>
+                            <Link href="/reservar" className="flex flex-col items-center justify-center bg-[#34baab] p-6 rounded-3xl shadow-sm hover:shadow-md hover:bg-[#2aa89a] transition-all group">
+                                <CalendarPlus className="w-10 h-10 text-white mb-4 group-hover:scale-110 transition-transform" />
+                                <span className="text-xl font-bold text-white text-center">Reservar Cita</span>
+                                <p className="hidden md:block text-white/80 text-sm mt-2 text-center">Reservá tu próximo turno.</p>
+                            </Link>
+
                             <Link href="/mis-turnos" className="flex flex-col items-center justify-center bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-all group">
                                 <Calendar className="w-10 h-10 text-[#34baab] mb-4 group-hover:scale-110 transition-transform" />
                                 <span className="text-xl font-bold text-gray-900 text-center">Turnos</span>
