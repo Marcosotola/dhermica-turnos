@@ -345,10 +345,13 @@ async function runTool(name: string, args: any, clientId: string): Promise<strin
                     (sum: number, s: any) => sum + (s.durationMinutes || 60), 0
                 );
 
-                // Normalizar slots — Gemini a veces manda singular en vez de arrays
+                // Normalizar slots contra la BD — los nombres y zonas deben ser exactos
                 const profCache: Record<string, string> = {};
+                const treatCache: Record<string, any> = {};
+
                 const slotsWithNames = await Promise.all(
                     rawSlots.map(async (slot: any) => {
+                        // Resolver nombre del profesional desde Firestore
                         const profId = slot.professionalId || '';
                         if (profId && !profCache[profId]) {
                             try {
@@ -358,13 +361,43 @@ async function runTool(name: string, args: any, clientId: string): Promise<strin
                                 profCache[profId] = '';
                             }
                         }
+
+                        // Normalizar tratamientos y zonas contra la BD
+                        const rawTreatmentIds: string[] = Array.isArray(slot.treatmentIds) ? slot.treatmentIds
+                            : slot.treatmentId ? [slot.treatmentId] : [];
+                        const rawZones: string[] = Array.isArray(slot.zones) ? slot.zones
+                            : slot.zone ? [slot.zone] : [];
+
+                        const normalizedTreatmentNames: string[] = [];
+                        const normalizedZones: string[] = [];
+
+                        for (let i = 0; i < rawTreatmentIds.length; i++) {
+                            const tid = rawTreatmentIds[i];
+                            if (!treatCache[tid]) {
+                                try {
+                                    const tSnap = await adminDb.collection('treatments').doc(tid).get();
+                                    treatCache[tid] = tSnap.exists ? tSnap.data() : null;
+                                } catch {
+                                    treatCache[tid] = null;
+                                }
+                            }
+                            const tData = treatCache[tid];
+                            // Nombre exacto desde la BD
+                            normalizedTreatmentNames.push(tData?.name || slot.treatmentName || slot.treatmentNames?.[i] || '');
+
+                            // Zona: buscar match case-insensitive en las zonas reales del tratamiento
+                            const rawZone = rawZones[i] || '';
+                            const dbZones: string[] = (tData?.prices || []).map((p: any) => p.zone).filter(Boolean);
+                            const matched = dbZones.find(z => z.toLowerCase() === rawZone.toLowerCase())
+                                || dbZones.find(z => rawZone.toLowerCase().includes(z.toLowerCase()))
+                                || rawZone; // fallback al valor que mandó Gemini
+                            normalizedZones.push(matched);
+                        }
+
                         return {
-                            treatmentIds: Array.isArray(slot.treatmentIds) ? slot.treatmentIds
-                                : slot.treatmentId ? [slot.treatmentId] : [],
-                            treatmentNames: Array.isArray(slot.treatmentNames) ? slot.treatmentNames
-                                : slot.treatmentName ? [slot.treatmentName] : [],
-                            zones: Array.isArray(slot.zones) ? slot.zones
-                                : slot.zone ? [slot.zone] : [''],
+                            treatmentIds: rawTreatmentIds,
+                            treatmentNames: normalizedTreatmentNames,
+                            zones: normalizedZones,
                             professionalId: profId,
                             professionalName: profCache[profId] || '',
                             date: slot.date || '',
