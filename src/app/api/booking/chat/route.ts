@@ -359,10 +359,14 @@ async function runTool(name: string, args: any, clientId: string): Promise<strin
                     depositBreakdown: breakdown,
                 });
 
+                const mpAmount = breakdown.mercadopagoAmount;
                 return JSON.stringify({
                     pendingBookingId: pendingId,
                     paymentUrl: `/reservar/pago/${pendingId}`,
-                    message: 'Reserva creada. Redirigir al cliente a la URL de pago.',
+                    requiresPayment: mpAmount > 0,
+                    message: mpAmount > 0
+                        ? `Reserva creada. El cliente debe pagar la seña de $${mpAmount} para confirmar. Avisale que aparecerá un botón para completar el pago.`
+                        : 'Reserva creada sin seña. Avisale al cliente que debe hacer clic en el botón "Confirmar turno" que va a aparecer para que quede registrado definitivamente.',
                 });
             }
 
@@ -410,6 +414,9 @@ export async function POST(req: NextRequest) {
 
         // Loop de function calling hasta que Gemini dé respuesta final
         let iterations = 0;
+        let paymentUrl: string | null = null;
+        let requiresPayment = true;
+
         while (iterations < 5) {
             iterations++;
             const functionCalls = response.functionCalls;
@@ -423,6 +430,14 @@ export async function POST(req: NextRequest) {
                         { ...fc.args, clientId },
                         clientId
                     );
+                    // Capturar paymentUrl del tool directamente, sin depender del texto de Gemini
+                    if (fc.name === 'create_pending_booking') {
+                        try {
+                            const parsed = JSON.parse(result);
+                            if (parsed.paymentUrl) paymentUrl = parsed.paymentUrl;
+                            if (parsed.requiresPayment === false) requiresPayment = false;
+                        } catch { /* ignorar */ }
+                    }
                     return {
                         functionResponse: {
                             name: fc.name,
@@ -437,14 +452,7 @@ export async function POST(req: NextRequest) {
 
         const text = response.text ?? '';
 
-        // Detectar si Gemini creó una reserva pendiente (para redirigir al pago)
-        let paymentUrl: string | null = null;
-        if (text.includes('/reservar/pago/')) {
-            const match = text.match(/\/reservar\/pago\/([a-zA-Z0-9]+)/);
-            if (match) paymentUrl = match[0];
-        }
-
-        return NextResponse.json({ message: text, paymentUrl });
+        return NextResponse.json({ message: text, paymentUrl, requiresPayment });
     } catch (err: any) {
         console.error('[booking/chat] Error:', err);
         return NextResponse.json({ error: 'Error al procesar el mensaje' }, { status: 500 });

@@ -24,6 +24,7 @@ export default function ReservarPage() {
     const [input, setInput] = useState('');
     const [isThinking, setIsThinking] = useState(false);
     const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
+    const [requiresPayment, setRequiresPayment] = useState(true);
     const bottomRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -70,7 +71,10 @@ export default function ReservarPage() {
             }
 
             setMessages(prev => [...prev, { role: 'assistant', content: data.message }]);
-            if (data.paymentUrl) setPaymentUrl(data.paymentUrl);
+            if (data.paymentUrl) {
+                setPaymentUrl(data.paymentUrl);
+                setRequiresPayment(data.requiresPayment !== false);
+            }
         } catch {
             setMessages(prev => [...prev, {
                 role: 'assistant',
@@ -148,15 +152,19 @@ export default function ReservarPage() {
                     </div>
                 )}
 
-                {/* Botón de pago cuando está listo */}
+                {/* Botón de confirmación cuando la reserva está lista */}
                 {paymentUrl && (
                     <div className="flex justify-center py-2">
                         <Link
                             href={paymentUrl}
-                            className="flex items-center gap-2 bg-[#009EE3] hover:bg-[#0081C3] text-white font-bold px-6 py-3 rounded-2xl shadow-lg transition-all"
+                            className={`flex items-center gap-2 text-white font-bold px-6 py-3 rounded-2xl shadow-lg transition-all ${
+                                requiresPayment
+                                    ? 'bg-[#009EE3] hover:bg-[#0081C3]'
+                                    : 'bg-[#34baab] hover:bg-[#2aa89a]'
+                            }`}
                         >
                             <CalendarCheck className="w-5 h-5" />
-                            Pagar seña y confirmar turno
+                            {requiresPayment ? 'Pagar seña y confirmar turno' : 'Confirmar turno'}
                         </Link>
                     </div>
                 )}
@@ -173,7 +181,7 @@ export default function ReservarPage() {
                         onChange={e => setInput(e.target.value)}
                         onKeyDown={handleKeyDown}
                         disabled={isThinking || !!paymentUrl}
-                        placeholder={paymentUrl ? 'Turno listo para pagar 🎉' : 'Escribí tu mensaje...'}
+                        placeholder={paymentUrl ? (requiresPayment ? 'Turno listo para pagar 🎉' : 'Turno listo para confirmar ✅') : 'Escribí tu mensaje...'}
                         rows={1}
                         className="flex-1 px-4 py-3 bg-gray-50 rounded-2xl resize-none outline-none text-sm text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-[#34baab] transition-all max-h-32 disabled:opacity-50"
                         style={{ minHeight: '48px' }}
