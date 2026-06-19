@@ -272,36 +272,46 @@ async function runTool(name: string, args: any, clientId: string): Promise<strin
 
             case 'find_available_slots': {
                 const groups: TreatmentGroup[] = args.groups;
+                console.log('[find_available_slots] args:', JSON.stringify({ groups, preferMorning: args.preferMorning, startAfterDate: args.startAfterDate }));
+
+                const toFormatted = (opts: Awaited<ReturnType<typeof findAvailableBookingOptions>>) =>
+                    opts.map((opt, i) => ({
+                        opcion: i + 1,
+                        instruccion: 'Al crear la reserva, incluí professionalId, date, time y durationMinutes de la opción elegida',
+                        slots: opt.slots.map((s, si) => ({
+                            slotIndex: si,
+                            date: s.date,
+                            time: s.time,
+                            durationMinutes: s.durationMinutes,
+                            professionalId: s.professionalId,
+                        })),
+                        sameDay: opt.sameDay,
+                    }));
+
                 const options = await findAvailableBookingOptions(groups, args.preferMorning, args.startAfterDate);
+                console.log('[find_available_slots] resultados con preferencia:', options.length);
 
-                // Formato para Gemini — sin nombre de profesional (es dato interno)
-                // IMPORTANTE: incluir todos los campos que Gemini necesita para create_pending_booking
-                const formatted = options.map((opt, i) => ({
-                    opcion: i + 1,
-                    instruccion: 'Al crear la reserva, incluí professionalId, date, time y durationMinutes de la opción elegida',
-                    slots: opt.slots.map((s, si) => ({
-                        slotIndex: si,
-                        date: s.date,
-                        time: s.time,
-                        durationMinutes: s.durationMinutes,
-                        professionalId: s.professionalId,
-                    })),
-                    sameDay: opt.sameDay,
-                }));
-
-                if (formatted.length > 0) {
-                    return JSON.stringify(formatted);
+                if (options.length > 0) {
+                    return JSON.stringify(toFormatted(options));
                 }
-                // Sin resultados: si había preferencia de horario, sugerir buscar sin filtro
+
+                // Sin resultados con filtro de horario → fallback automático sin filtro
                 if (args.preferMorning !== undefined) {
-                    return JSON.stringify({
-                        sinResultados: true,
-                        mensaje: `No hay turnos disponibles ${args.preferMorning ? 'por la mañana' : 'por la tarde'} en los próximos 90 días con ese filtro. Volvé a llamar find_available_slots SIN el parámetro preferMorning para buscar en cualquier horario.`,
-                    });
+                    console.log('[find_available_slots] fallback sin preferencia de horario');
+                    const fallback = await findAvailableBookingOptions(groups, undefined, args.startAfterDate);
+                    console.log('[find_available_slots] resultados fallback:', fallback.length);
+                    if (fallback.length > 0) {
+                        const label = args.preferMorning ? 'por la mañana' : 'por la tarde';
+                        return JSON.stringify({
+                            nota: `No hay disponibilidad ${label}. Se muestran los próximos horarios disponibles en cualquier franja. Avisale al cliente que no hay turnos ${label} y ofrecele estos:`,
+                            opciones: toFormatted(fallback),
+                        });
+                    }
                 }
+
                 return JSON.stringify({
                     sinResultados: true,
-                    mensaje: 'No hay disponibilidad en los próximos 90 días. Avisá al cliente e invitalo a comunicarse por WhatsApp.',
+                    mensaje: 'No hay disponibilidad en los próximos 90 días. Avisá al cliente e invitalo a comunicarse por WhatsApp o llamar al local.',
                 });
             }
 
