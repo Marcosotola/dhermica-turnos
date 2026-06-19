@@ -7,6 +7,7 @@ import {
     LayoutDashboard,
     Calendar,
     CalendarPlus,
+    Bot,
     Users,
     User as UserIcon,
     Settings,
@@ -274,6 +275,12 @@ export default function DashboardPage() {
                                 <Gift className="w-10 h-10 text-teal-500 mb-4 group-hover:scale-110 transition-transform" />
                                 <span className="text-xl font-bold text-gray-900 text-center">Gift Cards</span>
                                 <p className="hidden md:block text-gray-500 text-sm mt-2 text-center">Gestionar tarjetas de regalo.</p>
+                            </Link>
+
+                            <Link href="/reservas-online" className="flex flex-col items-center justify-center bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-all group">
+                                <Bot className="w-10 h-10 text-[#34baab] mb-4 group-hover:scale-110 transition-transform" />
+                                <span className="text-xl font-bold text-gray-900 text-center">Reservas IA</span>
+                                <p className="hidden md:block text-gray-500 text-sm mt-2 text-center">Reservas y chats del asistente.</p>
                             </Link>
                         </>
                     )}

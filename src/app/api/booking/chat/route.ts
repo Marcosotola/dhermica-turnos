@@ -518,6 +518,18 @@ export async function POST(req: NextRequest) {
 
         const text = response.text ?? '';
 
+        // Guardar historial del chat en el pendingBooking para auditoría del admin
+        const pendingIdFromUrl = String(paymentUrl ?? '').split('/').filter(Boolean).pop();
+        if (pendingIdFromUrl) {
+            const chatHistory = (messages as any[]).map((m: any) => ({
+                role: m.role,
+                content: m.content,
+            }));
+            adminDb.collection('pendingBookings').doc(pendingIdFromUrl)
+                .update({ chatHistory })
+                .catch((e: any) => console.error('[chat] Error guardando historial:', e));
+        }
+
         return NextResponse.json({ message: text, paymentUrl, requiresPayment });
     } catch (err: any) {
         console.error('[booking/chat] Error:', err);
