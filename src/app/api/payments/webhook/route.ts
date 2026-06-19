@@ -2,14 +2,47 @@ import { NextRequest, NextResponse } from 'next/server';
 import { MercadoPagoConfig, Payment } from 'mercadopago';
 import { adminDb } from '@/lib/firebase/admin';
 import { Timestamp } from 'firebase-admin/firestore';
+import { createHmac } from 'crypto';
 
 const mp = new MercadoPagoConfig({
     accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN || '',
 });
 
+function validateMPSignature(req: NextRequest, rawBody: string): boolean {
+    const secret = process.env.MERCADOPAGO_WEBHOOK_SECRET;
+    if (!secret) return true; // si no hay secret configurado, no bloqueamos
+
+    const xSignature = req.headers.get('x-signature');
+    const xRequestId = req.headers.get('x-request-id');
+    if (!xSignature || !xRequestId) return false;
+
+    // Extraer ts y v1 del header x-signature
+    const parts = Object.fromEntries(xSignature.split(',').map(p => p.split('=')));
+    const ts = parts['ts'];
+    const v1 = parts['v1'];
+    if (!ts || !v1) return false;
+
+    // Parsear el id del body para armar el mensaje
+    let dataId = '';
+    try {
+        dataId = JSON.parse(rawBody)?.data?.id || '';
+    } catch { return false; }
+
+    const manifest = `id:${dataId};request-id:${xRequestId};ts:${ts};`;
+    const expected = createHmac('sha256', secret).update(manifest).digest('hex');
+
+    return expected === v1;
+}
+
 export async function POST(req: NextRequest) {
     try {
-        const body = await req.json();
+        const rawBody = await req.text();
+        const body = JSON.parse(rawBody);
+
+        if (!validateMPSignature(req, rawBody)) {
+            console.warn('[webhook] Firma inválida — posible intento de fraude');
+            return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
+        }
 
         // MercadoPago envía notificaciones de tipo "payment"
         if (body.type !== 'payment') {
