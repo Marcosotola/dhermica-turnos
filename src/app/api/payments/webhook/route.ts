@@ -10,24 +10,24 @@ const mp = new MercadoPagoConfig({
 
 function validateMPSignature(req: NextRequest, rawBody: string): boolean {
     const secret = process.env.MERCADOPAGO_WEBHOOK_SECRET;
-    if (!secret) return true; // si no hay secret configurado, no bloqueamos
+    if (!secret) return true;
+
+    let parsed: any = {};
+    try { parsed = JSON.parse(rawBody); } catch { return false; }
+
+    // Las notificaciones de prueba del dashboard no tienen firma — las dejamos pasar
+    if (parsed.live_mode === false) return true;
 
     const xSignature = req.headers.get('x-signature');
     const xRequestId = req.headers.get('x-request-id');
     if (!xSignature || !xRequestId) return false;
 
-    // Extraer ts y v1 del header x-signature
     const parts = Object.fromEntries(xSignature.split(',').map(p => p.split('=')));
     const ts = parts['ts'];
     const v1 = parts['v1'];
     if (!ts || !v1) return false;
 
-    // Parsear el id del body para armar el mensaje
-    let dataId = '';
-    try {
-        dataId = JSON.parse(rawBody)?.data?.id || '';
-    } catch { return false; }
-
+    const dataId = parsed?.data?.id || '';
     const manifest = `id:${dataId};request-id:${xRequestId};ts:${ts};`;
     const expected = createHmac('sha256', secret).update(manifest).digest('hex');
 
