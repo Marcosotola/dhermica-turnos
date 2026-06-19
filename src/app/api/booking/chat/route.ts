@@ -53,7 +53,13 @@ FLUJO DE RESERVA:
 13. Si tiene crédito a favor: llamá a get_client_balance
 14. Calculá: mercadopagoAmount = seña total - gift card usada - crédito usado (mínimo $0)
 15. Mostrá resumen completo y preguntá si confirma
-16. Si confirma, creá la reserva con el depositBreakdown correcto
+16. Si confirma, creá la reserva con create_pending_booking pasando EXACTAMENTE:
+    - slots: array con date, time, durationMinutes y professionalId del resultado de find_available_slots
+    - treatmentIds: array con el id del tratamiento elegido (obtenido de get_treatments)
+    - treatmentNames: array con el nombre del tratamiento
+    - zones: array con la zona elegida por el cliente (ej: ["Abdomen"])
+    - depositAmount: el valor de depositAmount de get_treatment_details (puede ser 0)
+    - depositBreakdown: { mercadopagoAmount: depositAmount } (o menos si usó gift card)
 
 GIFT CARDS — MUY IMPORTANTE:
 - Las gift cards se identifican por un CÓDIGO que tiene el cliente (se lo dieron al recibirla como regalo).
@@ -263,17 +269,18 @@ async function runTool(name: string, args: any, clientId: string): Promise<strin
                 const options = await findAvailableBookingOptions(groups, args.preferMorning);
 
                 // Formato para Gemini — sin nombre de profesional (es dato interno)
+                // IMPORTANTE: incluir todos los campos que Gemini necesita para create_pending_booking
                 const formatted = options.map((opt, i) => ({
                     opcion: i + 1,
-                    slots: opt.slots.map(s => ({
-                        fecha: s.date,
-                        hora: s.time,
-                        horaFin: s.endTime,
-                        duracionMin: s.durationMinutes,
+                    instruccion: 'Al crear la reserva, incluí professionalId, date, time y durationMinutes de la opción elegida',
+                    slots: opt.slots.map((s, si) => ({
+                        slotIndex: si,
+                        date: s.date,
+                        time: s.time,
+                        durationMinutes: s.durationMinutes,
                         professionalId: s.professionalId,
                     })),
-                    mismodia: opt.sameDay,
-                    esperaEntreTratatamientos: opt.gapMinutes > 0 ? `${opt.gapMinutes} minutos de espera` : 'consecutivos',
+                    sameDay: opt.sameDay,
                 }));
 
                 return JSON.stringify(formatted.length > 0 ? formatted : { mensaje: 'No hay disponibilidad en los próximos 30 días. Sugerir días separados o extender la búsqueda.' });
