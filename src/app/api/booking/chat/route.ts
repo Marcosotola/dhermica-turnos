@@ -157,7 +157,6 @@ const tools = [
                             treatmentNames: { type: 'array', items: { type: 'string' } },
                             zones: { type: 'array', items: { type: 'string' } },
                             professionalId: { type: 'string' },
-                            professionalName: { type: 'string' },
                             date: { type: 'string' },
                             time: { type: 'string' },
                             durationMinutes: { type: 'number' },
@@ -235,7 +234,7 @@ async function runTool(name: string, args: any, clientId: string): Promise<strin
                 const groups: TreatmentGroup[] = args.groups;
                 const options = await findAvailableBookingOptions(groups, args.preferMorning);
 
-                // Formato amigable para Gemini
+                // Formato para Gemini — sin nombre de profesional (es dato interno)
                 const formatted = options.map((opt, i) => ({
                     opcion: i + 1,
                     slots: opt.slots.map(s => ({
@@ -244,7 +243,6 @@ async function runTool(name: string, args: any, clientId: string): Promise<strin
                         horaFin: s.endTime,
                         duracionMin: s.durationMinutes,
                         professionalId: s.professionalId,
-                        professionalName: s.professionalName,
                     })),
                     mismodia: opt.sameDay,
                     esperaEntreTratatamientos: opt.gapMinutes > 0 ? `${opt.gapMinutes} minutos de espera` : 'consecutivos',
@@ -305,6 +303,19 @@ async function runTool(name: string, args: any, clientId: string): Promise<strin
                     (sum: number, s: any) => sum + s.durationMinutes, 0
                 );
 
+                // Resolver nombres de profesionales desde sus IDs (Gemini no los conoce)
+                const profCache: Record<string, string> = {};
+                const slotsWithNames = await Promise.all(
+                    (args.slots as any[]).map(async (slot: any) => {
+                        const profId = slot.professionalId;
+                        if (profId && !profCache[profId]) {
+                            const profSnap = await adminDb.collection('professionals').doc(profId).get();
+                            profCache[profId] = profSnap.data()?.name || '';
+                        }
+                        return { ...slot, professionalName: profCache[profId] || '' };
+                    })
+                );
+
                 const breakdown = args.depositBreakdown || { mercadopagoAmount: args.depositAmount };
                 breakdown.mercadopagoAmount = Math.max(0, breakdown.mercadopagoAmount ?? args.depositAmount);
 
@@ -313,7 +324,7 @@ async function runTool(name: string, args: any, clientId: string): Promise<strin
                     clientName: args.clientName,
                     clientEmail: args.clientEmail,
                     clientPhone: args.clientPhone,
-                    slots: args.slots,
+                    slots: slotsWithNames,
                     totalDurationMinutes,
                     totalEstimatedPrice: args.totalEstimatedPrice,
                     depositAmount: args.depositAmount,

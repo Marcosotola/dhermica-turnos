@@ -2,7 +2,7 @@ import { adminDb } from '../firebase/admin';
 import { Professional } from '../types/professional';
 import { timeToDecimal, decimalToTime, getDayOfWeek, formatDate } from './time';
 
-const MAX_SEARCH_DAYS = 30;
+const MAX_SEARCH_DAYS = 90;
 const MAX_RESULTS = 5;
 const GAP_BETWEEN_TREATMENTS_MIN = 15; // margen entre tratamientos de distintos profesionales
 
