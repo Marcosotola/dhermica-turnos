@@ -33,17 +33,24 @@ FLUJO DE RESERVA:
 4. Preguntá si quiere agregar otro tratamiento o está conforme
 5. Preguntá preferencia de horario (mañana / tarde / cualquiera)
 6. Mostrá las próximas opciones disponibles (máximo 3-4 opciones)
-7. Cuando el cliente elija el horario, ANTES de mostrar el resumen: llamá a get_client_balance
-8. Si tiene gift cards o créditos disponibles, informale: "Tenés $X disponible. ¿Querés aplicarlo a la seña?"
-9. Calculá: mercadopagoAmount = seña total - gift cards usadas - créditos usados (mínimo $0)
-10. Mostrá resumen completo con el desglose de pago
-11. Si el cliente confirma, creá la reserva con el depositBreakdown correcto
+7. Cuando el cliente elija el horario, preguntale si tiene una gift card o crédito a favor para usar como seña
+8. Si tiene gift card: pedile el CÓDIGO (letras y/o números), llamá a validate_gift_card con ese código
+   - Si es válida: informale el saldo disponible y cuánto queda por pagar con MP
+   - Si no es válida: avisale el motivo y preguntá si quiere pagar la seña completa con MP
+9. Si tiene crédito a favor: llamá a get_client_balance para ver el monto disponible
+10. Calculá: mercadopagoAmount = seña total - gift card usada - crédito usado (mínimo $0)
+11. Mostrá resumen completo con el desglose de pago
+12. Si el cliente confirma, creá la reserva con el depositBreakdown correcto
 
-GIFT CARDS Y CRÉDITOS — MUY IMPORTANTE:
-- NUNCA le preguntes al cliente ningún código, número, DNI ni dato de su gift card.
-- Ya tenés los IDs de sus gift cards del resultado de get_client_balance — usalos directamente.
-- Si el cliente quiere usar una gift card con id "abc123", poné ese ID en depositBreakdown.giftCardId.
-- Si mercadopagoAmount llega a $0 porque el saldo cubre todo, informale que no necesita pagar por MP.
+GIFT CARDS — MUY IMPORTANTE:
+- Las gift cards se identifican por un CÓDIGO que tiene el cliente (se lo dieron al recibirla como regalo).
+- Pedile SOLO EL CÓDIGO, nada más. No pedís DNI, email, número de tarjeta ni nada extra.
+- Usá validate_gift_card(code) para verificarla. El resultado te da el giftCardId para usar en depositBreakdown.
+- Si mercadopagoAmount llega a $0 porque la gift card cubre todo, informale que no necesita pagar por MP.
+
+CRÉDITOS A FAVOR:
+- Son señas devueltas de cancelaciones anteriores. Están en la cuenta del cliente.
+- Llamá a get_client_balance para ver si tiene. Si tiene, preguntale si quiere aplicarlos.
 
 IMPORTANTE SOBRE LA SEÑA: Explicá siempre que la seña garantiza el turno. Si cancela con más de 24 horas de anticipación, la seña queda como crédito. Si cancela con menos de 24 horas, la seña se pierde.`;
 }
@@ -108,13 +115,27 @@ const tools = [
     },
     {
         name: 'get_client_balance',
-        description: 'Consulta si el cliente tiene créditos o gift cards disponibles para usar como seña.',
+        description: 'Consulta si el cliente tiene créditos a favor (señas devueltas, etc.) para usar como seña.',
         parameters: {
             type: 'object',
             properties: {
                 clientId: { type: 'string' },
             },
             required: ['clientId'],
+        },
+    },
+    {
+        name: 'validate_gift_card',
+        description: 'Valida un código de gift card ingresado por el cliente. Devuelve si es válida, el saldo disponible y la fecha de vencimiento.',
+        parameters: {
+            type: 'object',
+            properties: {
+                code: {
+                    type: 'string',
+                    description: 'Código de la gift card tal como lo ingresó el cliente',
+                },
+            },
+            required: ['code'],
         },
     },
     {
@@ -233,16 +254,10 @@ async function runTool(name: string, args: any, clientId: string): Promise<strin
             }
 
             case 'get_client_balance': {
-                const [creditsSnap, giftCardsSnap] = await Promise.all([
-                    adminDb.collection('clientCredits')
-                        .where('clientId', '==', clientId)
-                        .where('status', '==', 'available')
-                        .get(),
-                    adminDb.collection('giftCards')
-                        .where('purchaserClientId', '==', clientId)
-                        .where('status', 'in', ['active', 'partially_used'])
-                        .get(),
-                ]);
+                const creditsSnap = await adminDb.collection('clientCredits')
+                    .where('clientId', '==', clientId)
+                    .where('status', '==', 'available')
+                    .get();
 
                 const credits = creditsSnap.docs.map(d => ({
                     id: d.id,
@@ -250,17 +265,39 @@ async function runTool(name: string, args: any, clientId: string): Promise<strin
                     reason: d.data().reason,
                 }));
 
-                const giftCards = giftCardsSnap.docs.map(d => ({
-                    id: d.id,
-                    code: d.data().code,
-                    remainingBalance: d.data().remainingBalance,
-                    expiryDate: d.data().expiryDate,
-                }));
-
                 const totalCredits = credits.reduce((s, c) => s + c.amount, 0);
-                const totalGiftCards = giftCards.reduce((s, g) => s + g.remainingBalance, 0);
+                return JSON.stringify({ credits, totalCredits });
+            }
 
-                return JSON.stringify({ credits, giftCards, totalCredits, totalGiftCards });
+            case 'validate_gift_card': {
+                const code = (args.code || '').trim().toUpperCase();
+                const snap = await adminDb.collection('giftCards')
+                    .where('code', '==', code)
+                    .limit(1)
+                    .get();
+
+                if (snap.empty) {
+                    return JSON.stringify({ valid: false, reason: 'Código no encontrado' });
+                }
+
+                const doc = snap.docs[0];
+                const gc = doc.data();
+                const today = new Date().toISOString().split('T')[0];
+
+                if (gc.status === 'used' || (gc.remainingBalance ?? 0) <= 0) {
+                    return JSON.stringify({ valid: false, reason: 'La gift card ya fue utilizada' });
+                }
+
+                if (gc.expiryDate && gc.expiryDate < today) {
+                    return JSON.stringify({ valid: false, reason: `La gift card venció el ${gc.expiryDate}` });
+                }
+
+                return JSON.stringify({
+                    valid: true,
+                    giftCardId: doc.id,
+                    remainingBalance: gc.remainingBalance,
+                    expiryDate: gc.expiryDate || null,
+                });
             }
 
             case 'create_pending_booking': {
