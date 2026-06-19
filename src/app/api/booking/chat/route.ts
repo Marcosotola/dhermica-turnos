@@ -35,6 +35,7 @@ REGLAS ESTRICTAS — NUNCA VIOLARLAS:
 - Si requiereSeña es false o depositAmount es 0, la reserva no requiere pago anticipado.
 - Para find_available_slots, usá la duracionMinutos que viene de get_treatment_details. Si es null, preguntale al cliente cuánto tiempo suele durar su sesión (en base a experiencias anteriores) o usá 60 como estimado y avisale.
 - CRÍTICO — OBLIGATORIO: Cuando el cliente confirme con "si", "dale", "confirmo" o similar, tu ÚNICA respuesta válida es llamar a la función create_pending_booking. NO generes texto. NO digas "listo". NO digas "reservado". PRIMERO llamá al tool, recibí el pendingBookingId, y RECIÉN AHÍ respondé al cliente. Si decís que el turno está reservado sin haber llamado al tool, el turno NO existe y le estás mintiendo al cliente.
+- BÚSQUEDA DE FECHAS — OBLIGATORIO: Si el cliente rechaza los horarios ofrecidos (dice que no puede, que le queda lejos, que prefiere otra fecha, etc.), llamá INMEDIATAMENTE a find_available_slots de nuevo pasando startAfterDate con la fecha más tardía de los slots ya ofrecidos. NO preguntes si quiere buscar más adelante — si rechazó, ES OBVIO que quiere otras opciones. Solo preguntá la fecha preferida si el cliente lo menciona explícitamente.
 
 FLUJO DE RESERVA:
 1. Llamá a get_treatments para ver los servicios reales disponibles
@@ -128,6 +129,10 @@ const tools = [
                 preferMorning: {
                     type: 'boolean',
                     description: 'true=prefiere mañana, false=prefiere tarde, omitir=sin preferencia',
+                },
+                startAfterDate: {
+                    type: 'string',
+                    description: 'Fecha YYYY-MM-DD. Si se especifica, busca slots DESPUÉS de esta fecha. Usalo cuando el cliente rechazó los horarios ya ofrecidos para no repetirlos.',
                 },
             },
             required: ['groups'],
@@ -267,7 +272,7 @@ async function runTool(name: string, args: any, clientId: string): Promise<strin
 
             case 'find_available_slots': {
                 const groups: TreatmentGroup[] = args.groups;
-                const options = await findAvailableBookingOptions(groups, args.preferMorning);
+                const options = await findAvailableBookingOptions(groups, args.preferMorning, args.startAfterDate);
 
                 // Formato para Gemini — sin nombre de profesional (es dato interno)
                 // IMPORTANTE: incluir todos los campos que Gemini necesita para create_pending_booking

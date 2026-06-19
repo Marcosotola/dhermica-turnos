@@ -151,7 +151,8 @@ export interface TreatmentGroup {
  */
 export async function findAvailableBookingOptions(
     groups: TreatmentGroup[],
-    preferMorning?: boolean // true=mañana, false=tarde, undefined=cualquiera
+    preferMorning?: boolean, // true=mañana, false=tarde, undefined=cualquiera
+    startAfterDate?: string  // YYYY-MM-DD — omite días en o antes de esta fecha
 ): Promise<BookingOption[]> {
     // 1. Cargar profesionales activos
     const profsSnap = await adminDb
@@ -178,6 +179,8 @@ export async function findAvailableBookingOptions(
         const d = new Date(today);
         d.setDate(today.getDate() + dayOffset);
         const date = formatDate(d);
+
+        if (startAfterDate && date <= startAfterDate) continue;
 
         if (groups.length === 1) {
             // Caso simple: un solo tratamiento
