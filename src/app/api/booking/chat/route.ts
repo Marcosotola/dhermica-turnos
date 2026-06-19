@@ -289,7 +289,20 @@ async function runTool(name: string, args: any, clientId: string): Promise<strin
                     sameDay: opt.sameDay,
                 }));
 
-                return JSON.stringify(formatted.length > 0 ? formatted : { mensaje: 'No hay disponibilidad en los próximos 30 días. Sugerir días separados o extender la búsqueda.' });
+                if (formatted.length > 0) {
+                    return JSON.stringify(formatted);
+                }
+                // Sin resultados: si había preferencia de horario, sugerir buscar sin filtro
+                if (args.preferMorning !== undefined) {
+                    return JSON.stringify({
+                        sinResultados: true,
+                        mensaje: `No hay turnos disponibles ${args.preferMorning ? 'por la mañana' : 'por la tarde'} en los próximos 90 días con ese filtro. Volvé a llamar find_available_slots SIN el parámetro preferMorning para buscar en cualquier horario.`,
+                    });
+                }
+                return JSON.stringify({
+                    sinResultados: true,
+                    mensaje: 'No hay disponibilidad en los próximos 90 días. Avisá al cliente e invitalo a comunicarse por WhatsApp.',
+                });
             }
 
             case 'get_client_balance': {
