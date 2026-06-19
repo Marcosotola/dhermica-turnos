@@ -287,7 +287,7 @@ export async function POST(req: NextRequest) {
         const lastUserMessage = messages[messages.length - 1].content;
 
         const chat = ai.chats.create({
-            model: 'gemini-2.0-flash',
+            model: 'gemini-2.5-flash',
             history,
             config: {
                 systemInstruction: SYSTEM_PROMPT,
