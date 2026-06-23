@@ -6,8 +6,10 @@ import { Input } from '@/components/ui/Input';
 import { useRouter } from 'next/navigation';
 import { Modal } from '@/components/ui/Modal';
 import { getProfessionals, createProfessional } from '@/lib/firebase/professionals';
+import { getUsersByRole } from '@/lib/firebase/users';
 import { Professional } from '@/lib/types/professional';
-import { Plus, ArrowLeft, Users, ChevronRight } from 'lucide-react';
+import { UserProfile } from '@/lib/types/user';
+import { Plus, ArrowLeft, Users, ChevronRight, Search } from 'lucide-react';
 import { toast, Toaster } from 'sonner';
 
 export default function ProfesionalesPage() {
@@ -17,7 +19,10 @@ export default function ProfesionalesPage() {
     const [modalOpen, setModalOpen] = useState(false);
     const [submitting, setSubmitting] = useState(false);
 
-    const [name, setName] = useState('');
+    const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
+    const [professionalUsers, setProfessionalUsers] = useState<UserProfile[]>([]);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [showSuggestions, setShowSuggestions] = useState(false);
     const [color, setColor] = useState('#6366f1');
     const [order, setOrder] = useState(0);
     const [legacyCollectionName, setLegacyCollectionName] = useState('');
@@ -42,8 +47,10 @@ export default function ProfesionalesPage() {
         }
     };
 
-    const handleOpenModal = () => {
-        setName('');
+    const handleOpenModal = async () => {
+        setSelectedUser(null);
+        setSearchQuery('');
+        setShowSuggestions(false);
         setColor('#6366f1');
         setOrder(professionals.length);
         setLegacyCollectionName('');
@@ -51,14 +58,39 @@ export default function ProfesionalesPage() {
         setServiceCommissionPercentage(0);
         setProductCommissionPercentage(0);
         setModalOpen(true);
+        try {
+            const users = await getUsersByRole('professional');
+            const linkedUserIds = new Set(professionals.map(p => p.userId).filter(Boolean));
+            setProfessionalUsers(users.filter(u => !linkedUserIds.has(u.uid)));
+        } catch {
+            toast.error('Error al cargar usuarios profesionales');
+        }
+    };
+
+    const filteredUsers = searchQuery.trim()
+        ? professionalUsers.filter(u =>
+            u.fullName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            u.email?.toLowerCase().includes(searchQuery.toLowerCase())
+        )
+        : professionalUsers;
+
+    const handleSelectUser = (user: UserProfile) => {
+        setSelectedUser(user);
+        setSearchQuery(user.fullName || user.email);
+        setShowSuggestions(false);
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!selectedUser) {
+            toast.error('Seleccioná un usuario profesional');
+            return;
+        }
         setSubmitting(true);
         try {
             await createProfessional({
-                name,
+                name: selectedUser.fullName || selectedUser.email,
+                userId: selectedUser.uid,
                 color,
                 order,
                 active: true,
@@ -206,14 +238,60 @@ export default function ProfesionalesPage() {
                 title="Nuevo Profesional"
             >
                 <form onSubmit={handleSubmit} className="space-y-4 pt-4">
-                    <div>
-                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Nombre</label>
-                        <Input
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            placeholder="Nombre del profesional"
-                            required
-                        />
+                    <div className="relative">
+                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Profesional</label>
+                        <div className="relative">
+                            <Input
+                                value={searchQuery}
+                                onChange={(e) => {
+                                    setSearchQuery(e.target.value);
+                                    setSelectedUser(null);
+                                    setShowSuggestions(true);
+                                }}
+                                onFocus={() => setShowSuggestions(true)}
+                                placeholder="Buscar usuario con rol profesional..."
+                                className="pl-9"
+                            />
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        </div>
+                        {showSuggestions && !selectedUser && (
+                            <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">
+                                {filteredUsers.length === 0 ? (
+                                    <p className="px-4 py-3 text-sm text-gray-400">
+                                        {professionalUsers.length === 0
+                                            ? 'No hay usuarios con rol profesional disponibles'
+                                            : 'Sin resultados'}
+                                    </p>
+                                ) : (
+                                    filteredUsers.map(user => (
+                                        <button
+                                            key={user.uid}
+                                            type="button"
+                                            onClick={() => handleSelectUser(user)}
+                                            className="w-full text-left px-4 py-2.5 hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-0"
+                                        >
+                                            <p className="text-sm font-bold text-gray-900">{user.fullName}</p>
+                                            <p className="text-[11px] text-gray-400">{user.email}</p>
+                                        </button>
+                                    ))
+                                )}
+                            </div>
+                        )}
+                        {selectedUser && (
+                            <div className="mt-2 flex items-center gap-2 bg-violet-50 border border-violet-100 rounded-xl px-3 py-2">
+                                <div className="flex-1">
+                                    <p className="text-sm font-bold text-gray-900">{selectedUser.fullName}</p>
+                                    <p className="text-[11px] text-gray-400">{selectedUser.email}</p>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => { setSelectedUser(null); setSearchQuery(''); }}
+                                    className="text-gray-400 hover:text-red-400 text-xs font-bold"
+                                >
+                                    ✕
+                                </button>
+                            </div>
+                        )}
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div>
