@@ -1,14 +1,16 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Professional } from '@/lib/types/professional';
+import { Professional, ProfessionalPrice } from '@/lib/types/professional';
 import { updateProfessional, toggleProfessionalStatus, deleteProfessional } from '@/lib/firebase/professionals';
+import { Treatment } from '@/lib/types/treatment';
+import { getTreatments } from '@/lib/firebase/treatments';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { toast } from 'sonner';
-import { Save, Trash2, Shield, ShieldOff } from 'lucide-react';
+import { Save, Trash2, Shield, ShieldOff, ChevronDown, ChevronRight } from 'lucide-react';
 
 interface ProfessionalConfigProps {
     professional: Professional;
@@ -22,13 +24,52 @@ export function ProfessionalConfig({ professional, onUpdate }: ProfessionalConfi
     const [color, setColor] = useState(professional.color);
     const [order, setOrder] = useState(professional.order);
     const [legacyCollectionName, setLegacyCollectionName] = useState(professional.legacyCollectionName || '');
+    const [serviceCommissionMode, setServiceCommissionMode] = useState<'percentage' | 'fixed'>(professional.serviceCommissionMode || 'percentage');
     const [serviceCommissionPercentage, setServiceCommissionPercentage] = useState(professional.serviceCommissionPercentage || 0);
     const [productCommissionPercentage, setProductCommissionPercentage] = useState(professional.productCommissionPercentage || 0);
+    const [professionalPrices, setProfessionalPrices] = useState<ProfessionalPrice[]>(professional.professionalPrices || []);
 
+    const [treatments, setTreatments] = useState<Treatment[]>([]);
+    const [expandedTreatments, setExpandedTreatments] = useState<Set<string>>(new Set());
     const [saving, setSaving] = useState(false);
     const [toggling, setToggling] = useState(false);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [deleting, setDeleting] = useState(false);
+
+    useEffect(() => {
+        if (serviceCommissionMode === 'fixed') {
+            getTreatments().then(setTreatments);
+        }
+    }, [serviceCommissionMode]);
+
+    const getProfessionalPrice = (treatmentId: string, zone?: string, gender?: string): number | undefined => {
+        return professionalPrices.find(
+            p => p.treatmentId === treatmentId && p.zone === zone && (p.gender || 'both') === (gender || 'both')
+        )?.price;
+    };
+
+    const setProfessionalPrice = (treatmentId: string, treatmentName: string, zone: string | undefined, gender: string | undefined, price: number) => {
+        setProfessionalPrices(prev => {
+            const idx = prev.findIndex(
+                p => p.treatmentId === treatmentId && p.zone === zone && (p.gender || 'both') === (gender || 'both')
+            );
+            if (idx >= 0) {
+                const updated = [...prev];
+                updated[idx] = { ...updated[idx], price };
+                return updated;
+            }
+            return [...prev, { treatmentId, treatmentName, zone, gender: gender as ProfessionalPrice['gender'], price }];
+        });
+    };
+
+    const toggleTreatmentExpanded = (id: string) => {
+        setExpandedTreatments(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
+    };
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -39,8 +80,10 @@ export function ProfessionalConfig({ professional, onUpdate }: ProfessionalConfi
                 color,
                 order,
                 legacyCollectionName,
+                serviceCommissionMode,
                 serviceCommissionPercentage,
                 productCommissionPercentage,
+                professionalPrices: serviceCommissionMode === 'fixed' ? professionalPrices : [],
             });
             toast.success('Configuración guardada');
             onUpdate();
@@ -133,23 +176,46 @@ export function ProfessionalConfig({ professional, onUpdate }: ProfessionalConfi
 
                     <div className="pt-4 border-t border-gray-100">
                         <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mb-4">Comisiones</p>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div>
-                                <label className="text-[10px] text-gray-400 font-black uppercase tracking-widest">Servicios (%)</label>
-                                <div className="relative mt-1">
-                                    <Input
-                                        type="number"
-                                        value={serviceCommissionPercentage || ''}
-                                        onChange={(e) => setServiceCommissionPercentage(e.target.value === '' ? 0 : parseFloat(e.target.value))}
-                                        min={0}
-                                        max={100}
-                                        step={0.5}
-                                        placeholder="Ej: 50"
-                                        className="pl-9 font-bold"
-                                    />
-                                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-violet-500 font-black text-sm">%</div>
-                                </div>
+
+                        <div className="mb-4">
+                            <label className="text-[10px] text-gray-400 font-black uppercase tracking-widest">Modo de comisión por servicios</label>
+                            <div className="bg-gray-100 p-0.5 rounded-lg flex mt-1 w-fit">
+                                <button
+                                    type="button"
+                                    onClick={() => setServiceCommissionMode('percentage')}
+                                    className={`px-3 py-1.5 rounded text-[10px] font-bold uppercase tracking-wider transition-all ${serviceCommissionMode === 'percentage' ? 'bg-white text-violet-600 shadow-sm' : 'text-gray-400'}`}
+                                >
+                                    Porcentaje
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setServiceCommissionMode('fixed')}
+                                    className={`px-3 py-1.5 rounded text-[10px] font-bold uppercase tracking-wider transition-all ${serviceCommissionMode === 'fixed' ? 'bg-white text-violet-600 shadow-sm' : 'text-gray-400'}`}
+                                >
+                                    Precio fijo
+                                </button>
                             </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            {serviceCommissionMode === 'percentage' && (
+                                <div>
+                                    <label className="text-[10px] text-gray-400 font-black uppercase tracking-widest">Servicios (%)</label>
+                                    <div className="relative mt-1">
+                                        <Input
+                                            type="number"
+                                            value={serviceCommissionPercentage || ''}
+                                            onChange={(e) => setServiceCommissionPercentage(e.target.value === '' ? 0 : parseFloat(e.target.value))}
+                                            min={0}
+                                            max={100}
+                                            step={0.5}
+                                            placeholder="Ej: 50"
+                                            className="pl-9 font-bold"
+                                        />
+                                        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-violet-500 font-black text-sm">%</div>
+                                    </div>
+                                </div>
+                            )}
                             <div>
                                 <label className="text-[10px] text-gray-400 font-black uppercase tracking-widest">Productos (%)</label>
                                 <div className="relative mt-1">
@@ -167,6 +233,79 @@ export function ProfessionalConfig({ professional, onUpdate }: ProfessionalConfi
                                 </div>
                             </div>
                         </div>
+
+                        {serviceCommissionMode === 'fixed' && (
+                            <div className="mt-6">
+                                <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mb-3">
+                                    Precios del profesional por servicio
+                                </p>
+                                <p className="text-[11px] text-gray-400 mb-4">
+                                    Ingresá el monto que cobra el profesional por cada servicio. El local cobra el precio del catálogo al cliente.
+                                </p>
+                                {treatments.length === 0 ? (
+                                    <p className="text-sm text-gray-400 italic">Cargando tratamientos...</p>
+                                ) : (
+                                    <div className="space-y-2">
+                                        {treatments.map(treatment => (
+                                            <div key={treatment.id} className="border border-gray-100 rounded-2xl overflow-hidden">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => toggleTreatmentExpanded(treatment.id)}
+                                                    className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors"
+                                                >
+                                                    <div className="flex items-center gap-2">
+                                                        {expandedTreatments.has(treatment.id) ? (
+                                                            <ChevronDown className="w-4 h-4 text-gray-400" />
+                                                        ) : (
+                                                            <ChevronRight className="w-4 h-4 text-gray-400" />
+                                                        )}
+                                                        <span className="text-sm font-bold text-gray-900">{treatment.name}</span>
+                                                        <span className="text-[10px] text-gray-400 uppercase">{treatment.category}</span>
+                                                    </div>
+                                                    {treatment.prices.some(tp => getProfessionalPrice(treatment.id, tp.zone, tp.gender) !== undefined) && (
+                                                        <span className="text-[10px] font-bold text-violet-500 uppercase">Configurado</span>
+                                                    )}
+                                                </button>
+                                                {expandedTreatments.has(treatment.id) && (
+                                                    <div className="px-4 pb-3 space-y-2 border-t border-gray-50">
+                                                        {treatment.prices.map((tp, idx) => (
+                                                            <div key={idx} className="flex items-center gap-3 pt-2">
+                                                                <div className="flex-1 min-w-0">
+                                                                    <p className="text-[11px] text-gray-500">
+                                                                        {tp.zone || 'General'}
+                                                                        {tp.gender && tp.gender !== 'both' ? ` · ${tp.gender === 'male' ? 'Hombre' : 'Mujer'}` : ''}
+                                                                    </p>
+                                                                    <p className="text-[10px] text-gray-300">
+                                                                        Precio cliente: ${tp.price.toLocaleString('es-AR')}
+                                                                    </p>
+                                                                </div>
+                                                                <div className="relative w-32">
+                                                                    <Input
+                                                                        type="number"
+                                                                        value={getProfessionalPrice(treatment.id, tp.zone, tp.gender) ?? ''}
+                                                                        onChange={(e) => setProfessionalPrice(
+                                                                            treatment.id,
+                                                                            treatment.name,
+                                                                            tp.zone,
+                                                                            tp.gender,
+                                                                            e.target.value === '' ? 0 : parseFloat(e.target.value)
+                                                                        )}
+                                                                        min={0}
+                                                                        placeholder="Precio prof."
+                                                                        className="pl-6 text-sm font-bold"
+                                                                    />
+                                                                    <div className="absolute left-2 top-1/2 -translate-y-1/2 text-violet-500 font-black text-xs">$</div>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
 
                     <div className="flex justify-end pt-4 border-t border-gray-100">

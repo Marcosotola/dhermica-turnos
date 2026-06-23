@@ -21,6 +21,7 @@ export default function ProfesionalesPage() {
     const [color, setColor] = useState('#6366f1');
     const [order, setOrder] = useState(0);
     const [legacyCollectionName, setLegacyCollectionName] = useState('');
+    const [serviceCommissionMode, setServiceCommissionMode] = useState<'percentage' | 'fixed'>('percentage');
     const [serviceCommissionPercentage, setServiceCommissionPercentage] = useState(0);
     const [productCommissionPercentage, setProductCommissionPercentage] = useState(0);
 
@@ -46,6 +47,7 @@ export default function ProfesionalesPage() {
         setColor('#6366f1');
         setOrder(professionals.length);
         setLegacyCollectionName('');
+        setServiceCommissionMode('percentage');
         setServiceCommissionPercentage(0);
         setProductCommissionPercentage(0);
         setModalOpen(true);
@@ -61,6 +63,7 @@ export default function ProfesionalesPage() {
                 order,
                 active: true,
                 legacyCollectionName,
+                serviceCommissionMode,
                 serviceCommissionPercentage,
                 productCommissionPercentage,
             });
@@ -249,35 +252,59 @@ export default function ProfesionalesPage() {
                             placeholder="Ej: turnosLuciana"
                         />
                     </div>
-                    <div className="grid grid-cols-2 gap-4 pt-2">
-                        <div>
-                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Comisión Servicios (%)</label>
-                            <div className="relative">
-                                <Input
-                                    type="number"
-                                    value={serviceCommissionPercentage || ''}
-                                    onChange={(e) => setServiceCommissionPercentage(e.target.value === '' ? 0 : parseFloat(e.target.value))}
-                                    min={0} max={100} step={0.5}
-                                    placeholder="Ej: 50"
-                                    className="pl-9 font-bold"
-                                />
-                                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-violet-500 font-black">%</div>
+                    <div className="pt-2">
+                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Modo comisión servicios</label>
+                        <div className="bg-gray-100 p-0.5 rounded-lg flex w-fit mb-3">
+                            <button
+                                type="button"
+                                onClick={() => setServiceCommissionMode('percentage')}
+                                className={`px-3 py-1.5 rounded text-[10px] font-bold uppercase tracking-wider transition-all ${serviceCommissionMode === 'percentage' ? 'bg-white text-violet-600 shadow-sm' : 'text-gray-400'}`}
+                            >
+                                Porcentaje
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setServiceCommissionMode('fixed')}
+                                className={`px-3 py-1.5 rounded text-[10px] font-bold uppercase tracking-wider transition-all ${serviceCommissionMode === 'fixed' ? 'bg-white text-violet-600 shadow-sm' : 'text-gray-400'}`}
+                            >
+                                Precio fijo
+                            </button>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            {serviceCommissionMode === 'percentage' && (
+                                <div>
+                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Comisión Servicios (%)</label>
+                                    <div className="relative">
+                                        <Input
+                                            type="number"
+                                            value={serviceCommissionPercentage || ''}
+                                            onChange={(e) => setServiceCommissionPercentage(e.target.value === '' ? 0 : parseFloat(e.target.value))}
+                                            min={0} max={100} step={0.5}
+                                            placeholder="Ej: 50"
+                                            className="pl-9 font-bold"
+                                        />
+                                        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-violet-500 font-black">%</div>
+                                    </div>
+                                </div>
+                            )}
+                            <div>
+                                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Comisión Productos (%)</label>
+                                <div className="relative">
+                                    <Input
+                                        type="number"
+                                        value={productCommissionPercentage || ''}
+                                        onChange={(e) => setProductCommissionPercentage(e.target.value === '' ? 0 : parseFloat(e.target.value))}
+                                        min={0} max={100} step={0.5}
+                                        placeholder="Ej: 10"
+                                        className="pl-9 font-bold"
+                                    />
+                                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-500 font-black">%</div>
+                                </div>
                             </div>
                         </div>
-                        <div>
-                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Comisión Productos (%)</label>
-                            <div className="relative">
-                                <Input
-                                    type="number"
-                                    value={productCommissionPercentage || ''}
-                                    onChange={(e) => setProductCommissionPercentage(e.target.value === '' ? 0 : parseFloat(e.target.value))}
-                                    min={0} max={100} step={0.5}
-                                    placeholder="Ej: 10"
-                                    className="pl-9 font-bold"
-                                />
-                                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-500 font-black">%</div>
-                            </div>
-                        </div>
+                        {serviceCommissionMode === 'fixed' && (
+                            <p className="text-[11px] text-gray-400 mt-2">Los precios por servicio se configuran después de crear el profesional, desde su página de configuración.</p>
+                        )}
                     </div>
                     <div className="flex justify-end gap-3 pt-4 border-t">
                         <Button type="button" variant="ghost" onClick={() => setModalOpen(false)}>

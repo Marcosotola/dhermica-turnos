@@ -267,17 +267,26 @@ export async function getFinanceOverview(startDate: string, endDate: string, tar
                 const prof = nameToProfessional[profName];
                 const profData = overview.byProfessional[profName];
                 profData.serviceIncome += actualPrice;
-                
+
                 const hasAparato = aparatoDays.has(`${profName}|${apt.date}`);
                 if (!hasAparato) {
-                    // Prioridad: monto fijo > porcentaje override > porcentaje del profesional
+                    // Prioridad: monto fijo override > modo fixed del profesional > porcentaje override > porcentaje del profesional
                     if (apt.commissionFixedOverride !== undefined && apt.commissionFixedOverride !== null && apt.commissionFixedOverride > 0) {
                         profData.serviceCommission += apt.commissionFixedOverride;
+                    } else if (prof?.serviceCommissionMode === 'fixed' && prof.professionalPrices?.length && apt.treatments?.length) {
+                        let fixedTotal = 0;
+                        for (const t of apt.treatments) {
+                            const match = prof.professionalPrices.find(
+                                pp => pp.treatmentId === t.treatmentId && pp.zone === t.zone && (pp.gender || 'both') === (t.gender || 'both')
+                            );
+                            if (match) fixedTotal += match.price;
+                        }
+                        profData.serviceCommission += fixedTotal;
                     } else {
                         const commissionPct = apt.commissionPercentageOverride !== undefined && apt.commissionPercentageOverride !== null
                             ? apt.commissionPercentageOverride
                             : (prof?.serviceCommissionPercentage || (prof as any)?.commissionPercentage || 0);
-                        
+
                         if (commissionPct > 0) {
                             profData.serviceCommission += (actualPrice * commissionPct) / 100;
                         }
