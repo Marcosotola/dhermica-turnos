@@ -100,7 +100,6 @@ export function AppointmentModal({
     const [filteredClients, setFilteredClients] = useState<UserProfile[]>([]);
     const [countryCode, setCountryCode] = useState('+54');
     const [selectedTreatments, setSelectedTreatments] = useState<SelectedTreatment[]>([]);
-    const [treatmentMode, setTreatmentMode] = useState<'catalog' | 'manual'>('catalog');
     const [showTreatmentSheet, setShowTreatmentSheet] = useState(false);
 
     const formatMinutes = (minutes: number) => {
@@ -182,7 +181,6 @@ export function AppointmentModal({
 
 
     useEffect(() => {
-        if (treatmentMode !== 'catalog') return;
         const totalMinutes = selectedTreatments.reduce((sum, t) => sum + t.duration, 0);
         const totalHours = selectedTreatments.length > 0
             ? Math.max(0.5, Math.round(totalMinutes / 30) * 0.5)
@@ -197,7 +195,7 @@ export function AppointmentModal({
             duration: totalHours,
             price: totalPrice,
         }));
-    }, [selectedTreatments, treatmentMode]);
+    }, [selectedTreatments]);
 
     useEffect(() => {
         if (appointment) {
@@ -247,10 +245,8 @@ export function AppointmentModal({
             }
             if (appointment.treatments && appointment.treatments.length > 0) {
                 setSelectedTreatments(appointment.treatments);
-                setTreatmentMode('catalog');
             } else {
                 setSelectedTreatments([]);
-                setTreatmentMode('manual');
             }
         } else {
             setFormData({
@@ -279,7 +275,6 @@ export function AppointmentModal({
             setClientMode('registered');
             setUseCustomCommission(false);
             setSelectedTreatments([]);
-            setTreatmentMode('catalog');
         }
         setErrors([]);
         setSearchQuery('');
@@ -456,7 +451,7 @@ export function AppointmentModal({
             clientPhone: formData.clientPhone,
             clientEmail: formData.clientEmail || undefined,
             treatment: formData.treatment,
-            treatments: treatmentMode === 'catalog' ? selectedTreatments : [],
+            treatments: selectedTreatments,
             date,
             time: formData.time,
             duration: formData.duration,
@@ -814,83 +809,55 @@ export function AppointmentModal({
                 </div>
 
                 <div className="space-y-3 pt-4">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <Sparkles className="w-4 h-4 text-[#34baab]" />
-                            <span className="text-[10px] font-black text-gray-700 uppercase tracking-[0.2em]">Tratamientos</span>
-                        </div>
-                        <div className="bg-gray-100 p-0.5 rounded-lg flex">
-                            <button
-                                type="button"
-                                onClick={() => setTreatmentMode('catalog')}
-                                className={`px-2.5 py-1 rounded text-[10px] font-bold uppercase tracking-wider transition-all ${treatmentMode === 'catalog' ? 'bg-white text-[#34baab] shadow-sm' : 'text-gray-400'}`}
-                            >
-                                Catálogo
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setTreatmentMode('manual')}
-                                className={`px-2.5 py-1 rounded text-[10px] font-bold uppercase tracking-wider transition-all ${treatmentMode === 'manual' ? 'bg-white text-gray-700 shadow-sm' : 'text-gray-400'}`}
-                            >
-                                Manual
-                            </button>
-                        </div>
+                    <div className="flex items-center gap-2">
+                        <Sparkles className="w-4 h-4 text-[#34baab]" />
+                        <span className="text-[10px] font-black text-gray-700 uppercase tracking-[0.2em]">Tratamientos</span>
                     </div>
 
-                    {treatmentMode === 'catalog' ? (
-                        <div className="space-y-2">
-                            {selectedTreatments.map((t, i) => (
-                                <div key={i} className="flex items-center gap-3 bg-[#34baab]/5 border border-[#34baab]/10 rounded-2xl px-4 py-3">
-                                    <div className="flex-1 min-w-0">
-                                        <p className="text-sm font-bold text-gray-900 truncate">
-                                            {t.name}{t.zone ? <span className="text-gray-400 font-normal"> · {t.zone}</span> : ''}
-                                        </p>
-                                        <p className="text-[11px] text-gray-400 mt-0.5">
-                                            ${t.price.toLocaleString('es-AR')} · {formatMinutes(t.duration)}
-                                        </p>
-                                    </div>
-                                    <button
-                                        type="button"
-                                        onClick={() => removeSelectedTreatment(i)}
-                                        aria-label="Quitar tratamiento"
-                                        className="text-gray-300 hover:text-red-400 transition-colors shrink-0"
-                                    >
-                                        <Trash2 className="w-4 h-4" />
-                                    </button>
+                    <div className="space-y-2">
+                        {selectedTreatments.map((t, i) => (
+                            <div key={i} className="flex items-center gap-3 bg-[#34baab]/5 border border-[#34baab]/10 rounded-2xl px-4 py-3">
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-bold text-gray-900 truncate">
+                                        {t.name}{t.zone ? <span className="text-gray-400 font-normal"> · {t.zone}</span> : ''}
+                                    </p>
+                                    <p className="text-[11px] text-gray-400 mt-0.5">
+                                        ${t.price.toLocaleString('es-AR')} · {formatMinutes(t.duration)}
+                                    </p>
                                 </div>
-                            ))}
+                                <button
+                                    type="button"
+                                    onClick={() => removeSelectedTreatment(i)}
+                                    aria-label="Quitar tratamiento"
+                                    className="text-gray-300 hover:text-red-400 transition-colors shrink-0"
+                                >
+                                    <Trash2 className="w-4 h-4" />
+                                </button>
+                            </div>
+                        ))}
 
-                            <button
-                                type="button"
-                                onClick={() => setShowTreatmentSheet(true)}
-                                className="w-full py-4 border-2 border-dashed border-[#34baab]/30 rounded-2xl text-[#34baab] hover:bg-[#34baab]/5 transition-all text-[10px] font-black uppercase tracking-[0.2em] flex items-center justify-center gap-2"
-                            >
-                                <Plus className="w-4 h-4" /> Agregar tratamiento
-                            </button>
+                        <button
+                            type="button"
+                            onClick={() => setShowTreatmentSheet(true)}
+                            className="w-full py-4 border-2 border-dashed border-[#34baab]/30 rounded-2xl text-[#34baab] hover:bg-[#34baab]/5 transition-all text-[10px] font-black uppercase tracking-[0.2em] flex items-center justify-center gap-2"
+                        >
+                            <Plus className="w-4 h-4" /> Agregar tratamiento
+                        </button>
 
-                            {selectedTreatments.length > 1 && (
-                                <div className="flex items-center justify-between bg-[#34baab]/5 rounded-xl px-4 py-2.5">
-                                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Total calculado</span>
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-sm font-black text-[#34baab]">
-                                            ${selectedTreatments.reduce((s, t) => s + t.price, 0).toLocaleString('es-AR')}
-                                        </span>
-                                        <span className="text-[11px] text-gray-400">
-                                            · {formatMinutes(selectedTreatments.reduce((s, t) => s + t.duration, 0))}
-                                        </span>
-                                    </div>
+                        {selectedTreatments.length > 1 && (
+                            <div className="flex items-center justify-between bg-[#34baab]/5 rounded-xl px-4 py-2.5">
+                                <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Total calculado</span>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-sm font-black text-[#34baab]">
+                                        ${selectedTreatments.reduce((s, t) => s + t.price, 0).toLocaleString('es-AR')}
+                                    </span>
+                                    <span className="text-[11px] text-gray-400">
+                                        · {formatMinutes(selectedTreatments.reduce((s, t) => s + t.duration, 0))}
+                                    </span>
                                 </div>
-                            )}
-                        </div>
-                    ) : (
-                        <Input
-                            label="Tratamiento"
-                            value={formData.treatment || ''}
-                            onChange={(e) => setFormData({ ...formData, treatment: e.target.value })}
-                            placeholder="Ej: Limpieza facial"
-                            required
-                        />
-                    )}
+                            </div>
+                        )}
+                    </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
