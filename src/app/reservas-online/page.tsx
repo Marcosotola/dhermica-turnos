@@ -120,8 +120,8 @@ export default function ReservasOnlinePage() {
                             const StatusIcon = sc.icon;
                             const isExpanded = expandedId === b.id;
                             const firstSlot = b.slots[0];
-                            const treatments = b.slots.flatMap(s => s.treatmentNames).join(', ');
-                            const zones = b.slots.flatMap(s => s.zones.filter(Boolean)).join(', ');
+                            const treatments = b.slots.flatMap(s => s.treatmentNames || []).join(', ');
+                            const zones = b.slots.flatMap(s => (s.zones || []).filter(Boolean)).join(', ');
                             const hasChatHistory = b.chatHistory.length > 0;
 
                             return (
