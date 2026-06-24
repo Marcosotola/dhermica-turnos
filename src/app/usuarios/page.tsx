@@ -236,6 +236,7 @@ export default function UsuariosPage() {
                                                         onChange={(e) => handleRoleChange(user.uid, e.target.value as UserRole)}
                                                         options={[
                                                             { value: 'client', label: 'Cliente' },
+                                                            { value: 'cliente-prueba', label: 'Cliente Prueba' },
                                                             { value: 'promotor', label: 'Promotor' },
                                                             { value: 'professional', label: 'Profesional' },
                                                             { value: 'secretary', label: 'Secretaria' },

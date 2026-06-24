@@ -18,7 +18,7 @@ export function WhatsAppBadge({
     const pathname = usePathname();
 
     if (loading) return null;
-    if (profile && profile.role !== 'client') return null;
+    if (profile && profile.role !== 'client' && profile.role !== 'cliente-prueba') return null;
     // En el chat de reservas el botón tapa el input — no hace falta
     if (pathname === '/reservar' || pathname.startsWith('/reservar/')) return null;
 

@@ -34,7 +34,7 @@ export default function ProductosPage() {
     const [professionals, setProfessionals] = useState<Professional[]>([]);
 
     const isAdmin = profile?.role === 'admin' || profile?.role === 'secretary' || profile?.role === 'promotor';
-    const canRegisterSale = profile?.role && profile.role !== 'client';
+    const canRegisterSale = profile?.role && profile.role !== 'client' && profile.role !== 'cliente-prueba';
 
     useEffect(() => {
         fetchProducts();

@@ -41,7 +41,7 @@ export default function MisTurnosPage() {
     const [turnosOpen, setTurnosOpen] = useState(false);
 
     useEffect(() => {
-        if (!loading && (!user || profile?.role !== 'client')) {
+        if (!loading && (!user || (profile?.role !== 'client' && profile?.role !== 'cliente-prueba'))) {
             router.push('/dashboard');
         }
     }, [user, profile, loading, router]);

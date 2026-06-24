@@ -112,7 +112,7 @@ export function BottomNav() {
             }
         ] : []),
         // Client, Promotor and Contador specific
-        ...(role === 'client' || role === 'promotor' || role === 'contador' ? [
+        ...(role === 'client' || role === 'cliente-prueba' || role === 'promotor' || role === 'contador' ? [
             {
                 label: 'Servicios',
                 icon: Sparkles,

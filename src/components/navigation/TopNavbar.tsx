@@ -120,8 +120,8 @@ export function TopNavbar() {
             { href: '/alquileres', label: 'Alquiler', icon: Truck },
         ] : []),
         // Client and Promotor
-        ...(role === 'client' || role === 'promotor' ? [
-            { href: '/reservar', label: 'Reservar', icon: CalendarPlus },
+        ...(role === 'client' || role === 'cliente-prueba' || role === 'promotor' ? [
+            ...(role === 'cliente-prueba' ? [{ href: '/reservar', label: 'Reservar', icon: CalendarPlus }] : []),
             { href: '/mis-turnos', label: 'Mis Turnos', icon: Calendar },
             { href: '/tratamientos', label: 'Servicios', icon: Sparkles },
             { href: '/productos', label: 'Productos', icon: ShoppingBag },
