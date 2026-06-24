@@ -46,8 +46,8 @@ export async function POST(req: NextRequest) {
         // Crear los appointments
         const appointmentIds: string[] = [];
         for (const slot of booking.slots as any[]) {
-            const treatmentSummary = slot.treatmentNames.join(' + ');
-            const zones = slot.zones.join(', ');
+            const treatmentSummary = (slot.treatmentNames || []).join(' + ');
+            const zones = (slot.zones || []).filter(Boolean).join(', ');
 
             const payments: any[] = [];
             if (bd?.giftCardAmount > 0) {

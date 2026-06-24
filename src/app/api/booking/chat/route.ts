@@ -56,7 +56,7 @@ FLUJO DE RESERVA:
 14. Calculá: mercadopagoAmount = seña total - gift card usada - crédito usado (mínimo $0)
 15. Mostrá resumen completo y preguntá si confirma
 16. Si confirma → LLAMÁ A create_pending_booking INMEDIATAMENTE (sin generar texto antes). Pasá EXACTAMENTE:
-    - slots: array con date, time, durationMinutes y professionalId del resultado de find_available_slots
+    - slots: array con date, time y durationMinutes del resultado de find_available_slots (el profesional se asigna automáticamente)
     - treatmentIds: array con el id del tratamiento elegido (obtenido de get_treatments)
     - treatmentNames: array con el nombre del tratamiento
     - zones: array con la zona elegida por el cliente (ej: ["Abdomen"])
@@ -181,7 +181,6 @@ const tools = [
                             treatmentIds: { type: 'array', items: { type: 'string' } },
                             treatmentNames: { type: 'array', items: { type: 'string' } },
                             zones: { type: 'array', items: { type: 'string' } },
-                            professionalId: { type: 'string' },
                             date: { type: 'string' },
                             time: { type: 'string' },
                             durationMinutes: { type: 'number' },
@@ -277,13 +276,13 @@ async function runTool(name: string, args: any, clientId: string): Promise<strin
                 const toFormatted = (opts: Awaited<ReturnType<typeof findAvailableBookingOptions>>) =>
                     opts.map((opt, i) => ({
                         opcion: i + 1,
-                        instruccion: 'Al crear la reserva, incluí professionalId, date, time y durationMinutes de la opción elegida',
+                        instruccion: 'Al crear la reserva, incluí date, time y durationMinutes de la opción elegida. El profesional se asigna automáticamente.',
                         slots: opt.slots.map((s, si) => ({
                             slotIndex: si,
                             date: s.date,
                             time: s.time,
                             durationMinutes: s.durationMinutes,
-                            professionalId: s.professionalId,
+                            professionalName: s.professionalName,
                         })),
                         sameDay: opt.sameDay,
                     }));
@@ -410,27 +409,9 @@ async function runTool(name: string, args: any, clientId: string): Promise<strin
                             normalizedZones.push(matched);
                         }
 
-                        // 2. Resolver professionalId — validar que exista, fallback si Gemini inventó un ID
-                        let profId: string = slot.professionalId || '';
-                        let needsFallback = !profId;
-
-                        if (profId && !profCache[profId]) {
-                            try {
-                                const profSnap = await adminDb.collection('professionals').doc(profId).get();
-                                if (profSnap.exists) {
-                                    profCache[profId] = profSnap.data()?.name || '';
-                                } else {
-                                    console.warn(`[create_pending_booking] professionalId "${profId}" no existe en Firestore, buscando fallback`);
-                                    profId = '';
-                                    needsFallback = true;
-                                }
-                            } catch {
-                                profId = '';
-                                needsFallback = true;
-                            }
-                        }
-
-                        if (needsFallback && slot.date && slot.time) {
+                        // 2. Resolver professionalId — siempre server-side, no confiar en Gemini
+                        let profId = '';
+                        if (slot.date && slot.time) {
                             try {
                                 const assigned = await assignBestProfessional(
                                     rawTreatmentIds[0] || '',
@@ -444,7 +425,7 @@ async function runTool(name: string, args: any, clientId: string): Promise<strin
                                     profCache[profId] = assigned.professionalName;
                                 }
                             } catch (e) {
-                                console.error('[create_pending_booking] Error buscando profesional fallback:', e);
+                                console.error('[create_pending_booking] Error asignando profesional:', e);
                             }
                         }
 

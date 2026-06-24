@@ -107,8 +107,8 @@ export async function POST(req: NextRequest) {
         const now = Timestamp.now();
 
         for (const slot of booking.slots as any[]) {
-            const treatmentSummary = slot.treatmentNames.join(' + ');
-            const zones = slot.zones.join(', ');
+            const treatmentSummary = (slot.treatmentNames || []).join(' + ');
+            const zones = (slot.zones || []).filter(Boolean).join(', ');
 
             const aptRef = await adminDb.collection('appointments').add({
                 clientId: booking.clientId,
