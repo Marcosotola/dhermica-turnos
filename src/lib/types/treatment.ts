@@ -1,4 +1,4 @@
-export type TreatmentCategory = 'Facial' | 'Corporal' | 'Depilación' | 'Manos' | 'Pies' | 'Aparatología' | 'Cejas' | 'Pestañas';
+export type TreatmentCategory = 'Facial' | 'Corporal' | 'Depilación' | 'Manos' | 'Pies' | 'Aparatología' | 'Cejas' | 'Pestañas' | 'Plasma' | 'Botox';
 
 export interface TreatmentPrice {
     zone: string;

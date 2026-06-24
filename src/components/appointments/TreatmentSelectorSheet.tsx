@@ -7,7 +7,7 @@ import { SelectedTreatment } from '@/lib/types/appointment';
 import { Search, X, ChevronRight, Plus } from 'lucide-react';
 
 const CATEGORIES: TreatmentCategory[] = [
-    'Facial', 'Corporal', 'Depilación', 'Manos', 'Pies', 'Aparatología', 'Cejas', 'Pestañas',
+    'Facial', 'Corporal', 'Depilación', 'Manos', 'Pies', 'Aparatología', 'Cejas', 'Pestañas', 'Plasma', 'Botox',
 ];
 
 const GENDER_LABELS: Record<string, string> = {

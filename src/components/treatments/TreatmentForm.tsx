@@ -16,7 +16,7 @@ interface TreatmentFormProps {
     treatment?: Treatment;
 }
 
-const CATEGORIES: TreatmentCategory[] = ['Facial', 'Corporal', 'Aparatología', 'Depilación', 'Manos', 'Pies', 'Cejas', 'Pestañas'];
+const CATEGORIES: TreatmentCategory[] = ['Facial', 'Corporal', 'Aparatología', 'Depilación', 'Manos', 'Pies', 'Cejas', 'Pestañas', 'Plasma', 'Botox'];
 
 const DURATION_OPTIONS_MINUTES = [
     { value: 30, label: '30 minutos' },

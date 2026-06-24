@@ -14,7 +14,7 @@ import { toast, Toaster } from 'sonner';
 import { CardSkeleton } from '@/components/ui/Skeleton';
 import { haptics } from '@/lib/utils/haptics';
 
-const CATEGORIES: (TreatmentCategory | 'Todos')[] = ['Todos', 'Facial', 'Corporal', 'Aparatología', 'Depilación', 'Manos', 'Pies', 'Cejas', 'Pestañas'];
+const CATEGORIES: (TreatmentCategory | 'Todos')[] = ['Todos', 'Facial', 'Corporal', 'Aparatología', 'Depilación', 'Manos', 'Pies', 'Cejas', 'Pestañas', 'Plasma', 'Botox'];
 
 export default function TratamientosPage() {
     const { profile, loading: authLoading } = useAuth();
