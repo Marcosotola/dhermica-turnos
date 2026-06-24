@@ -23,6 +23,69 @@ import { getUserProfile, formatPhone } from './users';
 const APPOINTMENTS_COLLECTION = 'appointments';
 
 /**
+ * Notifies n8n webhook when a new appointment is created (fire-and-forget)
+ */
+async function notifyN8nNewAppointment(
+    appointmentId: string,
+    data: Omit<Appointment, 'id' | 'createdAt' | 'updatedAt'>,
+    professionalName: string
+) {
+    const webhookUrl = process.env.NEXT_PUBLIC_N8N_WEBHOOK_URL;
+    if (!webhookUrl) return;
+
+    try {
+        const [year, month, day] = (data.date || '').split('-');
+        const formattedDate = day && month && year ? `${day}/${month}/${year}` : data.date;
+
+        const treatmentsList = (data.treatments || []).map(t => ({
+            name: t.name,
+            zone: t.zone || null,
+            price: t.price,
+            duration: t.duration,
+        }));
+
+        const totalPaid = (data.payments || []).reduce((sum, p) => sum + p.amount, 0);
+
+        await fetch(webhookUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                event: 'appointment_created',
+                appointmentId,
+                client: {
+                    name: data.clientName,
+                    firstName: data.clientFirstName || null,
+                    lastName: data.clientLastName || null,
+                    phone: data.clientPhone || null,
+                    email: data.clientEmail || null,
+                },
+                appointment: {
+                    treatment: data.treatment,
+                    treatments: treatmentsList,
+                    date: data.date,
+                    dateFormatted: formattedDate,
+                    time: data.time,
+                    duration: data.duration,
+                    price: data.price || 0,
+                    totalPaid,
+                    balance: (data.price || 0) - totalPaid,
+                    status: data.status,
+                    notes: data.notes || null,
+                },
+                professional: {
+                    id: data.professionalId || null,
+                    name: professionalName || null,
+                },
+                createdAt: new Date().toISOString(),
+            }),
+        });
+        console.log('[n8n] Webhook notificado correctamente');
+    } catch (error) {
+        console.error('[n8n] Error al notificar webhook (no bloqueante):', error);
+    }
+}
+
+/**
  * Sends an automated push notification via the API
  */
 async function sendAutomatedNotification(title: string, body: string, uid: string, url: string) {
@@ -249,6 +312,16 @@ export async function createAppointment(
             '/mis-turnos'
         );
     }
+
+    // Notificar a n8n para envío de WhatsApp
+    let professionalName = '';
+    if (data.professionalId) {
+        try {
+            const profSnap = await getDoc(doc(db, 'professionals', data.professionalId));
+            if (profSnap.exists()) professionalName = profSnap.data().name || '';
+        } catch {}
+    }
+    notifyN8nNewAppointment(docRef.id, data, professionalName);
 
     return docRef.id;
 }
