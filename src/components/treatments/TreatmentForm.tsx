@@ -6,7 +6,7 @@ import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
 import { Button } from '../ui/Button';
 import { Treatment, TreatmentCategory, TreatmentPrice, CancellationPolicy } from '@/lib/types/treatment';
-import { Plus, Trash2, Clock } from 'lucide-react';
+import { Plus, Trash2, Clock, Banknote } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface TreatmentFormProps {
@@ -45,6 +45,7 @@ function buildFormData(treatment?: Treatment): Omit<Treatment, 'id' | 'createdAt
             preCare: treatment.preCare || [],
             postCare: treatment.postCare || [],
             cancellationPolicy: treatment.cancellationPolicy,
+            depositAmount: treatment.depositAmount ?? 0,
         };
     }
     return {
@@ -59,6 +60,7 @@ function buildFormData(treatment?: Treatment): Omit<Treatment, 'id' | 'createdAt
         preCare: [],
         postCare: [],
         cancellationPolicy: undefined,
+        depositAmount: 0,
     };
 }
 
@@ -291,6 +293,27 @@ export function TreatmentForm({ isOpen, onClose, onSubmit, treatment }: Treatmen
                             onChange={(e) => handleListChange('benefits', e.target.value)}
                             rows={3}
                             className="w-full px-4 py-3 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-[#34baab] outline-none resize-none transition-all text-gray-900 text-sm"
+                        />
+                    </div>
+                </div>
+
+                {/* Seña para Reserva Online */}
+                <div className="space-y-3">
+                    <h4 className="font-black text-gray-900 uppercase tracking-widest text-xs flex items-center gap-2">
+                        <Banknote className="w-3.5 h-3.5 text-[#34baab]" /> Seña para Reserva Online
+                    </h4>
+                    <div className="bg-teal-50 border border-teal-200 p-4 rounded-2xl space-y-2">
+                        <p className="text-xs text-teal-700 font-medium">
+                            Monto fijo que el cliente debe abonar para confirmar un turno online. Poner 0 si no requiere seña.
+                        </p>
+                        <Input
+                            label="Monto de seña ($)"
+                            type="number"
+                            value={formData.depositAmount ?? 0}
+                            onChange={e => setFormData(prev => ({ ...prev, depositAmount: parseFloat(e.target.value) || 0 }))}
+                            min={0}
+                            placeholder="0"
+                            className="bg-white"
                         />
                     </div>
                 </div>

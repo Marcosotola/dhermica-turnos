@@ -28,6 +28,8 @@ import { ClientLedger } from '@/components/clients/ClientLedger';
 import { GiftCard } from '@/lib/types/giftCard';
 import { getGiftCardsByPurchaser } from '@/lib/firebase/giftCards';
 import { getClientLedgerSummary, BALANCE_SINCE } from '@/lib/utils/clientLedger';
+import { ClientCancelButton } from '@/components/appointments/ClientCancelButton';
+import { CalendarPlus } from 'lucide-react';
 
 export default function MisTurnosPage() {
     const { user, profile, loading } = useAuth();
@@ -39,7 +41,7 @@ export default function MisTurnosPage() {
     const [turnosOpen, setTurnosOpen] = useState(false);
 
     useEffect(() => {
-        if (!loading && (!user || profile?.role !== 'client')) {
+        if (!loading && (!user || (profile?.role !== 'client' && profile?.role !== 'cliente-prueba'))) {
             router.push('/dashboard');
         }
     }, [user, profile, loading, router]);
@@ -100,9 +102,14 @@ export default function MisTurnosPage() {
                                 <p className="text-gray-300 text-sm font-medium">Tu historial y estado de cuenta.</p>
                             </div>
                         </div>
-                        <Link href="/dashboard" className="hidden md:flex items-center gap-2 bg-white/10 hover:bg-white/20 transition-colors px-4 py-2 rounded-xl text-sm font-bold">
-                            <ChevronLeft className="w-4 h-4" /> Volver
-                        </Link>
+                        <div className="flex items-center gap-2">
+                            <Link href="/reservar" className="flex items-center gap-2 bg-[#34baab] hover:bg-[#2aa89a] transition-colors px-4 py-2 rounded-xl text-sm font-bold shadow">
+                                <CalendarPlus className="w-4 h-4" /> Reservar
+                            </Link>
+                            <Link href="/dashboard" className="hidden md:flex items-center gap-2 bg-white/10 hover:bg-white/20 transition-colors px-4 py-2 rounded-xl text-sm font-bold">
+                                <ChevronLeft className="w-4 h-4" /> Volver
+                            </Link>
+                        </div>
                     </div>
                 </div>
 
@@ -215,6 +222,19 @@ export default function MisTurnosPage() {
                                                     </div>
                                                     {apt.notes && (
                                                         <p className="mt-2 pt-2 border-t border-gray-100 text-[11px] italic text-gray-400">"{apt.notes}"</p>
+                                                    )}
+                                                    {/* Botón de cancelación: solo para turnos pendientes futuros */}
+                                                    {(status === 'pending') && apt.date >= today && (
+                                                        <ClientCancelButton
+                                                            appointment={apt}
+                                                            clientId={user!.uid}
+                                                            clientName={profile!.fullName}
+                                                            onCancelled={() => {
+                                                                setAppointments(prev =>
+                                                                    prev.map(a => a.id === apt.id ? { ...a, status: 'cancelled' } : a)
+                                                                );
+                                                            }}
+                                                        />
                                                     )}
                                                 </div>
                                             );

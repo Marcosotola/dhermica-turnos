@@ -1,4 +1,8 @@
-export type UserRole = 'admin' | 'professional' | 'secretary' | 'client' | 'promotor' | 'contador';
+export type UserRole = 'admin' | 'professional' | 'secretary' | 'client' | 'cliente-prueba' | 'promotor' | 'contador';
+
+export function isClientRole(role: string | undefined): boolean {
+    return role === 'client' || role === 'cliente-prueba';
+}
 
 export interface UserProfile {
     uid: string;

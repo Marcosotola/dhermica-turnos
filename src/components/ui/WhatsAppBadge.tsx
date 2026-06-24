@@ -3,6 +3,7 @@
 import React from 'react';
 import { MessageCircle } from 'lucide-react';
 import { useAuth } from '@/lib/contexts/AuthContext';
+import { usePathname } from 'next/navigation';
 
 interface WhatsAppBadgeProps {
     phoneNumber?: string;
@@ -14,15 +15,12 @@ export function WhatsAppBadge({
     message = 'Hola! Me gustaría realizar una consulta.'
 }: WhatsAppBadgeProps) {
     const { profile, loading } = useAuth();
+    const pathname = usePathname();
 
-    // If still loading auth state, don't show the badge to avoid flickering
     if (loading) return null;
-
-    // Only show for clients or guests (no profile). 
-    // Hide for admin, professional, secretary, promotor, contador.
-    if (profile && profile.role !== 'client') {
-        return null;
-    }
+    if (profile && profile.role !== 'client' && profile.role !== 'cliente-prueba') return null;
+    // En el chat de reservas el botón tapa el input — no hace falta
+    if (pathname === '/reservar' || pathname.startsWith('/reservar/')) return null;
 
     const handleClick = () => {
         const url = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;

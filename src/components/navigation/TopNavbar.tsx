@@ -5,7 +5,7 @@
 import { useState, useEffect, ElementType } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Menu, X, Home, Calendar, Truck, Users, LayoutDashboard, LogOut, BookOpen, Settings, Sparkles, Tag, ShoppingBag, Bell, Share2, MapPin, DollarSign, Zap, TrendingDown, Download, Heart, Gift } from 'lucide-react';
+import { Menu, X, Home, Calendar, Truck, Users, LayoutDashboard, LogOut, BookOpen, Settings, Sparkles, Tag, ShoppingBag, Bell, Share2, MapPin, DollarSign, Zap, TrendingDown, Download, Heart, Gift, CalendarPlus } from 'lucide-react';
 
 import { Button } from '../ui/Button';
 import { useAuth } from '@/lib/contexts/AuthContext';
@@ -120,8 +120,9 @@ export function TopNavbar() {
             { href: '/alquileres', label: 'Alquiler', icon: Truck },
         ] : []),
         // Client and Promotor
-        ...(role === 'client' || role === 'promotor' ? [
-            { href: '/mis-turnos', label: 'Turnos', icon: Calendar },
+        ...(role === 'client' || role === 'cliente-prueba' || role === 'promotor' ? [
+            ...(role === 'cliente-prueba' ? [{ href: '/reservar', label: 'Reservar', icon: CalendarPlus }] : []),
+            { href: '/mis-turnos', label: 'Mis Turnos', icon: Calendar },
             { href: '/tratamientos', label: 'Servicios', icon: Sparkles },
             { href: '/productos', label: 'Productos', icon: ShoppingBag },
             { href: '/promociones', label: 'Promociones', icon: Tag },

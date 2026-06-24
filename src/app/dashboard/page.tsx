@@ -6,6 +6,8 @@ import { useEffect, useState } from 'react';
 import {
     LayoutDashboard,
     Calendar,
+    CalendarPlus,
+    Bot,
     Users,
     User as UserIcon,
     Settings,
@@ -59,7 +61,7 @@ export default function DashboardPage() {
             setHistoryLoading(true);
             try {
                 let data: Appointment[] = [];
-                if (profile.role === 'client' || profile.role === 'promotor') {
+                if (profile.role === 'client' || profile.role === 'cliente-prueba' || profile.role === 'promotor') {
                     // Fetch by ID (registered) and Name (legacy)
                     data = await getAppointmentsByClientId(user.uid, profile.fullName);
                 } else if (profile.role === 'professional') {
@@ -274,6 +276,12 @@ export default function DashboardPage() {
                                 <span className="text-xl font-bold text-gray-900 text-center">Gift Cards</span>
                                 <p className="hidden md:block text-gray-500 text-sm mt-2 text-center">Gestionar tarjetas de regalo.</p>
                             </Link>
+
+                            <Link href="/reservas-online" className="flex flex-col items-center justify-center bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-all group">
+                                <Bot className="w-10 h-10 text-[#34baab] mb-4 group-hover:scale-110 transition-transform" />
+                                <span className="text-xl font-bold text-gray-900 text-center">Reservas IA</span>
+                                <p className="hidden md:block text-gray-500 text-sm mt-2 text-center">Reservas y chats del asistente.</p>
+                            </Link>
                         </>
                     )}
 
@@ -307,8 +315,16 @@ export default function DashboardPage() {
 
 
                     {/* Client & Promotor Specific Flow */}
-                    {(role === 'client' || role === 'promotor') && (
+                    {(role === 'client' || role === 'cliente-prueba' || role === 'promotor') && (
                         <>
+                            {role === 'cliente-prueba' && (
+                            <Link href="/reservar" className="flex flex-col items-center justify-center bg-[#34baab] p-6 rounded-3xl shadow-sm hover:shadow-md hover:bg-[#2aa89a] transition-all group">
+                                <CalendarPlus className="w-10 h-10 text-white mb-4 group-hover:scale-110 transition-transform" />
+                                <span className="text-xl font-bold text-white text-center">Reservar Cita</span>
+                                <p className="hidden md:block text-white/80 text-sm mt-2 text-center">Reservá tu próximo turno.</p>
+                            </Link>
+                            )}
+
                             <Link href="/mis-turnos" className="flex flex-col items-center justify-center bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-all group">
                                 <Calendar className="w-10 h-10 text-[#34baab] mb-4 group-hover:scale-110 transition-transform" />
                                 <span className="text-xl font-bold text-gray-900 text-center">Turnos</span>
