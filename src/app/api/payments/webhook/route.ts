@@ -34,10 +34,22 @@ function validateMPSignature(req: NextRequest, rawBody: string): boolean {
     return expected === v1;
 }
 
+export async function GET() {
+    return NextResponse.json({ status: 'ok' });
+}
+
 export async function POST(req: NextRequest) {
     try {
         const rawBody = await req.text();
         const body = JSON.parse(rawBody);
+
+        console.log('[webhook] Notificación recibida:', JSON.stringify(body));
+
+        // Notificaciones de prueba desde el dashboard de MP — responder antes de validar firma
+        if (body.live_mode === false || body.action === 'test') {
+            console.log('[webhook] Notificación de prueba recibida correctamente');
+            return NextResponse.json({ received: true, test: true });
+        }
 
         if (!validateMPSignature(req, rawBody)) {
             console.warn('[webhook] Firma inválida — posible intento de fraude');
@@ -56,7 +68,13 @@ export async function POST(req: NextRequest) {
 
         // Verificar el pago con la API de MercadoPago
         const paymentClient = new Payment(mp);
-        const paymentData = await paymentClient.get({ id: paymentId });
+        let paymentData;
+        try {
+            paymentData = await paymentClient.get({ id: paymentId });
+        } catch (mpErr) {
+            console.error('[webhook] Error al consultar pago en MP:', mpErr);
+            return NextResponse.json({ received: true });
+        }
 
         if (paymentData.status !== 'approved') {
             return NextResponse.json({ received: true });
