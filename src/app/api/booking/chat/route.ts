@@ -410,9 +410,27 @@ async function runTool(name: string, args: any, clientId: string): Promise<strin
                             normalizedZones.push(matched);
                         }
 
-                        // 2. Resolver professionalId — fallback a assignBestProfessional si Gemini lo omitió
+                        // 2. Resolver professionalId — validar que exista, fallback si Gemini inventó un ID
                         let profId: string = slot.professionalId || '';
-                        if (!profId && slot.date && slot.time) {
+                        let needsFallback = !profId;
+
+                        if (profId && !profCache[profId]) {
+                            try {
+                                const profSnap = await adminDb.collection('professionals').doc(profId).get();
+                                if (profSnap.exists) {
+                                    profCache[profId] = profSnap.data()?.name || '';
+                                } else {
+                                    console.warn(`[create_pending_booking] professionalId "${profId}" no existe en Firestore, buscando fallback`);
+                                    profId = '';
+                                    needsFallback = true;
+                                }
+                            } catch {
+                                profId = '';
+                                needsFallback = true;
+                            }
+                        }
+
+                        if (needsFallback && slot.date && slot.time) {
                             try {
                                 const assigned = await assignBestProfessional(
                                     rawTreatmentIds[0] || '',
@@ -427,13 +445,6 @@ async function runTool(name: string, args: any, clientId: string): Promise<strin
                                 }
                             } catch (e) {
                                 console.error('[create_pending_booking] Error buscando profesional fallback:', e);
-                            }
-                        } else if (profId && !profCache[profId]) {
-                            try {
-                                const profSnap = await adminDb.collection('professionals').doc(profId).get();
-                                profCache[profId] = profSnap.data()?.name || '';
-                            } catch {
-                                profCache[profId] = '';
                             }
                         }
 
