@@ -9,9 +9,9 @@ import { Select } from '../ui/Select';
 import { Button } from '../ui/Button';
 import { Appointment, DURATION_OPTIONS, AppointmentStatus, Payment, SelectedTreatment } from '@/lib/types/appointment';
 import { TreatmentSelectorSheet } from './TreatmentSelectorSheet';
-import { 
-    Plus, Trash2, CreditCard, CheckCircle2, Clock, XCircle, ChevronDown, Save, 
-    Phone, Sparkles, Gift, AlertCircle, Search, UserPlus, User, BadgeDollarSign 
+import {
+    Plus, Trash2, CreditCard, CheckCircle2, Clock, XCircle, ChevronDown, Save,
+    Phone, Sparkles, Gift, AlertCircle, Search, UserPlus, User, BadgeDollarSign, Pencil
 } from 'lucide-react';
 import { Professional } from '@/lib/types/professional';
 import { UserProfile } from '@/lib/types/user';
@@ -101,6 +101,7 @@ export function AppointmentModal({
     const [countryCode, setCountryCode] = useState('+54');
     const [selectedTreatments, setSelectedTreatments] = useState<SelectedTreatment[]>([]);
     const [showTreatmentSheet, setShowTreatmentSheet] = useState(false);
+    const [editingTreatmentIndex, setEditingTreatmentIndex] = useState<number | null>(null);
 
     const formatMinutes = (minutes: number) => {
         const h = Math.floor(minutes / 60);
@@ -825,14 +826,27 @@ export function AppointmentModal({
                                         ${t.price.toLocaleString('es-AR')} · {formatMinutes(t.duration)}
                                     </p>
                                 </div>
-                                <button
-                                    type="button"
-                                    onClick={() => removeSelectedTreatment(i)}
-                                    aria-label="Quitar tratamiento"
-                                    className="text-gray-300 hover:text-red-400 transition-colors shrink-0"
-                                >
-                                    <Trash2 className="w-4 h-4" />
-                                </button>
+                                <div className="flex items-center gap-2 shrink-0">
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setEditingTreatmentIndex(i);
+                                            setShowTreatmentSheet(true);
+                                        }}
+                                        aria-label="Editar zona"
+                                        className="text-gray-300 hover:text-[#34baab] transition-colors"
+                                    >
+                                        <Pencil className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => removeSelectedTreatment(i)}
+                                        aria-label="Quitar tratamiento"
+                                        className="text-gray-300 hover:text-red-400 transition-colors"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </button>
+                                </div>
                             </div>
                         ))}
 
@@ -1358,11 +1372,21 @@ export function AppointmentModal({
 
             <TreatmentSelectorSheet
                 isOpen={showTreatmentSheet}
-                onClose={() => setShowTreatmentSheet(false)}
+                onClose={() => {
+                    setShowTreatmentSheet(false);
+                    setEditingTreatmentIndex(null);
+                }}
                 allowedTreatments={treatmentsForSelector}
+                editingTreatmentId={editingTreatmentIndex !== null ? selectedTreatments[editingTreatmentIndex]?.treatmentId : undefined}
                 onAdd={(t) => {
-                    setSelectedTreatments(prev => [...prev, t]);
-                    toast.success(`${t.name} agregado`);
+                    if (editingTreatmentIndex !== null) {
+                        setSelectedTreatments(prev => prev.map((item, i) => i === editingTreatmentIndex ? t : item));
+                        toast.success(`Zona actualizada a ${t.zone || t.name}`);
+                        setEditingTreatmentIndex(null);
+                    } else {
+                        setSelectedTreatments(prev => [...prev, t]);
+                        toast.success(`${t.name} agregado`);
+                    }
                     setShowTreatmentSheet(false);
                 }}
             />

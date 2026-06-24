@@ -21,9 +21,10 @@ interface Props {
     onClose: () => void;
     onAdd: (treatment: SelectedTreatment) => void;
     allowedTreatments?: string[];
+    editingTreatmentId?: string;
 }
 
-export function TreatmentSelectorSheet({ isOpen, onClose, onAdd, allowedTreatments }: Props) {
+export function TreatmentSelectorSheet({ isOpen, onClose, onAdd, allowedTreatments, editingTreatmentId }: Props) {
     const [treatments, setTreatments] = useState<Treatment[]>([]);
     const [loading, setLoading] = useState(false);
     const [search, setSearch] = useState('');
@@ -40,14 +41,17 @@ export function TreatmentSelectorSheet({ isOpen, onClose, onAdd, allowedTreatmen
         setLoading(true);
         getTreatments().then(data => {
             setTreatments(data);
+            if (editingTreatmentId) {
+                setExpandedId(editingTreatmentId);
+            }
             setLoading(false);
         });
-    }, [isOpen]);
+    }, [isOpen, editingTreatmentId]);
 
     const filtered = treatments.filter(t => {
+        if (editingTreatmentId) return t.id === editingTreatmentId;
         const matchesSearch = !search || t.name.toLowerCase().includes(search.toLowerCase());
         const matchesCategory = !activeCategory || t.category === activeCategory;
-        // Filtrar por especialidad del profesional si se proporciona la lista
         const matchesProfessional = !allowedTreatments || allowedTreatments.includes(t.name);
         return matchesSearch && matchesCategory && matchesProfessional;
     });
@@ -81,12 +85,13 @@ export function TreatmentSelectorSheet({ isOpen, onClose, onAdd, allowedTreatmen
             <div className="fixed top-0 left-0 right-0 z-[201] bg-white rounded-b-3xl shadow-2xl max-h-[92vh] flex flex-col animate-in slide-in-from-top duration-300">
 
                 <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-gray-100">
-                    <h2 className="text-sm font-black text-gray-900 uppercase tracking-wider">Seleccionar Tratamiento</h2>
+                    <h2 className="text-sm font-black text-gray-900 uppercase tracking-wider">{editingTreatmentId ? 'Cambiar Zona' : 'Seleccionar Tratamiento'}</h2>
                     <button type="button" onClick={onClose} aria-label="Cerrar" className="p-2 rounded-full hover:bg-gray-100 transition-colors">
                         <X className="w-5 h-5 text-gray-500" />
                     </button>
                 </div>
 
+                {!editingTreatmentId && (
                 <div className="px-5 py-3">
                     <div className="relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -99,7 +104,9 @@ export function TreatmentSelectorSheet({ isOpen, onClose, onAdd, allowedTreatmen
                         />
                     </div>
                 </div>
+                )}
 
+                {!editingTreatmentId && (
                 <div className="flex gap-3 px-5 pb-4 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden min-h-[56px] items-center">
                     <button
                         type="button"
@@ -133,6 +140,7 @@ export function TreatmentSelectorSheet({ isOpen, onClose, onAdd, allowedTreatmen
                         );
                     })}
                 </div>
+                )}
 
                 <div className="flex-1 overflow-y-auto px-5 pb-8 space-y-2">
                     {loading ? (
