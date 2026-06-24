@@ -282,7 +282,6 @@ async function runTool(name: string, args: any, clientId: string): Promise<strin
                             date: s.date,
                             time: s.time,
                             durationMinutes: s.durationMinutes,
-                            professionalName: s.professionalName,
                         })),
                         sameDay: opt.sameDay,
                     }));
