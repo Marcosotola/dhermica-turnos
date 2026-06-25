@@ -58,6 +58,7 @@ export async function POST(req: NextRequest) {
                     pending: `${baseUrl}/reservar/pago/${pendingBookingId}/pendiente`,
                 },
                 auto_return: 'approved',
+                purpose: 'wallet_purchase',
                 external_reference: pendingBookingId,
                 statement_descriptor: 'DHERMICA',
                 expires: true,
