@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { MercadoPagoConfig, Payment } from 'mercadopago';
 import { adminDb } from '@/lib/firebase/admin';
-import { Timestamp } from 'firebase-admin/firestore';
+import { Timestamp, FieldValue } from 'firebase-admin/firestore';
 import { createHmac } from 'crypto';
 import { sendServerFCMNotification, notifyN8nFromServer } from '@/lib/notifications/server';
 
@@ -103,14 +103,93 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ received: true });
         }
 
+        // Descontar gift card y crédito si aplica (pago mixto)
+        const bd = booking.depositBreakdown;
+        const now = Timestamp.now();
+
+        if (bd?.giftCardId && bd?.giftCardAmount > 0) {
+            const gcRef = adminDb.collection('giftCards').doc(bd.giftCardId);
+            const gcSnap = await gcRef.get();
+            if (gcSnap.exists) {
+                const gcData = gcSnap.data()!;
+                const newBalance = Math.max(0, (gcData.remainingBalance || 0) - bd.giftCardAmount);
+                const today = new Date().toISOString().split('T')[0];
+                const gcUpdate: Record<string, any> = {
+                    remainingBalance: newBalance,
+                    status: newBalance <= 0 ? 'redeemed' : 'partially_used',
+                    updatedAt: now,
+                    redemptions: FieldValue.arrayUnion({
+                        appointmentId: '',
+                        amount: bd.giftCardAmount,
+                        date: today,
+                        recipientClientId: booking.clientId,
+                        recipientName: booking.clientName,
+                    }),
+                };
+                if (!gcData.recipientClientId && booking.clientId) {
+                    gcUpdate.recipientClientId = booking.clientId;
+                    gcUpdate.recipientName = booking.clientName;
+                }
+                await gcRef.update(gcUpdate);
+            }
+        }
+
+        let creditResidualAmount = 0;
+        let creditData: Record<string, any> | undefined;
+        if (bd?.clientCreditId && bd?.clientCreditAmount > 0) {
+            const creditRef = adminDb.collection('clientCredits').doc(bd.clientCreditId);
+            const creditSnap = await creditRef.get();
+            if (creditSnap.exists) {
+                creditData = creditSnap.data()!;
+                creditResidualAmount = (creditData.amount as number) - bd.clientCreditAmount;
+                await creditRef.update({
+                    status: 'used',
+                    usedDate: new Date().toISOString().split('T')[0],
+                    usedInAppointmentId: '',
+                    updatedAt: now,
+                });
+            }
+        }
+
         // Crear los appointments en Firestore
         const appointmentIds: string[] = [];
-        const now = Timestamp.now();
+        const mpAmount = bd?.mercadopagoAmount ?? booking.depositAmount;
+        const giftCardAmount = bd?.giftCardAmount || 0;
+        const creditAmount = bd?.clientCreditAmount || 0;
+        const today = new Date().toISOString().split('T')[0];
 
         for (const slot of booking.slots as any[]) {
             const treatmentSummary = (slot.treatmentNames || []).join(' + ');
             const zones = (slot.zones || []).filter(Boolean).join(', ');
             const fullTreatment = treatmentSummary + (zones ? ` (${zones})` : '');
+
+            const payments: any[] = [
+                {
+                    id: `mp_${paymentId}`,
+                    amount: mpAmount,
+                    method: 'mercadopago',
+                    date: today,
+                    label: 'Seña online',
+                },
+            ];
+            if (giftCardAmount > 0) {
+                payments.push({
+                    id: `gc_${bd.giftCardId}`,
+                    amount: giftCardAmount,
+                    method: 'gift_card',
+                    date: today,
+                    label: 'Seña con Gift Card',
+                });
+            }
+            if (creditAmount > 0) {
+                payments.push({
+                    id: `credit_${bd.clientCreditId}`,
+                    amount: creditAmount,
+                    method: 'credit',
+                    date: today,
+                    label: 'Seña con crédito',
+                });
+            }
 
             const aptRef = await adminDb.collection('appointments').add({
                 clientId: booking.clientId,
@@ -132,15 +211,7 @@ export async function POST(req: NextRequest) {
                 price: slot.estimatedPrice,
                 status: 'pending',
                 notes: `Reserva online. Seña pagada: $${booking.depositAmount}`,
-                payments: [
-                    {
-                        id: `mp_${paymentId}`,
-                        amount: booking.depositAmount,
-                        method: 'mercadopago',
-                        date: new Date().toISOString().split('T')[0],
-                        label: 'Seña online',
-                    },
-                ],
+                payments,
                 source: 'online_booking',
                 pendingBookingId,
                 notified48h: false,
@@ -176,6 +247,42 @@ export async function POST(req: NextRequest) {
                 depositAmount: booking.depositAmount,
                 professionalId: slot.professionalId,
             }).catch(err => console.error('[webhook] Error n8n:', err));
+        }
+
+        // Actualizar appointmentId en la redemption de gift card
+        if (bd?.giftCardId && bd?.giftCardAmount > 0 && appointmentIds.length > 0) {
+            const gcRef = adminDb.collection('giftCards').doc(bd.giftCardId);
+            const gcSnap2 = await gcRef.get();
+            if (gcSnap2.exists) {
+                const redemptions = gcSnap2.data()!.redemptions || [];
+                const lastIdx = redemptions.length - 1;
+                if (lastIdx >= 0 && !redemptions[lastIdx].appointmentId) {
+                    redemptions[lastIdx].appointmentId = appointmentIds[0];
+                    await gcRef.update({ redemptions });
+                }
+            }
+        }
+
+        // Actualizar usedInAppointmentId del crédito y crear residual si corresponde
+        if (bd?.clientCreditId && bd?.clientCreditAmount > 0 && appointmentIds.length > 0) {
+            const creditRef = adminDb.collection('clientCredits').doc(bd.clientCreditId);
+            await creditRef.update({ usedInAppointmentId: appointmentIds[0] });
+
+            if (creditResidualAmount > 0 && creditData) {
+                await adminDb.collection('clientCredits').add({
+                    clientId: creditData.clientId,
+                    clientName: creditData.clientName,
+                    amount: creditResidualAmount,
+                    reason: creditData.reason,
+                    status: 'available',
+                    sourceAppointmentId: creditData.sourceAppointmentId || '',
+                    sourceAppointmentDate: creditData.sourceAppointmentDate || '',
+                    sourceTreatmentName: creditData.sourceTreatmentName || '',
+                    notes: 'Saldo residual de uso parcial de crédito',
+                    createdAt: now,
+                    updatedAt: now,
+                });
+            }
         }
 
         // Marcar el pendingBooking como confirmado

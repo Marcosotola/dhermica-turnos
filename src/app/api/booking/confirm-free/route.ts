@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase/admin';
-import { Timestamp } from 'firebase-admin/firestore';
+import { Timestamp, FieldValue } from 'firebase-admin/firestore';
 import { sendServerFCMNotification, notifyN8nFromServer } from '@/lib/notifications/server';
 
 export async function POST(req: NextRequest) {
@@ -29,19 +29,46 @@ export async function POST(req: NextRequest) {
             const gcRef = adminDb.collection('giftCards').doc(bd.giftCardId);
             const gcSnap = await gcRef.get();
             if (gcSnap.exists) {
-                const newBalance = (gcSnap.data()!.remainingBalance || 0) - bd.giftCardAmount;
-                batch.update(gcRef, {
-                    remainingBalance: Math.max(0, newBalance),
-                    status: newBalance <= 0 ? 'used' : 'partially_used',
+                const gcData = gcSnap.data()!;
+                const newBalance = Math.max(0, (gcData.remainingBalance || 0) - bd.giftCardAmount);
+                const today = new Date().toISOString().split('T')[0];
+                const gcUpdate: Record<string, any> = {
+                    remainingBalance: newBalance,
+                    status: newBalance <= 0 ? 'redeemed' : 'partially_used',
                     updatedAt: now,
-                });
+                    redemptions: FieldValue.arrayUnion({
+                        appointmentId: '',
+                        amount: bd.giftCardAmount,
+                        date: today,
+                        recipientClientId: booking.clientId,
+                        recipientName: booking.clientName,
+                    }),
+                };
+                if (!gcData.recipientClientId && booking.clientId) {
+                    gcUpdate.recipientClientId = booking.clientId;
+                    gcUpdate.recipientName = booking.clientName;
+                }
+                batch.update(gcRef, gcUpdate);
             }
         }
 
         // Marcar crédito como usado si aplica
+        let creditResidualAmount = 0;
+        let creditData: Record<string, any> | undefined;
         if (bd?.clientCreditId && bd?.clientCreditAmount > 0) {
             const creditRef = adminDb.collection('clientCredits').doc(bd.clientCreditId);
-            batch.update(creditRef, { status: 'used', usedAt: now, updatedAt: now });
+            const creditSnap = await creditRef.get();
+            if (creditSnap.exists) {
+                creditData = creditSnap.data()!;
+                const originalAmount = creditData.amount as number;
+                creditResidualAmount = originalAmount - bd.clientCreditAmount;
+                batch.update(creditRef, {
+                    status: 'used',
+                    usedDate: new Date().toISOString().split('T')[0],
+                    usedInAppointmentId: '', // se actualiza después del batch
+                    updatedAt: now,
+                });
+            }
         }
 
         // Crear los appointments
@@ -114,6 +141,42 @@ export async function POST(req: NextRequest) {
         });
 
         await batch.commit();
+
+        // Actualizar appointmentId en la redemption de gift card
+        if (bd?.giftCardId && bd?.giftCardAmount > 0 && appointmentIds.length > 0) {
+            const gcRef = adminDb.collection('giftCards').doc(bd.giftCardId);
+            const gcSnap = await gcRef.get();
+            if (gcSnap.exists) {
+                const redemptions = gcSnap.data()!.redemptions || [];
+                const lastIdx = redemptions.length - 1;
+                if (lastIdx >= 0 && !redemptions[lastIdx].appointmentId) {
+                    redemptions[lastIdx].appointmentId = appointmentIds[0];
+                    await gcRef.update({ redemptions });
+                }
+            }
+        }
+
+        // Actualizar usedInAppointmentId del crédito y crear residual si corresponde
+        if (bd?.clientCreditId && bd?.clientCreditAmount > 0 && appointmentIds.length > 0) {
+            const creditRef = adminDb.collection('clientCredits').doc(bd.clientCreditId);
+            await creditRef.update({ usedInAppointmentId: appointmentIds[0] });
+
+            if (creditResidualAmount > 0 && creditData) {
+                await adminDb.collection('clientCredits').add({
+                    clientId: creditData.clientId,
+                    clientName: creditData.clientName,
+                    amount: creditResidualAmount,
+                    reason: creditData.reason,
+                    status: 'available',
+                    sourceAppointmentId: creditData.sourceAppointmentId || '',
+                    sourceAppointmentDate: creditData.sourceAppointmentDate || '',
+                    sourceTreatmentName: creditData.sourceTreatmentName || '',
+                    notes: 'Saldo residual de uso parcial de crédito',
+                    createdAt: now,
+                    updatedAt: now,
+                });
+            }
+        }
 
         // Send notifications after commit (fire-and-forget)
         for (const slot of booking.slots as any[]) {
