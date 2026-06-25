@@ -277,15 +277,23 @@ export async function getFinanceOverview(startDate: string, endDate: string, tar
                         let fixedTotal = 0;
                         for (const t of apt.treatments) {
                             const match = prof.professionalPrices.find(
-                                pp => pp.treatmentId === t.treatmentId && pp.zone === t.zone && (pp.gender || 'both') === (t.gender || 'both')
+                                pp => pp.treatmentId === t.treatmentId
+                                    && (pp.zone || '') === (t.zone || '')
+                                    && (pp.gender || 'both') === (t.gender || 'both')
                             );
                             if (match) fixedTotal += match.price;
                         }
-                        profData.serviceCommission += fixedTotal;
+                        if (fixedTotal > 0) {
+                            profData.serviceCommission += fixedTotal;
+                        } else {
+                            // Fallback a porcentaje si no hubo match en precios fijos
+                            const pct = prof?.serviceCommissionPercentage ?? (prof as any)?.commissionPercentage ?? 0;
+                            if (pct > 0) profData.serviceCommission += (actualPrice * pct) / 100;
+                        }
                     } else {
                         const commissionPct = apt.commissionPercentageOverride !== undefined && apt.commissionPercentageOverride !== null
                             ? apt.commissionPercentageOverride
-                            : (prof?.serviceCommissionPercentage || (prof as any)?.commissionPercentage || 0);
+                            : (prof?.serviceCommissionPercentage ?? (prof as any)?.commissionPercentage ?? 0);
 
                         if (commissionPct > 0) {
                             profData.serviceCommission += (actualPrice * commissionPct) / 100;
