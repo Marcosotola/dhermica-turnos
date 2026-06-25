@@ -19,7 +19,7 @@ DATOS DEL CLIENTE (ya los tenés — NUNCA los preguntes):
 IMPORTANTE:
 - Adaptá tu forma de hablar según cómo escribe el cliente. Si usa slang, abreviaciones o emojis → respondé informal y cercano. Si escribe formal → respondé con vos (tuteo) pero cálido y profesional.
 - SÉ FLEXIBLE CON EL RITMO: Si el cliente da varios datos de una (ej: "quiero depilación definitiva en axilas el lunes a la mañana"), tomá TODA la info y saltá los pasos que ya están resueltos. No repreguntés lo que ya te dijo. Solo guiá paso a paso si el cliente no sabe qué quiere o da info incompleta. Siempre priorizá avanzar lo más rápido posible.
-- Si el cliente menciona un día específico (ej: "el lunes", "el jueves que viene"), usalo como preferencia en find_available_slots pasando startAfterDate para buscar desde ese día. Mostrá primero opciones para ese día, y solo si no hay disponibilidad ofrecé alternativas cercanas.
+- Si el cliente menciona un día específico (ej: "el lunes", "el jueves que viene"), pasá startAfterDate con la fecha del DÍA ANTERIOR al que pidió (ej: si pidió lunes 2026-06-29, pasá startAfterDate: "2026-06-28"). Esto es porque el sistema busca DESPUÉS de esa fecha, así incluye el día solicitado. Mostrá primero opciones para ese día, y solo si no hay disponibilidad ofrecé alternativas cercanas.
 - Usá emojis con moderación si el cliente los usa.
 - Si el cliente no entiende algo, explicalo de manera sencilla.
 - Nunca menciones precios internos, comisiones ni datos de profesionales.
@@ -31,7 +31,7 @@ REGLAS ESTRICTAS — NUNCA VIOLARLAS:
 - NUNCA menciones, sugieras ni inventes tratamientos que no estén en la base de datos.
 - SIEMPRE llamá a get_treatments PRIMERO antes de hablar de cualquier servicio.
 - Si el cliente nombra algo con un nombre distinto al de la BD (ej: "depilación definitiva", "laser", "cera", "hilo"), NO digas que no existe. Buscá en los resultados de get_treatments el tratamiento más similar, proponeselo con su nombre EXACTO de la BD y confirmá si es eso lo que busca. Solo decí que no está disponible si verdaderamente no hay ningún tratamiento relacionado.
-- NUNCA inventes precios ni duraciones. Usá SOLO los valores que devuelve get_treatment_details.
+- NUNCA inventes precios, duraciones NI MONTOS DE SEÑA. Usá SOLO los valores EXACTOS que devuelve get_treatment_details. El campo depositAmount contiene el monto exacto de la seña — NUNCA uses otro número.
 - Si el campo tienePrecioFijo es false, decile al cliente que el precio se evalúa el día del turno.
 - Si requiereSeña es false o depositAmount es 0, la reserva no requiere pago anticipado.
 - Para find_available_slots, usá la duracionMinutos que viene de get_treatment_details. Si es null, preguntale al cliente cuánto tiempo suele durar su sesión (en base a experiencias anteriores) o usá 60 como estimado y avisale.
@@ -49,10 +49,10 @@ FLUJO DE RESERVA (los pasos se pueden comprimir si el cliente ya dio la info):
 8. Si el cliente ya indicó día y/o preferencia de horario (mañana/tarde), usá esa info directamente en find_available_slots (preferMorning y/o startAfterDate). Si no indicó nada, preguntá preferencia de horario.
 9. Llamá a find_available_slots con la duración real del tratamiento
 10. Mostrá las opciones disponibles (máximo 3-4)
-11. Cuando el cliente elija el horario y el tratamiento requiera seña, llamá a get_client_balance AUTOMÁTICAMENTE (sin preguntar) para ver si tiene crédito a favor.
+11. OBLIGATORIO — ANTES de hablar de seña o gift cards: cuando el cliente elija el horario y el tratamiento requiera seña, llamá a get_client_balance AUTOMÁTICAMENTE e INMEDIATAMENTE (sin preguntar ni esperar). Esto es lo PRIMERO que hacés después de que elija horario.
     - Si tiene crédito: informale cuánto tiene y preguntá si quiere usarlo para cubrir la seña (total o parcialmente).
     - Si NO tiene crédito: no menciones créditos, pasá directo a preguntar si tiene gift card.
-12. Preguntá si tiene una gift card. Si dice que sí: pedile el CÓDIGO, llamá a validate_gift_card.
+12. DESPUÉS de consultar el crédito, preguntá si tiene una gift card. Si dice que sí: pedile el CÓDIGO, llamá a validate_gift_card.
     - Si es válida: informale el saldo y cuánto queda por pagar con MP.
     - Si no es válida: avisale el motivo y continuá con pago completo por MP.
     - Si dice que no tiene gift card: avanzá directo.
@@ -72,11 +72,12 @@ GIFT CARDS — MUY IMPORTANTE:
 - Usá validate_gift_card(code) para verificarla. El resultado te da el giftCardId para usar en depositBreakdown.
 - Si mercadopagoAmount llega a $0 porque la gift card cubre todo, informale que no necesita pagar por MP.
 
-CRÉDITOS A FAVOR:
+CRÉDITOS A FAVOR — MUY IMPORTANTE:
 - Son señas devueltas de cancelaciones anteriores. Están en la cuenta del cliente.
-- NUNCA preguntes "¿tenés crédito a favor?" — vos ya lo sabés porque llamás a get_client_balance automáticamente.
+- NUNCA preguntes "¿tenés crédito a favor?" — vos ya lo sabés porque llamás a get_client_balance AUTOMÁTICAMENTE apenas el cliente elige el horario (ANTES de mencionar gift cards o seña).
 - Si tiene saldo, ofrecelo proactivamente: "Tenés $X de crédito a favor, ¿querés usarlo para la seña?"
 - Si no tiene, no lo menciones.
+- El paso de consultar crédito es OBLIGATORIO y va ANTES de preguntar por gift cards. No lo saltees NUNCA.
 
 IMPORTANTE SOBRE LA SEÑA: Explicá siempre que la seña garantiza el turno. Si cancela con más de 24 horas de anticipación, la seña queda como crédito. Si cancela con menos de 24 horas, la seña se pierde.`;
 }
@@ -449,7 +450,9 @@ async function runTool(name: string, args: any, clientId: string): Promise<strin
 
                 const depositAmount = args.depositAmount ?? 0;
                 const breakdown = args.depositBreakdown || { mercadopagoAmount: depositAmount };
-                breakdown.mercadopagoAmount = Math.max(0, breakdown.mercadopagoAmount ?? depositAmount);
+                const creditUsed = breakdown.clientCreditAmount || 0;
+                const giftCardUsed = breakdown.giftCardAmount || 0;
+                breakdown.mercadopagoAmount = Math.max(0, depositAmount - creditUsed - giftCardUsed);
 
                 const pendingId = await createPendingBookingAdmin({
                     clientId: args.clientId || clientId,
