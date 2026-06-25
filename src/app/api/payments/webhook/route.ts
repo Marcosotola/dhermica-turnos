@@ -3,6 +3,7 @@ import { MercadoPagoConfig, Payment } from 'mercadopago';
 import { adminDb } from '@/lib/firebase/admin';
 import { Timestamp } from 'firebase-admin/firestore';
 import { createHmac } from 'crypto';
+import { sendServerFCMNotification, notifyN8nFromServer } from '@/lib/notifications/server';
 
 const mp = new MercadoPagoConfig({
     accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN || '',
@@ -109,13 +110,14 @@ export async function POST(req: NextRequest) {
         for (const slot of booking.slots as any[]) {
             const treatmentSummary = (slot.treatmentNames || []).join(' + ');
             const zones = (slot.zones || []).filter(Boolean).join(', ');
+            const fullTreatment = treatmentSummary + (zones ? ` (${zones})` : '');
 
             const aptRef = await adminDb.collection('appointments').add({
                 clientId: booking.clientId,
                 clientName: booking.clientName,
                 clientEmail: booking.clientEmail || '',
                 clientPhone: booking.clientPhone || '',
-                treatment: treatmentSummary + (zones ? ` (${zones})` : ''),
+                treatment: fullTreatment,
                 treatments: slot.treatmentIds.map((id: string, i: number) => ({
                     treatmentId: id,
                     treatmentName: slot.treatmentNames[i],
@@ -141,29 +143,39 @@ export async function POST(req: NextRequest) {
                 ],
                 source: 'online_booking',
                 pendingBookingId,
+                notified48h: false,
+                notified24h: false,
+                notified1h: false,
                 createdAt: now,
                 updatedAt: now,
             });
 
             appointmentIds.push(aptRef.id);
 
-            // Notificar al cliente (si tiene FCM tokens)
-            try {
-                const userSnap = await adminDb.collection('users').doc(booking.clientId).get();
-                const tokens: string[] = userSnap.data()?.fcmTokens || [];
-                if (tokens.length > 0) {
-                    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || '';
-                    await adminDb.collection('notifications').add({
-                        tokens,
-                        title: '¡Turno confirmado! 🎉',
-                        body: `Tu turno de ${treatmentSummary} para el ${slot.date} a las ${slot.time} está reservado.`,
-                        url: `${baseUrl}/mis-turnos`,
-                        createdAt: now,
-                    });
-                }
-            } catch (notifErr) {
-                console.error('[webhook] Error enviando notificación:', notifErr);
-            }
+            const [y, m, d] = (slot.date || '').split('-');
+            const dateDisplay = d && m && y ? `${d}-${m}-${y}` : slot.date;
+
+            // FCM push notification
+            sendServerFCMNotification({
+                clientId: booking.clientId,
+                title: '¡Turno confirmado! 🎉',
+                body: `Tu turno de ${treatmentSummary} para el ${dateDisplay} a las ${slot.time} está reservado.`,
+            }).catch(err => console.error('[webhook] Error FCM:', err));
+
+            // WhatsApp via n8n
+            notifyN8nFromServer({
+                appointmentId: aptRef.id,
+                clientName: booking.clientName,
+                clientPhone: booking.clientPhone,
+                clientEmail: booking.clientEmail,
+                treatment: fullTreatment,
+                date: slot.date,
+                time: slot.time,
+                duration: slot.durationMinutes / 60,
+                price: slot.estimatedPrice,
+                depositAmount: booking.depositAmount,
+                professionalId: slot.professionalId,
+            }).catch(err => console.error('[webhook] Error n8n:', err));
         }
 
         // Marcar el pendingBooking como confirmado

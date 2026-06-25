@@ -46,20 +46,15 @@ export async function checkAndSendReminders() {
             const diffMs = appointmentDate.getTime() - now.getTime();
             const diffHours = diffMs / (1000 * 60 * 60);
 
-            // 48h Reminder (between 47h and 49h before)
-            if (diffHours > 0 && diffHours <= 48 && !appointment.notified48h) {
+            // 48h Reminder (within 48h before)
+            if (diffHours > 24 && diffHours <= 48 && !appointment.notified48h) {
                 await sendReminder(appointment, appointmentId, '48h');
                 results.notified48h++;
             }
-            // 24h Reminder (between 23h and 25h before)
+            // 24h Reminder (within 24h before)
             else if (diffHours > 0 && diffHours <= 24 && !appointment.notified24h) {
                 await sendReminder(appointment, appointmentId, '24h');
                 results.notified24h++;
-            }
-            // 1h Reminder (between 0.5h and 1.5h before)
-            else if (diffHours > 0 && diffHours <= 1.5 && !appointment.notified1h) {
-                await sendReminder(appointment, appointmentId, '1h');
-                results.notified1h++;
             }
         }
 

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import {
     Bot, ChevronLeft, Clock, CheckCircle2, XCircle, AlertCircle,
-    MessageSquare, ChevronDown, ChevronUp, Loader2, User, Calendar
+    MessageSquare, ChevronDown, ChevronUp, Loader2, User, Calendar, Trash2
 } from 'lucide-react';
 import Link from 'next/link';
 import { formatArgentineCurrency } from '@/lib/utils/currency';
@@ -38,6 +38,8 @@ export default function ReservasOnlinePage() {
     const [fetching, setFetching] = useState(true);
     const [expandedId, setExpandedId] = useState<string | null>(null);
     const [filter, setFilter] = useState<'all' | 'confirmed' | 'pending_payment' | 'expired'>('all');
+    const [deletingId, setDeletingId] = useState<string | null>(null);
+    const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
     useEffect(() => {
         if (!loading && profile?.role !== 'admin' && profile?.role !== 'secretary') {
@@ -52,6 +54,22 @@ export default function ReservasOnlinePage() {
             .catch(() => {})
             .finally(() => setFetching(false));
     }, []);
+
+    const handleDelete = async (id: string) => {
+        setDeletingId(id);
+        try {
+            const res = await fetch('/api/admin/pending-bookings', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id }),
+            });
+            if (res.ok) {
+                setBookings(prev => prev.filter(b => b.id !== id));
+            }
+        } catch {}
+        setDeletingId(null);
+        setConfirmDeleteId(null);
+    };
 
     if (loading || fetching) {
         return (
@@ -148,9 +166,39 @@ export default function ReservasOnlinePage() {
                                         </div>
 
                                         <div className="flex flex-col items-end gap-2 shrink-0">
-                                            <span className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase ${sc.className}`}>
-                                                <StatusIcon className="w-3 h-3" /> {sc.label}
-                                            </span>
+                                            <div className="flex items-center gap-2">
+                                                <span className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase ${sc.className}`}>
+                                                    <StatusIcon className="w-3 h-3" /> {sc.label}
+                                                </span>
+                                                {confirmDeleteId === b.id ? (
+                                                    <div className="flex items-center gap-1">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleDelete(b.id)}
+                                                            disabled={deletingId === b.id}
+                                                            className="px-2 py-1 rounded-lg bg-red-500 text-white text-[10px] font-bold hover:bg-red-600 disabled:opacity-50"
+                                                        >
+                                                            {deletingId === b.id ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Sí'}
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setConfirmDeleteId(null)}
+                                                            className="px-2 py-1 rounded-lg bg-gray-200 text-gray-600 text-[10px] font-bold hover:bg-gray-300"
+                                                        >
+                                                            No
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setConfirmDeleteId(b.id)}
+                                                        className="p-1.5 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors"
+                                                        title="Eliminar reserva"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
+                                                )}
+                                            </div>
                                             {b.depositAmount > 0 && (
                                                 <span className="text-xs font-bold text-gray-600">
                                                     Seña: {formatArgentineCurrency(b.depositAmount)}

@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase/admin';
 
 export async function GET() {
@@ -31,5 +31,28 @@ export async function GET() {
     } catch (err: any) {
         console.error('[admin/pending-bookings]', err);
         return NextResponse.json({ error: 'Error al obtener reservas' }, { status: 500 });
+    }
+}
+
+export async function DELETE(req: NextRequest) {
+    try {
+        const { id } = await req.json();
+        if (!id) {
+            return NextResponse.json({ error: 'ID requerido' }, { status: 400 });
+        }
+
+        const docRef = adminDb.collection('pendingBookings').doc(id);
+        const snap = await docRef.get();
+
+        if (!snap.exists) {
+            return NextResponse.json({ error: 'Reserva no encontrada' }, { status: 404 });
+        }
+
+        await docRef.delete();
+
+        return NextResponse.json({ success: true });
+    } catch (err: any) {
+        console.error('[admin/pending-bookings] DELETE error:', err);
+        return NextResponse.json({ error: 'Error al eliminar reserva' }, { status: 500 });
     }
 }

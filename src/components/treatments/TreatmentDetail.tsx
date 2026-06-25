@@ -2,7 +2,7 @@
 
 import { Modal } from "../ui/Modal";
 import { Treatment } from "@/lib/types/treatment";
-import { Sparkles, CheckCircle2, AlertCircle, Clock, Users, ArrowRight } from "lucide-react";
+import { Sparkles, CheckCircle2, AlertCircle, Clock, Users, ArrowRight, DollarSign } from "lucide-react";
 import { Button } from "../ui/Button";
 import { formatCurrencyWithSymbol } from "@/lib/utils/currency";
 
@@ -76,8 +76,20 @@ export function TreatmentDetail({ isOpen, onClose, treatment }: TreatmentDetailP
                         </div>
                     </div>
 
-                    {/* Benefits */}
+                    {/* Benefits & Deposit */}
                     <div className="space-y-4">
+                        {/* Deposit / Seña */}
+                        {treatment.depositAmount != null && treatment.depositAmount > 0 && (
+                            <div className="flex items-center gap-3 p-4 bg-amber-50 border border-amber-100 rounded-2xl">
+                                <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0">
+                                    <DollarSign className="w-5 h-5 text-amber-600" />
+                                </div>
+                                <div>
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-amber-500">Seña para reserva online</p>
+                                    <p className="text-lg font-black text-amber-700">{formatCurrencyWithSymbol(treatment.depositAmount)}</p>
+                                </div>
+                            </div>
+                        )}
                         {treatment.benefits && treatment.benefits.length > 0 && (
                             <div className="bg-teal-50/50 p-6 rounded-3xl border border-teal-100">
                                 <h4 className="font-black text-teal-900 uppercase tracking-widest text-xs mb-4 flex items-center gap-2">

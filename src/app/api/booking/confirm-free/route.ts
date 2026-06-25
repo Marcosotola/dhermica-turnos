@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase/admin';
 import { Timestamp } from 'firebase-admin/firestore';
+import { sendServerFCMNotification, notifyN8nFromServer } from '@/lib/notifications/server';
 
 export async function POST(req: NextRequest) {
     try {
@@ -69,13 +70,14 @@ export async function POST(req: NextRequest) {
                 });
             }
 
+            const fullTreatment = treatmentSummary + (zones ? ` (${zones})` : '');
             const aptRef = adminDb.collection('appointments').doc();
             batch.set(aptRef, {
                 clientId: booking.clientId,
                 clientName: booking.clientName,
                 clientEmail: booking.clientEmail || '',
                 clientPhone: booking.clientPhone || '',
-                treatment: treatmentSummary + (zones ? ` (${zones})` : ''),
+                treatment: fullTreatment,
                 treatments: slot.treatmentIds.map((id: string, i: number) => ({
                     treatmentId: id,
                     treatmentName: slot.treatmentNames[i],
@@ -93,10 +95,15 @@ export async function POST(req: NextRequest) {
                 payments,
                 source: 'online_booking',
                 pendingBookingId,
+                notified48h: false,
+                notified24h: false,
+                notified1h: false,
                 createdAt: now,
                 updatedAt: now,
             });
             appointmentIds.push(aptRef.id);
+
+            // Notifications are sent after batch commit (below)
         }
 
         const bookingRef = adminDb.collection('pendingBookings').doc(pendingBookingId);
@@ -107,6 +114,35 @@ export async function POST(req: NextRequest) {
         });
 
         await batch.commit();
+
+        // Send notifications after commit (fire-and-forget)
+        for (const slot of booking.slots as any[]) {
+            const treatmentSummary = (slot.treatmentNames || []).join(' + ');
+            const zones = (slot.zones || []).filter(Boolean).join(', ');
+            const fullTreatment = treatmentSummary + (zones ? ` (${zones})` : '');
+            const [y, m, d] = (slot.date || '').split('-');
+            const dateDisplay = d && m && y ? `${d}-${m}-${y}` : slot.date;
+
+            sendServerFCMNotification({
+                clientId: booking.clientId,
+                title: '¡Turno confirmado! 🎉',
+                body: `Tu turno de ${treatmentSummary} para el ${dateDisplay} a las ${slot.time} está reservado.`,
+            }).catch(err => console.error('[confirm-free] Error FCM:', err));
+
+            notifyN8nFromServer({
+                appointmentId: appointmentIds[0],
+                clientName: booking.clientName,
+                clientPhone: booking.clientPhone,
+                clientEmail: booking.clientEmail,
+                treatment: fullTreatment,
+                date: slot.date,
+                time: slot.time,
+                duration: slot.durationMinutes / 60,
+                price: slot.estimatedPrice,
+                depositAmount: booking.depositAmount,
+                professionalId: slot.professionalId,
+            }).catch(err => console.error('[confirm-free] Error n8n:', err));
+        }
 
         return NextResponse.json({ confirmed: true, appointmentIds });
     } catch (err: any) {

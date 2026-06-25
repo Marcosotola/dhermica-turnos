@@ -86,6 +86,60 @@ async function notifyN8nNewAppointment(
 }
 
 /**
+ * Notifies n8n webhook when an appointment is cancelled or deleted (fire-and-forget)
+ */
+async function notifyN8nAppointmentCancelled(
+    appointmentId: string,
+    data: Record<string, any>,
+    event: 'appointment_cancelled' | 'appointment_deleted'
+) {
+    const webhookUrl = process.env.NEXT_PUBLIC_N8N_WEBHOOK_URL;
+    if (!webhookUrl) return;
+
+    try {
+        const date = data.date || '';
+        const [year, month, day] = date.split('-');
+        const formattedDate = day && month && year ? `${day}/${month}/${year}` : date;
+
+        let professionalName = '';
+        if (data.professionalId) {
+            try {
+                const profSnap = await getDoc(doc(db, 'professionals', data.professionalId));
+                if (profSnap.exists()) professionalName = profSnap.data().name || '';
+            } catch {}
+        }
+
+        await fetch(webhookUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                event,
+                appointmentId,
+                client: {
+                    name: data.clientName || data.nombre || '',
+                    phone: data.clientPhone || data.telefono || null,
+                    email: data.clientEmail || data.email || null,
+                },
+                appointment: {
+                    treatment: data.treatment || data.servicio || '',
+                    date,
+                    dateFormatted: formattedDate,
+                    time: data.time || data.hora || '',
+                },
+                professional: {
+                    id: data.professionalId || null,
+                    name: professionalName || null,
+                },
+                cancelledAt: new Date().toISOString(),
+            }),
+        });
+        console.log(`[n8n] Webhook ${event} notificado correctamente`);
+    } catch (error) {
+        console.error(`[n8n] Error al notificar ${event} (no bloqueante):`, error);
+    }
+}
+
+/**
  * Sends an automated push notification via the API
  */
 async function sendAutomatedNotification(title: string, body: string, uid: string, url: string) {
@@ -442,10 +496,32 @@ export async function cancelAppointment(id: string): Promise<void> {
     });
 
     if (snap.exists()) {
-        const professionalId = snap.data().professionalId;
+        const data = snap.data();
+        const professionalId = data.professionalId;
+
         if (professionalId) {
             await syncWithLegacy(professionalId, id, 'update', { status: 'cancelled', updatedAt: Timestamp.now() });
         }
+
+        const appointmentDate = data.date || '';
+        const appointmentTime = data.time || '';
+        const treatment = data.treatment || data.servicio || 'Servicio';
+        let dateDisplay = '';
+        if (appointmentDate.includes('-')) {
+            const [year, month, day] = appointmentDate.split('-');
+            dateDisplay = ` del ${day}-${month}-${year}`;
+        }
+
+        if (data.clientId) {
+            sendAutomatedNotification(
+                'Dhermica Estetica Unisex: Turno Cancelado ❌',
+                `Tu cita para ${treatment}${dateDisplay} a las ${appointmentTime} ha sido cancelada.`,
+                data.clientId,
+                '/mis-turnos'
+            );
+        }
+
+        notifyN8nAppointmentCancelled(id, data, 'appointment_cancelled');
     }
 }
 
@@ -481,10 +557,11 @@ export async function deleteAppointment(id: string): Promise<void> {
     // Eliminar de la colección principal
     await deleteDoc(docRef);
 
-    // Notificar al cliente si existe
-    if (clientId) {
-        const appointmentDate = snap.data()?.date || '';
-        const appointmentTime = snap.data()?.time || '';
+    // Notificar al cliente y a n8n
+    if (snap.exists()) {
+        const snapData = snap.data()!;
+        const appointmentDate = snapData.date || '';
+        const appointmentTime = snapData.time || '';
         let dateDisplay = '';
 
         if (appointmentDate.includes('-')) {
@@ -492,12 +569,16 @@ export async function deleteAppointment(id: string): Promise<void> {
             dateDisplay = ` del ${day}-${month}-${year}`;
         }
 
-        sendAutomatedNotification(
-            'Dhermica Estetica Unisex: Turno Cancelado ❌',
-            `Tu cita para ${treatment}${dateDisplay} a las ${appointmentTime} ha sido cancelada.`,
-            clientId,
-            '/mis-turnos'
-        );
+        if (clientId) {
+            sendAutomatedNotification(
+                'Dhermica Estetica Unisex: Turno Cancelado ❌',
+                `Tu cita para ${treatment}${dateDisplay} a las ${appointmentTime} ha sido cancelada.`,
+                clientId,
+                '/mis-turnos'
+            );
+        }
+
+        notifyN8nAppointmentCancelled(id, snapData, 'appointment_deleted');
     }
 
     // Sincronizar con legacy
