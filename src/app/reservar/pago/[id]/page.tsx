@@ -8,6 +8,7 @@ import Link from 'next/link';
 import { getPendingBookingById } from '@/lib/firebase/pendingBookings';
 import { PendingBooking } from '@/lib/types/pendingBooking';
 import { formatArgentineCurrency } from '@/lib/utils/currency';
+import { initMercadoPago, Wallet } from '@mercadopago/sdk-react';
 
 export default function PagoPage() {
     const { user, profile, loading } = useAuth();
@@ -16,10 +17,12 @@ export default function PagoPage() {
 
     const [booking, setBooking] = useState<PendingBooking | null>(null);
     const [loadingBooking, setLoadingBooking] = useState(true);
+    const [preferenceId, setPreferenceId] = useState<string | null>(null);
     const [creatingPayment, setCreatingPayment] = useState(false);
     const [confirming, setConfirming] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [payerEmail, setPayerEmail] = useState('');
+    const [mpInitialized, setMpInitialized] = useState(false);
 
     useEffect(() => {
         if (!loading && !user) router.push('/');
@@ -44,7 +47,7 @@ export default function PagoPage() {
             .finally(() => setLoadingBooking(false));
     }, [id, user, profile]);
 
-    const handlePagar = async () => {
+    const handlePrepararPago = async () => {
         setCreatingPayment(true);
         try {
             const res = await fetch('/api/payments/create', {
@@ -53,8 +56,12 @@ export default function PagoPage() {
                 body: JSON.stringify({ pendingBookingId: id, payerEmail }),
             });
             const data = await res.json();
-            if (data.initPoint) {
-                window.location.href = data.initPoint;
+            if (data.preferenceId) {
+                if (!mpInitialized) {
+                    initMercadoPago(process.env.NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY!, { locale: 'es-AR' });
+                    setMpInitialized(true);
+                }
+                setPreferenceId(data.preferenceId);
             } else {
                 setError('No se pudo iniciar el pago. Intentá de nuevo.');
             }
@@ -248,15 +255,19 @@ export default function PagoPage() {
                             <><CalendarCheck className="w-5 h-5" /> Confirmar turno (saldo cubierto)</>
                         )}
                     </button>
+                ) : preferenceId ? (
+                    <div className="w-full">
+                        <Wallet initialization={{ preferenceId, redirectMode: 'self' }} />
+                    </div>
                 ) : (
                     <button
                         type="button"
-                        onClick={handlePagar}
+                        onClick={handlePrepararPago}
                         disabled={creatingPayment}
                         className="w-full bg-[#009EE3] hover:bg-[#0081C3] disabled:opacity-60 text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg"
                     >
                         {creatingPayment ? (
-                            <><Loader2 className="w-5 h-5 animate-spin" /> Conectando con MercadoPago...</>
+                            <><Loader2 className="w-5 h-5 animate-spin" /> Preparando pago...</>
                         ) : (
                             <><ShieldCheck className="w-5 h-5" /> Pagar {formatArgentineCurrency(mpAmount)} con MercadoPago</>
                         )}
