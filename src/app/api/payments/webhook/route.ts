@@ -234,17 +234,25 @@ export async function POST(req: NextRequest) {
             }).catch(err => console.error('[webhook] Error FCM:', err));
 
             // WhatsApp via n8n
+            const totalPaidForSlot = payments.reduce((s: number, p: any) => s + p.amount, 0);
             notifyN8nFromServer({
                 appointmentId: aptRef.id,
                 clientName: booking.clientName,
                 clientPhone: booking.clientPhone,
                 clientEmail: booking.clientEmail,
                 treatment: fullTreatment,
+                treatments: slot.treatmentIds.map((id: string, i: number) => ({
+                    name: slot.treatmentNames[i] || '',
+                    zone: slot.zones[i] || null,
+                    price: slot.estimatedPrice / slot.treatmentIds.length,
+                    duration: slot.durationMinutes / slot.treatmentIds.length / 60,
+                })),
                 date: slot.date,
                 time: slot.time,
                 duration: slot.durationMinutes / 60,
                 price: slot.estimatedPrice,
-                depositAmount: booking.depositAmount,
+                totalPaid: totalPaidForSlot,
+                notes: `Reserva online. Seña pagada: $${booking.depositAmount}`,
                 professionalId: slot.professionalId,
             }).catch(err => console.error('[webhook] Error n8n:', err));
         }

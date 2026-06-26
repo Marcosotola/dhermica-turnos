@@ -84,11 +84,13 @@ export async function notifyN8nFromServer({
     clientPhone,
     clientEmail,
     treatment,
+    treatments,
     date,
     time,
     duration,
     price,
-    depositAmount,
+    totalPaid,
+    notes,
     professionalId,
 }: {
     appointmentId: string;
@@ -96,11 +98,13 @@ export async function notifyN8nFromServer({
     clientPhone?: string;
     clientEmail?: string;
     treatment: string;
+    treatments?: { name: string; zone?: string | null; price: number; duration: number }[];
     date: string;
     time: string;
     duration?: number;
     price?: number;
-    depositAmount?: number;
+    totalPaid?: number;
+    notes?: string;
     professionalId?: string;
 }) {
     const webhookUrl = process.env.NEXT_PUBLIC_N8N_WEBHOOK_URL;
@@ -110,11 +114,17 @@ export async function notifyN8nFromServer({
         const [year, month, day] = (date || '').split('-');
         const formattedDate = day && month && year ? `${day}/${month}/${year}` : date;
 
+        const nameParts = (clientName || '').trim().split(/\s+/);
+        const firstName = nameParts[0] || '';
+        const lastName = nameParts.slice(1).join(' ') || '';
+
         let professionalName = '';
         if (professionalId) {
             const profSnap = await adminDb.collection('professionals').doc(professionalId).get();
             if (profSnap.exists) professionalName = profSnap.data()?.name || '';
         }
+
+        const paid = totalPaid ?? 0;
 
         await fetch(webhookUrl, {
             method: 'POST',
@@ -124,19 +134,23 @@ export async function notifyN8nFromServer({
                 appointmentId,
                 client: {
                     name: clientName,
+                    firstName,
+                    lastName,
                     phone: clientPhone || null,
                     email: clientEmail || null,
                 },
                 appointment: {
                     treatment,
+                    treatments: treatments || [],
                     date,
                     dateFormatted: formattedDate,
                     time,
                     duration: duration || 0,
                     price: price || 0,
-                    totalPaid: depositAmount || 0,
-                    balance: (price || 0) - (depositAmount || 0),
+                    totalPaid: paid,
+                    balance: (price || 0) - paid,
                     status: 'pending',
+                    notes: notes || null,
                 },
                 professional: {
                     id: professionalId || null,

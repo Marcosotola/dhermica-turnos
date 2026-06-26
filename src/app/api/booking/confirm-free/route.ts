@@ -192,17 +192,25 @@ export async function POST(req: NextRequest) {
                 body: `Tu turno de ${treatmentSummary} para el ${dateDisplay} a las ${slot.time} está reservado.`,
             }).catch(err => console.error('[confirm-free] Error FCM:', err));
 
+            const totalPaidForSlot = (booking.depositAmount || 0);
             notifyN8nFromServer({
                 appointmentId: appointmentIds[0],
                 clientName: booking.clientName,
                 clientPhone: booking.clientPhone,
                 clientEmail: booking.clientEmail,
                 treatment: fullTreatment,
+                treatments: slot.treatmentIds.map((id: string, i: number) => ({
+                    name: slot.treatmentNames[i] || '',
+                    zone: slot.zones[i] || null,
+                    price: slot.estimatedPrice / slot.treatmentIds.length,
+                    duration: slot.durationMinutes / slot.treatmentIds.length / 60,
+                })),
                 date: slot.date,
                 time: slot.time,
                 duration: slot.durationMinutes / 60,
                 price: slot.estimatedPrice,
-                depositAmount: booking.depositAmount,
+                totalPaid: totalPaidForSlot,
+                notes: `Reserva online. Seña cubierta con gift card/crédito: $${booking.depositAmount}`,
                 professionalId: slot.professionalId,
             }).catch(err => console.error('[confirm-free] Error n8n:', err));
         }
