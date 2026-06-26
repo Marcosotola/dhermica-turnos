@@ -21,7 +21,7 @@ interface RegisterFormProps {
 
 export function RegisterForm({ onToggleMode }: RegisterFormProps) {
     const [step, setStep] = useState(1);
-    const { user: currentUser, profile: currentProfile, logout } = useAuth();
+    const { user: currentUser, profile: currentProfile, logout, refreshProfile } = useAuth();
     const isAdmin = currentProfile?.role === 'admin' || currentProfile?.role === 'secretary';
     const [authOption, setAuthOption] = useState<'options' | 'email' | 'phone_number' | 'phone_otp'>(
         isAdmin ? 'email' : 'options'
@@ -187,6 +187,7 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
                 localStorage.setItem('show_notification_prompt', 'new_registration');
             }
 
+            await refreshProfile();
             toast.success('¡Cuenta creada exitosamente!');
         } catch (error: any) {
             console.error('Registration error:', error);
