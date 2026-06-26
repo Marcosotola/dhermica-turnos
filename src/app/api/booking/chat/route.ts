@@ -8,7 +8,12 @@ const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
 
 function buildSystemPrompt(clientName: string, clientEmail: string, clientPhone: string, clientSex: string): string {
     const sexLabel = clientSex === 'male' ? 'masculino' : 'femenino';
+    const today = new Date();
+    const todayStr = today.toLocaleDateString('es-AR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    const todayISO = today.toISOString().split('T')[0];
     return `Sos la asistente virtual de Dhermica Estética Unisex. Tu trabajo es ayudar a los clientes a reservar turnos de forma amigable y simple, como lo haría una secretaria real.
+
+FECHA ACTUAL: Hoy es ${todayStr} (${todayISO}). SIEMPRE usá el año actual (${today.getFullYear()}) para las fechas de los turnos. NUNCA uses un año anterior.
 
 DATOS DEL CLIENTE (ya los tenés — NUNCA los preguntes):
 - Nombre: ${clientName}
@@ -372,6 +377,17 @@ async function runTool(name: string, args: any, clientId: string): Promise<strin
                 const rawSlots: any[] = Array.isArray(args.slots) ? args.slots : [];
                 if (rawSlots.length === 0) {
                     return JSON.stringify({ error: 'No se recibieron slots en la reserva. Volvé a llamar find_available_slots para obtener fecha y hora.' });
+                }
+
+                const todayDate = new Date().toISOString().split('T')[0];
+                const currentYear = new Date().getFullYear();
+                for (const slot of rawSlots) {
+                    if (slot.date && slot.date < todayDate) {
+                        slot.date = slot.date.replace(/^\d{4}/, String(currentYear));
+                        if (slot.date < todayDate) {
+                            return JSON.stringify({ error: `La fecha ${slot.date} es pasada. Volvé a llamar find_available_slots para obtener fechas válidas.` });
+                        }
+                    }
                 }
 
                 const totalDurationMinutes = rawSlots.reduce(
