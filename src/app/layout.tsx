@@ -35,6 +35,7 @@ export const metadata: Metadata = {
 
 import { BottomNav } from "@/components/navigation/BottomNav";
 import { TopNavbar } from "@/components/navigation/TopNavbar";
+import { ContentWrapper } from "@/components/navigation/ContentWrapper";
 import { PWAProvider } from "@/components/pwa/PWAProvider";
 import { AuthProvider } from "@/lib/contexts/AuthContext";
 import { BirthdayLauncher } from "@/components/dashboard/BirthdayLauncher";
@@ -58,13 +59,13 @@ export default function RootLayout({
             <NotificationProvider>
               <div className="flex min-h-screen">
                 <TopNavbar />
-                <div className="flex-1 lg:pl-64 flex flex-col min-w-0">
+                <ContentWrapper>
                   <BirthdayLauncher />
                   <main className="flex-1">
                     {children}
                   </main>
                   <BottomNav />
-                </div>
+                </ContentWrapper>
               </div>
               <WhatsAppBadge />
             </NotificationProvider>

@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/Button';
 
 export default function UbicacionPage() {
     const router = useRouter();
-    const address = "Pablo Buitrago 6127, Córdoba, Argentina";
+    const address = "Av. Recta Martinolli 8102, Córdoba, Argentina";
     const phone = "351 390-8626"; // From search, or 3513908626 as per user's whatsapp update
     const displayPhone = "351 390-8626"; // Using the WhatsApp number for consistency
 
