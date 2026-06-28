@@ -269,7 +269,13 @@ export async function getFinanceOverview(startDate: string, endDate: string, tar
                 profData.serviceIncome += actualPrice;
 
                 const hasAparato = aparatoDays.has(`${profName}|${apt.date}`);
-                if (!hasAparato) {
+
+                // En días de aparato, solo se suma commissionFixedOverride si se fijó al cerrar el turno
+                if (hasAparato) {
+                    if (apt.commissionFixedOverride !== undefined && apt.commissionFixedOverride !== null && apt.commissionFixedOverride > 0) {
+                        profData.serviceCommission += apt.commissionFixedOverride;
+                    }
+                } else {
                     // Prioridad: monto fijo override > modo fixed del profesional > porcentaje override > porcentaje del profesional
                     if (apt.commissionFixedOverride !== undefined && apt.commissionFixedOverride !== null && apt.commissionFixedOverride > 0) {
                         profData.serviceCommission += apt.commissionFixedOverride;
@@ -286,8 +292,9 @@ export async function getFinanceOverview(startDate: string, endDate: string, tar
                         if (fixedTotal > 0) {
                             profData.serviceCommission += fixedTotal;
                         } else {
-                            // Fallback a porcentaje si no hubo match en precios fijos
-                            const pct = prof?.serviceCommissionPercentage ?? (prof as any)?.commissionPercentage ?? 0;
+                            const pct = apt.commissionPercentageOverride !== undefined && apt.commissionPercentageOverride !== null
+                                ? apt.commissionPercentageOverride
+                                : (prof?.serviceCommissionPercentage ?? (prof as any)?.commissionPercentage ?? 0);
                             if (pct > 0) profData.serviceCommission += (actualPrice * pct) / 100;
                         }
                     } else {
@@ -426,20 +433,31 @@ export async function getFinanceOverview(startDate: string, endDate: string, tar
     overview.totalProfCommissions = 0;
     
     // Calcular cuánto de los fees de aparatos ya está en 'egresos' (manuales)
-    const registeredAparatoFees: Record<string, number> = {};
+    // Usar MAX por profesional+día (igual que aparatoFeesByDay) para evitar sobre-deducción
+    const registeredAparatoFeesByDay: Record<string, number> = {};
     aparatos.forEach(s => {
         if (s.expenseId && s.fixedFee) {
             const profName = idToName[s.professionalId] || s.professionalId;
-            registeredAparatoFees[profName] = (registeredAparatoFees[profName] || 0) + Number(s.fixedFee);
+            const key = `${profName}|${s.date}`;
+            const fee = Number(s.fixedFee);
+            if (fee > (registeredAparatoFeesByDay[key] || 0)) {
+                registeredAparatoFeesByDay[key] = fee;
+            }
         }
+    });
+    const registeredAparatoFees: Record<string, number> = {};
+    Object.entries(registeredAparatoFeesByDay).forEach(([key, fee]) => {
+        const [profName] = key.split('|');
+        registeredAparatoFees[profName] = (registeredAparatoFees[profName] || 0) + fee;
     });
 
     Object.values(overview.byProfessional).forEach((data) => {
-        // La comisión virtual a pagar es: (Servicios + Productos + Alquiler + Aparato) - (Aparato ya pagado como Egreso)
         const alreadyPaid = registeredAparatoFees[data.name] || 0;
+        // Descontar aparato ya pagado como egreso para que el desglose sume igual al total
+        data.aparatoFee = Math.max(0, data.aparatoFee - alreadyPaid);
         data.totalCommission = data.serviceCommission + data.productCommission + data.rentalCommission + data.aparatoFee;
-        
-        const virtualCommissionToPay = data.totalCommission - alreadyPaid;
+
+        const virtualCommissionToPay = data.totalCommission;
 
         if (virtualCommissionToPay > 0) {
             overview.totalProfCommissions += virtualCommissionToPay;
