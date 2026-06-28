@@ -85,6 +85,9 @@ export function DesktopLanding() {
                         <button onClick={() => scrollTo('servicios')} className="text-sm font-bold text-gray-600 hover:text-[#34baab] transition-colors">
                             Servicios
                         </button>
+                        <button onClick={() => scrollTo('productos')} className="text-sm font-bold text-gray-600 hover:text-[#34baab] transition-colors">
+                            Productos
+                        </button>
                         <button onClick={() => scrollTo('nosotros')} className="text-sm font-bold text-gray-600 hover:text-[#34baab] transition-colors">
                             Nosotros
                         </button>
@@ -607,6 +610,9 @@ export function DesktopLanding() {
                             <div className="space-y-3">
                                 <button onClick={() => scrollTo('servicios')} className="block text-gray-400 hover:text-[#34baab] transition-colors text-sm">
                                     Servicios
+                                </button>
+                                <button onClick={() => scrollTo('productos')} className="block text-gray-400 hover:text-[#34baab] transition-colors text-sm">
+                                    Productos
                                 </button>
                                 <button onClick={() => scrollTo('nosotros')} className="block text-gray-400 hover:text-[#34baab] transition-colors text-sm">
                                     Nosotros
