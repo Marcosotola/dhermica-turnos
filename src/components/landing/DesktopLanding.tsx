@@ -8,12 +8,15 @@ import {
 import { LoginForm } from '@/components/auth/LoginForm';
 import { RegisterForm } from '@/components/auth/RegisterForm';
 import { Toaster } from 'sonner';
+import { ShoppingBag } from 'lucide-react';
 import { getImpactImages } from '@/lib/firebase/impact';
 import { getCommunityPosts } from '@/lib/firebase/community';
 import { getTreatments } from '@/lib/firebase/treatments';
+import { getProducts } from '@/lib/firebase/products';
 import { ImpactImage } from '@/lib/types/impact';
 import { CommunityPost } from '@/lib/types/community';
 import { Treatment } from '@/lib/types/treatment';
+import { Product } from '@/lib/types/product';
 import { formatCurrencyWithSymbol } from '@/lib/utils/currency';
 
 const MISSION_CARDS = [
@@ -38,12 +41,14 @@ export function DesktopLanding() {
     const [showAuthModal, setShowAuthModal] = useState(false);
     const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
     const [treatments, setTreatments] = useState<Treatment[]>([]);
+    const [products, setProducts] = useState<Product[]>([]);
     const [impactImages, setImpactImages] = useState<ImpactImage[]>([]);
     const [communityPosts, setCommunityPosts] = useState<CommunityPost[]>([]);
     const [selectedImpactImage, setSelectedImpactImage] = useState<ImpactImage | null>(null);
 
     useEffect(() => {
         getTreatments().then(setTreatments).catch(console.error);
+        getProducts().then(setProducts).catch(console.error);
         getImpactImages().then(images => setImpactImages(images.slice(0, 6))).catch(console.error);
         getCommunityPosts().then(posts =>
             setCommunityPosts(posts.filter(p => p.imageUrl || p.imageUrls?.length).slice(0, 6))
@@ -221,6 +226,57 @@ export function DesktopLanding() {
                     )}
                 </div>
             </section>
+
+            {/* Products Section */}
+            {products.length > 0 && (
+                <section id="productos" className="py-24 bg-white">
+                    <div className="max-w-7xl mx-auto px-8">
+                        <div className="text-center mb-16">
+                            <p className="text-sm font-black text-[#34baab] uppercase tracking-[0.3em] mb-3">Tienda</p>
+                            <h2 className="text-4xl font-black text-gray-900 tracking-tight mb-4">
+                                Productos de Cuidado
+                            </h2>
+                            <p className="text-gray-500 font-medium max-w-xl mx-auto">
+                                Llevá el cuidado de Dhermica a tu casa con nuestros productos seleccionados.
+                            </p>
+                        </div>
+
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+                            {products.map((product) => (
+                                <div
+                                    key={product.id}
+                                    className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 group hover:shadow-xl hover:-translate-y-1 transition-all"
+                                >
+                                    {product.images?.[0] ? (
+                                        <div className="aspect-square relative overflow-hidden bg-gray-50">
+                                            <img
+                                                src={product.images[0]}
+                                                alt={product.name}
+                                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                            />
+                                        </div>
+                                    ) : (
+                                        <div className="aspect-square bg-gray-50 flex items-center justify-center">
+                                            <ShoppingBag className="w-12 h-12 text-gray-200" />
+                                        </div>
+                                    )}
+                                    <div className="p-5">
+                                        <h3 className="font-black text-gray-900 mb-1 group-hover:text-[#34baab] transition-colors line-clamp-1">
+                                            {product.name}
+                                        </h3>
+                                        <p className="text-sm text-gray-500 line-clamp-2 mb-3 font-medium">
+                                            {product.description}
+                                        </p>
+                                        <p className="text-lg font-black text-gray-900">
+                                            {formatCurrencyWithSymbol(product.price)}
+                                        </p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </section>
+            )}
 
             {/* About Section */}
             <section id="nosotros" className="py-24 bg-white">

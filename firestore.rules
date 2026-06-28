@@ -17,6 +17,12 @@ service cloud.firestore {
       allow write: if request.auth != null;
     }
 
+    // --- Products (public read for landing page) ---
+    match /products/{productId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
     // --- Impact Gallery (public read for landing page) ---
     match /impact_gallery/{imageId} {
       allow read: if true;
