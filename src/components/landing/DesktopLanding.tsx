@@ -1,25 +1,20 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
     Sparkles, Heart, MapPin, Phone, Clock, MessageCircle,
-    ChevronRight, Star, Users, Zap, Scissors, Eye, Droplets,
-    Hand, X, ArrowRight, Shield, Award, Calendar
+    ChevronRight, Users, X, ArrowRight, Shield, Calendar
 } from 'lucide-react';
 import { LoginForm } from '@/components/auth/LoginForm';
 import { RegisterForm } from '@/components/auth/RegisterForm';
 import { Toaster } from 'sonner';
-
-const SERVICES = [
-    { name: 'Facial', icon: Sparkles, description: 'Limpieza profunda, hidratación y rejuvenecimiento facial' },
-    { name: 'Corporal', icon: Star, description: 'Tratamientos reductores, reafirmantes y modeladores' },
-    { name: 'Aparatología', icon: Zap, description: 'Tecnología de última generación para resultados visibles' },
-    { name: 'Depilación', icon: Scissors, description: 'Depilación definitiva y temporaria con máxima comodidad' },
-    { name: 'Cejas y Pestañas', icon: Eye, description: 'Diseño, laminado y extensiones para realzar tu mirada' },
-    { name: 'Plasma y Botox', icon: Droplets, description: 'Procedimientos avanzados con resultados naturales' },
-    { name: 'Manos y Pies', icon: Hand, description: 'Manicura, pedicura y tratamientos especializados' },
-    { name: 'Gift Cards', icon: Award, description: 'Regalá bienestar con nuestras tarjetas de regalo' },
-];
+import { getImpactImages } from '@/lib/firebase/impact';
+import { getCommunityPosts } from '@/lib/firebase/community';
+import { getTreatments } from '@/lib/firebase/treatments';
+import { ImpactImage } from '@/lib/types/impact';
+import { CommunityPost } from '@/lib/types/community';
+import { Treatment } from '@/lib/types/treatment';
+import { formatCurrencyWithSymbol } from '@/lib/utils/currency';
 
 const MISSION_CARDS = [
     {
@@ -42,6 +37,18 @@ const MISSION_CARDS = [
 export function DesktopLanding() {
     const [showAuthModal, setShowAuthModal] = useState(false);
     const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
+    const [treatments, setTreatments] = useState<Treatment[]>([]);
+    const [impactImages, setImpactImages] = useState<ImpactImage[]>([]);
+    const [communityPosts, setCommunityPosts] = useState<CommunityPost[]>([]);
+    const [selectedImpactImage, setSelectedImpactImage] = useState<ImpactImage | null>(null);
+
+    useEffect(() => {
+        getTreatments().then(setTreatments).catch(console.error);
+        getImpactImages().then(images => setImpactImages(images.slice(0, 6))).catch(console.error);
+        getCommunityPosts().then(posts =>
+            setCommunityPosts(posts.filter(p => p.imageUrl || p.imageUrls?.length).slice(0, 6))
+        ).catch(console.error);
+    }, []);
 
     const scrollTo = (id: string) => {
         document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
@@ -78,6 +85,9 @@ export function DesktopLanding() {
                         </button>
                         <button onClick={() => scrollTo('impacto')} className="text-sm font-bold text-gray-600 hover:text-[#34baab] transition-colors">
                             Impacto Social
+                        </button>
+                        <button onClick={() => scrollTo('comunidad')} className="text-sm font-bold text-gray-600 hover:text-[#34baab] transition-colors">
+                            Comunidad
                         </button>
                         <button onClick={() => scrollTo('contacto')} className="text-sm font-bold text-gray-600 hover:text-[#34baab] transition-colors">
                             Contacto
@@ -152,7 +162,7 @@ export function DesktopLanding() {
                 </div>
             </section>
 
-            {/* Services Section */}
+            {/* Services / Treatments Section */}
             <section id="servicios" className="py-24 bg-gray-50">
                 <div className="max-w-7xl mx-auto px-8">
                     <div className="text-center mb-16">
@@ -165,23 +175,50 @@ export function DesktopLanding() {
                         </p>
                     </div>
 
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-                        {SERVICES.map((service) => {
-                            const Icon = service.icon;
-                            return (
-                                <div
-                                    key={service.name}
-                                    className="bg-white rounded-3xl p-8 border border-gray-100 hover:border-[#34baab]/30 hover:shadow-xl hover:-translate-y-1 transition-all group cursor-default"
-                                >
-                                    <div className="w-14 h-14 bg-teal-50 rounded-2xl flex items-center justify-center mb-5 group-hover:bg-[#34baab] group-hover:scale-110 transition-all">
-                                        <Icon className="w-7 h-7 text-[#34baab] group-hover:text-white transition-colors" />
+                    {treatments.length > 0 ? (
+                        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                            {treatments.map((treatment) => {
+                                const minPrice = treatment.prices.length > 0
+                                    ? Math.min(...treatment.prices.map(p => p.price))
+                                    : 0;
+                                return (
+                                    <div
+                                        key={treatment.id}
+                                        className="group relative bg-white rounded-[2rem] border-2 border-gray-100 shadow-sm hover:shadow-xl hover:border-[#34baab]/20 hover:-translate-y-1 transition-all p-6 overflow-hidden"
+                                    >
+                                        <div className="absolute top-0 right-0 w-32 h-32 bg-teal-50/50 rounded-full -mr-12 -mt-12 group-hover:scale-110 transition-transform" />
+                                        <div className="relative z-10">
+                                            <div className="w-12 h-12 bg-[#34baab] rounded-2xl flex items-center justify-center shadow-lg shadow-teal-100 mb-4">
+                                                <Sparkles className="w-6 h-6 text-white" />
+                                            </div>
+                                            <span className="text-[10px] font-black uppercase tracking-widest text-[#34baab] bg-teal-50 px-3 py-1 rounded-full mb-3 inline-block">
+                                                {treatment.category}
+                                            </span>
+                                            <h3 className="text-lg font-black text-gray-900 leading-tight group-hover:text-[#34baab] transition-colors mb-2">
+                                                {treatment.name}
+                                            </h3>
+                                            <p className="text-sm text-gray-500 line-clamp-2 mb-4 font-medium">
+                                                {treatment.shortDescription}
+                                            </p>
+                                            <div className="flex items-center justify-between border-t border-gray-50 pt-4">
+                                                <div>
+                                                    <span className="text-[9px] font-black uppercase tracking-wider text-gray-400">Desde</span>
+                                                    <p className="text-lg font-black text-gray-900">{formatCurrencyWithSymbol(minPrice)}</p>
+                                                </div>
+                                                <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center group-hover:bg-[#34baab] group-hover:text-white transition-all text-gray-400">
+                                                    <ChevronRight className="w-5 h-5" />
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <h3 className="text-lg font-black text-gray-900 mb-2">{service.name}</h3>
-                                    <p className="text-sm text-gray-500 leading-relaxed">{service.description}</p>
-                                </div>
-                            );
-                        })}
-                    </div>
+                                );
+                            })}
+                        </div>
+                    ) : (
+                        <div className="flex justify-center py-16">
+                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#34baab]" />
+                        </div>
+                    )}
                 </div>
             </section>
 
@@ -257,20 +294,48 @@ export function DesktopLanding() {
                         </p>
                     </div>
 
-                    <div className="grid md:grid-cols-3 gap-8 mb-12">
-                        {MISSION_CARDS.map((card) => {
-                            const Icon = card.icon;
-                            return (
-                                <div key={card.title} className="bg-white/5 backdrop-blur-sm rounded-3xl p-8 border border-white/10 text-center hover:bg-white/10 transition-all">
-                                    <div className="w-16 h-16 bg-[#34baab]/20 rounded-2xl flex items-center justify-center mx-auto mb-5">
-                                        <Icon className="w-8 h-8 text-[#34baab]" />
+                    {impactImages.length > 0 ? (
+                        <div className="grid grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+                            {impactImages.map((image) => (
+                                <div
+                                    key={image.id}
+                                    onClick={() => setSelectedImpactImage(image)}
+                                    className="group cursor-pointer rounded-2xl overflow-hidden border border-white/10 hover:border-[#34baab]/40 transition-all hover:shadow-xl hover:shadow-[#34baab]/10"
+                                >
+                                    <div className="aspect-[4/3] relative overflow-hidden">
+                                        <img
+                                            src={image.imageUrl}
+                                            alt={image.description}
+                                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                        />
+                                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                                        <div className="absolute bottom-0 left-0 right-0 p-4">
+                                            <p className="text-white text-sm font-medium italic line-clamp-2">"{image.description}"</p>
+                                            <div className="flex items-center gap-2 mt-2 text-[10px] text-white/60 font-bold uppercase tracking-widest">
+                                                <Heart className="w-3 h-3 text-[#34baab] fill-[#34baab]" />
+                                                Misión Dhermica
+                                            </div>
+                                        </div>
                                     </div>
-                                    <h3 className="text-xl font-bold mb-3">{card.title}</h3>
-                                    <p className="text-gray-400">{card.description}</p>
                                 </div>
-                            );
-                        })}
-                    </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="grid md:grid-cols-3 gap-8 mb-12">
+                            {MISSION_CARDS.map((card) => {
+                                const Icon = card.icon;
+                                return (
+                                    <div key={card.title} className="bg-white/5 backdrop-blur-sm rounded-3xl p-8 border border-white/10 text-center hover:bg-white/10 transition-all">
+                                        <div className="w-16 h-16 bg-[#34baab]/20 rounded-2xl flex items-center justify-center mx-auto mb-5">
+                                            <Icon className="w-8 h-8 text-[#34baab]" />
+                                        </div>
+                                        <h3 className="text-xl font-bold mb-3">{card.title}</h3>
+                                        <p className="text-gray-400">{card.description}</p>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
 
                     <div className="text-center">
                         <div className="bg-[#34baab] inline-block rounded-2xl px-10 py-5 shadow-xl shadow-[#34baab]/20">
@@ -282,8 +347,35 @@ export function DesktopLanding() {
                 </div>
             </section>
 
-            {/* Community Preview */}
-            <section className="py-24 bg-white">
+            {/* Impact Lightbox */}
+            {selectedImpactImage && (
+                <div
+                    className="fixed inset-0 z-[300] bg-black/95 flex flex-col items-center justify-center p-8"
+                    onClick={() => setSelectedImpactImage(null)}
+                >
+                    <button className="absolute top-6 right-6 text-white p-2 hover:bg-white/10 rounded-full transition-colors">
+                        <X className="w-8 h-8" />
+                    </button>
+                    <div className="max-w-4xl w-full flex flex-col items-center gap-6" onClick={e => e.stopPropagation()}>
+                        <img
+                            src={selectedImpactImage.imageUrl}
+                            alt={selectedImpactImage.description}
+                            className="max-h-[70vh] w-auto rounded-2xl shadow-2xl"
+                        />
+                        <div className="bg-white/10 backdrop-blur-md p-6 rounded-3xl w-full text-white text-center">
+                            <p className="text-xl font-medium italic leading-relaxed">
+                                "{selectedImpactImage.description}"
+                            </p>
+                            <div className="mt-4 flex items-center justify-center gap-4 text-sm text-white/60 font-bold uppercase tracking-widest">
+                                <span className="text-[#34baab]">Misión Dhermica</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Community Section */}
+            <section id="comunidad" className="py-24 bg-white">
                 <div className="max-w-7xl mx-auto px-8">
                     <div className="text-center mb-16">
                         <p className="text-sm font-black text-[#34baab] uppercase tracking-[0.3em] mb-3">Comunidad</p>
@@ -296,19 +388,66 @@ export function DesktopLanding() {
                         </p>
                     </div>
 
-                    <div className="bg-gradient-to-br from-gray-50 to-teal-50/30 rounded-[2.5rem] p-12 text-center border border-gray-100">
-                        <Users className="w-16 h-16 text-[#34baab]/30 mx-auto mb-6" />
-                        <h3 className="text-2xl font-black text-gray-900 mb-3">Unite a la Comunidad</h3>
-                        <p className="text-gray-500 mb-8 max-w-md mx-auto">
-                            Registrate para ver los resultados de nuestros tratamientos y compartir tu propia transformación.
-                        </p>
-                        <button
-                            onClick={openRegister}
-                            className="bg-[#34baab] text-white px-8 py-4 rounded-2xl font-bold hover:bg-[#2da698] transition-all hover:shadow-lg hover:shadow-[#34baab]/20 active:scale-95 inline-flex items-center gap-2"
-                        >
-                            Crear Mi Cuenta <ArrowRight className="w-5 h-5" />
-                        </button>
-                    </div>
+                    {communityPosts.length > 0 ? (
+                        <>
+                            <div className="grid grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+                                {communityPosts.map((post) => {
+                                    const imageUrl = post.imageUrls?.[0] || post.imageUrl;
+                                    return (
+                                        <div
+                                            key={post.id}
+                                            className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 group hover:shadow-lg hover:-translate-y-1 transition-all"
+                                        >
+                                            <div className="aspect-square relative overflow-hidden">
+                                                <img
+                                                    src={imageUrl}
+                                                    alt={post.content}
+                                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                                />
+                                            </div>
+                                            <div className="p-4">
+                                                <p className="text-sm text-gray-700 font-medium line-clamp-2 italic">
+                                                    "{post.content}"
+                                                </p>
+                                                <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-50">
+                                                    <span className="text-[10px] text-gray-400 font-black uppercase tracking-widest">
+                                                        {post.userName}
+                                                    </span>
+                                                    <div className="flex items-center gap-1 text-[10px] text-[#34baab] font-bold">
+                                                        <Heart className="w-3 h-3 fill-[#34baab]" />
+                                                        {post.likes?.length || 0}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            <div className="text-center">
+                                <button
+                                    onClick={openRegister}
+                                    className="bg-[#34baab] text-white px-8 py-4 rounded-2xl font-bold hover:bg-[#2da698] transition-all hover:shadow-lg hover:shadow-[#34baab]/20 active:scale-95 inline-flex items-center gap-2"
+                                >
+                                    Unite a la Comunidad <ArrowRight className="w-5 h-5" />
+                                </button>
+                            </div>
+                        </>
+                    ) : (
+                        <div className="bg-gradient-to-br from-gray-50 to-teal-50/30 rounded-[2.5rem] p-12 text-center border border-gray-100">
+                            <Users className="w-16 h-16 text-[#34baab]/30 mx-auto mb-6" />
+                            <h3 className="text-2xl font-black text-gray-900 mb-3">Unite a la Comunidad</h3>
+                            <p className="text-gray-500 mb-8 max-w-md mx-auto">
+                                Registrate para ver los resultados de nuestros tratamientos y compartir tu propia transformación.
+                            </p>
+                            <button
+                                onClick={openRegister}
+                                className="bg-[#34baab] text-white px-8 py-4 rounded-2xl font-bold hover:bg-[#2da698] transition-all hover:shadow-lg hover:shadow-[#34baab]/20 active:scale-95 inline-flex items-center gap-2"
+                            >
+                                Crear Mi Cuenta <ArrowRight className="w-5 h-5" />
+                            </button>
+                        </div>
+                    )}
                 </div>
             </section>
 
@@ -395,15 +534,12 @@ export function DesktopLanding() {
                 <div className="max-w-7xl mx-auto px-8">
                     <div className="grid md:grid-cols-3 gap-12 mb-12">
                         <div>
-                            <div className="flex items-center gap-3 mb-4">
-                                <img src="/logo.png" alt="Dhermica" className="w-10 h-10 object-contain" />
-                                <span
-                                    className="text-3xl text-[#34baab]"
-                                    style={{ fontFamily: 'var(--font-amsterdam), sans-serif' }}
-                                >
-                                    Dhermica
-                                </span>
-                            </div>
+                            <span
+                                className="text-3xl text-[#34baab] block mb-4"
+                                style={{ fontFamily: 'var(--font-amsterdam), sans-serif' }}
+                            >
+                                Dhermica
+                            </span>
                             <p className="text-gray-400 text-sm leading-relaxed">
                                 Estética Unisex con propósito social.
                                 Cada tratamiento impulsa nuestra misión de ayudar a quienes más lo necesitan.
@@ -421,6 +557,9 @@ export function DesktopLanding() {
                                 </button>
                                 <button onClick={() => scrollTo('impacto')} className="block text-gray-400 hover:text-[#34baab] transition-colors text-sm">
                                     Impacto Social
+                                </button>
+                                <button onClick={() => scrollTo('comunidad')} className="block text-gray-400 hover:text-[#34baab] transition-colors text-sm">
+                                    Comunidad
                                 </button>
                                 <button onClick={() => scrollTo('contacto')} className="block text-gray-400 hover:text-[#34baab] transition-colors text-sm">
                                     Contacto

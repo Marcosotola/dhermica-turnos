@@ -11,19 +11,31 @@ service cloud.firestore {
          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'secretary');
     }
 
-    // --- Community Posts ---
+    // --- Treatments (public read for landing page) ---
+    match /treatments/{treatmentId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // --- Impact Gallery (public read for landing page) ---
+    match /impact_gallery/{imageId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // --- Community Posts (public read for landing page) ---
     match /community_posts/{postId} {
-      allow read: if request.auth != null;
-      
-      allow create: if request.auth != null 
+      allow read: if true;
+
+      allow create: if request.auth != null
         && request.resource.data.userId == request.auth.uid;
-      
-      allow delete: if request.auth != null 
+
+      allow delete: if request.auth != null
         && (resource.data.userId == request.auth.uid || isAdmin());
-      
+
       allow update: if request.auth != null && (
         // Allow if the user is the owner
-        resource.data.userId == request.auth.uid || 
+        resource.data.userId == request.auth.uid ||
         // Allow if the user is an admin
         isAdmin() ||
         // Allow if ONLY the 'likes' field is being modified
