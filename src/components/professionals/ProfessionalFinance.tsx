@@ -155,20 +155,20 @@ export function ProfessionalFinance({ professional, isAdmin }: ProfessionalFinan
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-                {/* Total Commission Card */}
-                <div className="bg-[#484450] text-white p-6 rounded-[32px] shadow-lg relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
-                        <DollarSign className="w-16 h-16" />
-                    </div>
-                    <p className="text-[10px] font-black uppercase tracking-widest opacity-60">Total Comisión</p>
-                    <h4 className="text-3xl font-black mt-1">{formatCurrency(profData?.totalCommission || 0)}</h4>
-                    <div className="mt-4 flex items-center gap-2 text-[10px] font-bold bg-white/10 w-fit px-2 py-1 rounded-lg">
-                        <TrendingUp className="w-3 h-3 text-green-400" />
-                        <span>Resumen del Periodo</span>
-                    </div>
+            {/* Total Commission Card */}
+            <div className="bg-[#484450] text-white p-6 rounded-[32px] shadow-lg relative overflow-hidden group">
+                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
+                    <DollarSign className="w-16 h-16" />
                 </div>
+                <p className="text-[10px] font-black uppercase tracking-widest opacity-60">Total Comisión</p>
+                <h4 className="text-3xl font-black mt-1">{formatCurrency(profData?.totalCommission || 0)}</h4>
+                <div className="mt-4 flex items-center gap-2 text-[10px] font-bold bg-white/10 w-fit px-2 py-1 rounded-lg">
+                    <TrendingUp className="w-3 h-3 text-green-400" />
+                    <span>Resumen del Periodo</span>
+                </div>
+            </div>
 
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 {/* Service Income */}
                 <div className="bg-white p-6 rounded-[32px] border border-gray-100 shadow-sm">
                     <div className="w-10 h-10 bg-violet-50 rounded-2xl flex items-center justify-center mb-4">
