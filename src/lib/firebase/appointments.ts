@@ -793,29 +793,60 @@ export async function getAppointmentsByClientId(
     const allAppointmentsMap = new Map<string, Appointment>();
 
     try {
-        // 1. Buscar por clientId en colección principal (Exacto y rápido)
-        const qId = query(collection(db, APPOINTMENTS_COLLECTION), where('clientId', '==', clientId));
-        const snapId = await getDocs(qId);
-        snapId.docs.forEach(d => {
-            const apt = mapLegacyAppointment(d.id, d.data());
-            allAppointmentsMap.set(apt.id, apt);
-        });
+        const professionals = await getActiveProfessionals();
+        const promises: Promise<void>[] = [];
 
-        // 2. Buscar por nombre (para legacy y legacy de profesionales)
-        // Reutilizamos la búsqueda por nombre que ya busca en todas las colecciones
-        const legacyAppointments = await searchAppointmentsByClient(clientName);
-        legacyAppointments.forEach(apt => {
-            if (!allAppointmentsMap.has(apt.id)) {
+        // 1. Buscar por clientId en colección principal
+        promises.push(getDocs(query(collection(db, APPOINTMENTS_COLLECTION), where('clientId', '==', clientId))).then(snap => {
+            snap.docs.forEach(d => {
+                const apt = mapLegacyAppointment(d.id, d.data());
                 allAppointmentsMap.set(apt.id, apt);
-            }
-        });
+            });
+        }));
 
-        // 3. Convertir a array y ordenar (más reciente primero)
+        // 2. Buscar por nombre exacto en colección principal (campo nuevo y legacy)
+        if (clientName) {
+            promises.push(getDocs(query(collection(db, APPOINTMENTS_COLLECTION), where('clientName', '==', clientName))).then(snap => {
+                snap.docs.forEach(d => {
+                    if (!allAppointmentsMap.has(d.id)) {
+                        allAppointmentsMap.set(d.id, mapLegacyAppointment(d.id, d.data()));
+                    }
+                });
+            }));
+            promises.push(getDocs(query(collection(db, APPOINTMENTS_COLLECTION), where('nombre', '==', clientName))).then(snap => {
+                snap.docs.forEach(d => {
+                    if (!allAppointmentsMap.has(d.id)) {
+                        allAppointmentsMap.set(d.id, mapLegacyAppointment(d.id, d.data()));
+                    }
+                });
+            }));
+
+            // 3. Buscar por nombre en colecciones legacy de profesionales
+            professionals.forEach(prof => {
+                if (prof.legacyCollectionName) {
+                    promises.push(getDocs(query(collection(db, prof.legacyCollectionName), where('nombre', '==', clientName))).then(snap => {
+                        snap.docs.forEach(d => {
+                            if (!allAppointmentsMap.has(d.id)) {
+                                allAppointmentsMap.set(d.id, mapLegacyAppointment(d.id, d.data(), prof.id));
+                            }
+                        });
+                    }));
+                    promises.push(getDocs(query(collection(db, prof.legacyCollectionName), where('clientName', '==', clientName))).then(snap => {
+                        snap.docs.forEach(d => {
+                            if (!allAppointmentsMap.has(d.id)) {
+                                allAppointmentsMap.set(d.id, mapLegacyAppointment(d.id, d.data(), prof.id));
+                            }
+                        });
+                    }));
+                }
+            });
+        }
+
+        await Promise.all(promises);
+
         return Array.from(allAppointmentsMap.values()).sort((a, b) => {
-            // Primero por fecha descendente
             const dateCompare = b.date.localeCompare(a.date);
             if (dateCompare !== 0) return dateCompare;
-            // Luego por hora descendente
             return b.time.localeCompare(a.time);
         });
 

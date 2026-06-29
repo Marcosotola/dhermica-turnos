@@ -128,7 +128,7 @@ export default function PagoPage() {
     const freeConfirm = mpAmount === 0;
 
     return (
-        <div className="min-h-screen bg-gray-50 pb-10">
+        <div className="min-h-screen bg-gray-50 pb-32">
             <div className="bg-white border-b border-gray-100 px-4 py-4 flex items-center gap-3">
                 <Link href="/reservar" className="text-gray-400 hover:text-gray-600 transition-colors">
                     <ChevronLeft className="w-5 h-5" />
