@@ -508,7 +508,9 @@ export default function FinanzasPage() {
                                         {canSeeAdminMetrics ? 'Comisiones' : 'Mi Ganancia'}
                                     </h3>
                                     <p className={`text-base md:text-xl font-black truncate ${canSeeAdminMetrics ? 'text-gray-900' : 'text-white'}`}>
-                                        {formatCurrency(canSeeAdminMetrics ? (overview?.totalProfCommissions || 0) : (personalData?.totalCommission || 0))}
+                                        {formatCurrency(canSeeAdminMetrics
+                                            ? Object.values(overview?.byProfessional || {}).reduce((s, d) => s + (d.totalCommission || 0), 0)
+                                            : (personalData?.totalCommission || 0))}
                                     </p>
                                 </div>
                                 {canSeeAdminMetrics && <ArrowUpDown className={`w-3 h-3 text-gray-300 transition-transform flex-shrink-0 ${expandedMetric === 'comisiones' ? 'rotate-180' : ''}`} />}

@@ -314,7 +314,7 @@ export default function ProfessionalDetailPage() {
                 )}
 
                 {activeTab === 'finance' && (
-                    <ProfessionalFinance professional={professional} />
+                    <ProfessionalFinance professional={professional} isAdmin={profile?.role === 'admin' || profile?.role === 'secretary'} />
                 )}
 
                 {activeTab === 'appointments' && (

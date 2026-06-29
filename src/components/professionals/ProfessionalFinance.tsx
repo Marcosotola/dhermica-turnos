@@ -17,9 +17,10 @@ import { formatDate } from '@/lib/utils/time';
 
 interface ProfessionalFinanceProps {
     professional: Professional;
+    isAdmin?: boolean;
 }
 
-export function ProfessionalFinance({ professional }: ProfessionalFinanceProps) {
+export function ProfessionalFinance({ professional, isAdmin }: ProfessionalFinanceProps) {
     const [loading, setLoading] = useState(true);
     const [overview, setOverview] = useState<FinanceOverview | null>(null);
     const [dateRange, setDateRange] = useState<'day' | 'week' | 'month' | 'custom'>('month');
@@ -174,7 +175,12 @@ export function ProfessionalFinance({ professional }: ProfessionalFinanceProps) 
                         <Briefcase className="w-5 h-5 text-violet-500" />
                     </div>
                     <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">Servicios</p>
-                    <h4 className="text-2xl font-black text-gray-900">{formatCurrency(profData?.serviceIncome || 0)}</h4>
+                    <h4 className="text-2xl font-black text-gray-900">
+                        {formatCurrency(isAdmin
+                            ? (profData?.serviceIncome || 0)
+                            : ((profData?.serviceIncome || 0) - (profData?.aparatoDayServiceIncome || 0))
+                        )}
+                    </h4>
                     <div className="mt-2 pt-2 border-t border-gray-100">
                         <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">Comisión</p>
                         <p className="text-base font-black text-violet-500">{formatCurrency(profData?.serviceCommission || 0)}</p>

@@ -46,6 +46,7 @@ export interface FinanceOverview {
     egresosByMethod: Record<string, number>;
     byProfessional: Record<string, {
         serviceIncome: number;
+        aparatoDayServiceIncome: number;
         productIncome: number;
         rentalIncome: number;
         aparatoIncome: number;
@@ -150,7 +151,7 @@ export async function getFinanceOverview(startDate: string, endDate: string, tar
         
         if (!overview.byProfessional[nameKey]) {
             overview.byProfessional[nameKey] = {
-                serviceIncome: 0, productIncome: 0, rentalIncome: 0, aparatoIncome: 0,
+                serviceIncome: 0, aparatoDayServiceIncome: 0, productIncome: 0, rentalIncome: 0, aparatoIncome: 0,
                 serviceCommission: 0, productCommission: 0, rentalCommission: 0, aparatoFee: 0,
                 totalCommission: 0, name: nameKey, userId: p.userId
             };
@@ -162,7 +163,7 @@ export async function getFinanceOverview(startDate: string, endDate: string, tar
         if (u.uid) idToName[u.uid] = nameKey;
         if (!overview.byProfessional[nameKey]) {
             overview.byProfessional[nameKey] = {
-                serviceIncome: 0, productIncome: 0, rentalIncome: 0, aparatoIncome: 0,
+                serviceIncome: 0, aparatoDayServiceIncome: 0, productIncome: 0, rentalIncome: 0, aparatoIncome: 0,
                 serviceCommission: 0, productCommission: 0, rentalCommission: 0, aparatoFee: 0,
                 totalCommission: 0, name: nameKey, userId: u.uid
             };
@@ -177,7 +178,7 @@ export async function getFinanceOverview(startDate: string, endDate: string, tar
         idToName[u.uid] = nameKey;
         if (!overview.byProfessional[nameKey]) {
             overview.byProfessional[nameKey] = {
-                serviceIncome: 0, productIncome: 0, rentalIncome: 0, aparatoIncome: 0,
+                serviceIncome: 0, aparatoDayServiceIncome: 0, productIncome: 0, rentalIncome: 0, aparatoIncome: 0,
                 serviceCommission: 0, productCommission: 0, rentalCommission: 0, aparatoFee: 0,
                 totalCommission: 0, name: nameKey, userId: u.uid
             };
@@ -266,9 +267,14 @@ export async function getFinanceOverview(startDate: string, endDate: string, tar
             if (profName && overview.byProfessional[profName]) {
                 const prof = nameToProfessional[profName];
                 const profData = overview.byProfessional[profName];
+
                 profData.serviceIncome += actualPrice;
 
                 const hasAparato = aparatoDays.has(`${profName}|${apt.date}`);
+
+                if (hasAparato) {
+                    profData.aparatoDayServiceIncome += actualPrice;
+                }
 
                 // En días de aparato, solo se suma commissionFixedOverride si se fijó al cerrar el turno
                 if (hasAparato) {
@@ -453,11 +459,13 @@ export async function getFinanceOverview(startDate: string, endDate: string, tar
 
     Object.values(overview.byProfessional).forEach((data) => {
         const alreadyPaid = registeredAparatoFees[data.name] || 0;
-        // Descontar aparato ya pagado como egreso para que el desglose sume igual al total
-        data.aparatoFee = Math.max(0, data.aparatoFee - alreadyPaid);
+        const pendingAparatoFee = Math.max(0, data.aparatoFee - alreadyPaid);
+
+        // totalCommission = total ganado (para mostrar en el desglose de comisiones)
         data.totalCommission = data.serviceCommission + data.productCommission + data.rentalCommission + data.aparatoFee;
 
-        const virtualCommissionToPay = data.totalCommission;
+        // Solo crear movimiento pendiente por lo que NO se pagó aún
+        const virtualCommissionToPay = data.serviceCommission + data.productCommission + data.rentalCommission + pendingAparatoFee;
 
         if (virtualCommissionToPay > 0) {
             overview.totalProfCommissions += virtualCommissionToPay;
