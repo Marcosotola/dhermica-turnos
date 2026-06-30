@@ -12,9 +12,9 @@ import {
 } from '@/lib/firebase/aparatos';
 import { getActiveProfessionals } from '@/lib/firebase/professionals';
 import { createEgreso } from '@/lib/firebase/egresos';
-import { AparatoSession, AparatoTreatment, APARATO_TREATMENTS } from '@/lib/types/aparato';
+import { AparatoSession, AparatoPayment, AparatoTreatment, APARATO_TREATMENTS } from '@/lib/types/aparato';
 import { Professional } from '@/lib/types/professional';
-import { Zap, Plus, Pencil, Trash2, Loader2, CalendarDays, DollarSign, CheckCircle2, Eye, Search, Filter } from 'lucide-react';
+import { Zap, Plus, Pencil, Trash2, Loader2, CalendarDays, DollarSign, CheckCircle2, Eye, Search, Filter, X } from 'lucide-react';
 import { toast, Toaster } from 'sonner';
 import { DeleteConfirmDialog } from '@/components/appointments/DeleteConfirmDialog';
 
@@ -32,6 +32,13 @@ const TREATMENT_COLORS: Record<AparatoTreatment, string> = {
     Liposonix: 'bg-cyan-100 text-cyan-700 border-cyan-200',
 };
 
+interface AparatoFormPayment {
+    id: string;
+    method: 'cash' | 'transfer' | 'debit' | 'credit' | 'qr';
+    amount: string;
+    bankAccount?: 'cuenta1' | 'cuenta2' | null;
+}
+
 interface SessionFormData {
     date: string;
     treatment: AparatoTreatment;
@@ -40,8 +47,16 @@ interface SessionFormData {
     fixedFee: string;
     paymentMethod: 'cash' | 'transfer' | 'debit' | 'credit' | 'qr';
     bankAccount: 'cuenta1' | 'cuenta2' | '';
+    payments: AparatoFormPayment[];
     notes: string;
 }
+
+const emptyPayment = (): AparatoFormPayment => ({
+    id: Date.now().toString(),
+    method: 'cash',
+    amount: '',
+    bankAccount: null,
+});
 
 const emptyForm = (): SessionFormData => ({
     date: new Date().toISOString().split('T')[0],
@@ -51,6 +66,7 @@ const emptyForm = (): SessionFormData => ({
     fixedFee: '',
     paymentMethod: 'cash',
     bankAccount: '',
+    payments: [emptyPayment()],
     notes: '',
 });
 
@@ -138,6 +154,23 @@ export default function AparatosPage() {
         setViewModalOpen(true);
     };
 
+    const paymentsToForm = (session: AparatoSession): AparatoFormPayment[] =>
+        session.payments && session.payments.length > 0
+            ? session.payments.map(p => ({
+                id: p.id || Math.random().toString(),
+                method: p.method,
+                amount: String(p.amount),
+                bankAccount: p.bankAccount,
+            }))
+            : session.fixedFee
+                ? [{
+                    id: Date.now().toString(),
+                    method: session.paymentMethod || 'cash',
+                    amount: String(session.fixedFee),
+                    bankAccount: session.bankAccount,
+                }]
+                : [emptyPayment()];
+
     const openEdit = (session: AparatoSession) => {
         setSelectedSession(session);
         setForm({
@@ -148,6 +181,7 @@ export default function AparatosPage() {
             fixedFee: String(session.fixedFee || ''),
             paymentMethod: session.paymentMethod || 'cash',
             bankAccount: session.bankAccount || '',
+            payments: paymentsToForm(session),
             notes: session.notes || '',
         });
         setModalOpen(true);
@@ -163,6 +197,7 @@ export default function AparatosPage() {
             fixedFee: String(session.fixedFee || ''),
             paymentMethod: session.paymentMethod || 'cash',
             bankAccount: session.bankAccount || '',
+            payments: paymentsToForm(session),
             notes: session.notes || '',
         });
         setCloseModalOpen(true);
@@ -188,11 +223,20 @@ export default function AparatosPage() {
                 notes: form.notes,
             };
 
-            // Solo incluimos campos de pago si ya existen o si estamos editando una completada
-            if (selectedSession?.status === 'completed' || form.fixedFee) {
-                payload.fixedFee = Number(form.fixedFee);
-                payload.paymentMethod = form.paymentMethod;
-                payload.bankAccount = form.bankAccount || null;
+            // Solo incluimos campos de pago si estamos editando una sesión ya completada
+            if (selectedSession?.status === 'completed') {
+                const payments: AparatoPayment[] = form.payments
+                    .filter(p => Number(p.amount) > 0)
+                    .map(p => ({
+                        id: p.id,
+                        method: p.method,
+                        amount: Number(p.amount),
+                        bankAccount: p.method !== 'cash' ? (p.bankAccount || 'cuenta1') : null,
+                    }));
+                payload.fixedFee = payments.reduce((sum, p) => sum + p.amount, 0);
+                payload.payments = payments;
+                payload.paymentMethod = payments[0]?.method || 'cash';
+                payload.bankAccount = payments[0]?.bankAccount || null;
             }
 
             if (selectedSession) {
@@ -216,29 +260,46 @@ export default function AparatosPage() {
     };
 
     const handleCloseSession = async () => {
-        if (!selectedSession || !form.fixedFee || (form.paymentMethod === 'transfer' && !form.bankAccount)) {
-            toast.error('Completá el monto y el método de pago');
+        if (!selectedSession) return;
+
+        const totalAmount = form.payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+        const hasInvalidPayment = form.payments.some(p =>
+            !p.amount || Number(p.amount) <= 0 ||
+            ((p.method === 'transfer' || p.method === 'qr' || p.method === 'debit') && !p.bankAccount)
+        );
+
+        if (form.payments.length === 0 || totalAmount <= 0 || hasInvalidPayment) {
+            toast.error('Completá el monto y el método de pago de cada pago');
             return;
         }
 
         setClosing(true);
         try {
+            const payments: AparatoPayment[] = form.payments.map(p => ({
+                id: p.id,
+                method: p.method,
+                amount: Number(p.amount),
+                bankAccount: p.method !== 'cash' ? (p.bankAccount || 'cuenta1') : null,
+            }));
+
             // 1. Crear el Egreso
             const expenseId = await createEgreso({
                 date: form.date,
                 category: 'sueldos',
-                amount: Number(form.fixedFee),
+                amount: totalAmount,
                 description: `Pago profesional: ${form.professionalName} - Sesión Aparato (${form.treatment})`,
-                paymentMethod: form.paymentMethod,
-                bankAccount: form.bankAccount as any || null,
+                payments,
+                paymentMethod: payments[0].method,
+                bankAccount: payments[0].bankAccount,
             });
 
             // 2. Actualizar la Sesión
             await updateAparatoSession(selectedSession.id, {
                 status: 'completed',
-                fixedFee: Number(form.fixedFee),
-                paymentMethod: form.paymentMethod,
-                bankAccount: form.bankAccount as any || null,
+                fixedFee: totalAmount,
+                paymentMethod: payments[0].method,
+                bankAccount: payments[0].bankAccount,
+                payments,
                 expenseId: expenseId
             });
 
@@ -426,7 +487,9 @@ export default function AparatosPage() {
                                                     {session.status === 'completed' ? (
                                                         <div className="flex flex-col items-end">
                                                             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">
-                                                                {PAYMENT_METHOD_LABELS[session.paymentMethod || 'cash']}
+                                                                {session.payments && session.payments.length > 1
+                                                                    ? `${session.payments.length} métodos`
+                                                                    : PAYMENT_METHOD_LABELS[session.paymentMethod || 'cash']}
                                                             </span>
                                                             <span className="text-sm font-black text-gray-900">
                                                                 {formatCurrency(session.fixedFee || 0)}
@@ -541,53 +604,96 @@ export default function AparatosPage() {
                         </div>
 
                         {selectedSession?.status === 'completed' && (
-                            <>
-                                <div>
-                                    <label htmlFor="aparato-fixed-fee" className="text-xs font-black uppercase tracking-widest text-gray-500 mb-1 block">Monto Fijo del Profesional</label>
-                                    <div className="relative">
-                                        <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                        <input
-                                            id="aparato-fixed-fee"
-                                            type="number"
-                                            min="0"
-                                            value={form.fixedFee}
-                                            onChange={e => setForm(f => ({ ...f, fixedFee: e.target.value }))}
-                                            placeholder="0"
-                                            className="w-full border border-gray-200 rounded-xl pl-10 pr-4 py-3 focus:ring-2 focus:ring-amber-400 outline-none font-medium"
-                                        />
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <label htmlFor="aparato-payment-method" className="text-xs font-black uppercase tracking-widest text-gray-500 mb-1 block">Método de Pago</label>
-                                    <select
-                                        id="aparato-payment-method"
-                                        value={form.paymentMethod}
-                                        onChange={e => setForm(f => ({ ...f, paymentMethod: e.target.value as any }))}
-                                        className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-amber-400 outline-none font-medium bg-white"
+                            <div className="border-t border-gray-100 pt-4">
+                                <div className="flex items-center justify-between mb-3">
+                                    <label className="text-xs font-black uppercase tracking-widest text-gray-500">Desglose de Pagos</label>
+                                    <button
+                                        onClick={() => setForm(f => ({ ...f, payments: [...f.payments, emptyPayment()] }))}
+                                        className="text-[10px] font-black uppercase tracking-widest bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-xl transition-colors flex items-center gap-1.5 text-gray-600"
                                     >
-                                        {Object.entries(PAYMENT_METHOD_LABELS).map(([val, label]) => (
-                                            <option key={val} value={val}>{label}</option>
-                                        ))}
-                                    </select>
+                                        <Plus className="w-3 h-3" /> Agregar Pago
+                                    </button>
                                 </div>
 
-                                {(form.paymentMethod === 'transfer' || form.paymentMethod === 'qr' || form.paymentMethod === 'debit') && (
-                                    <div>
-                                        <label htmlFor="aparato-bank" className="text-xs font-black uppercase tracking-widest text-gray-500 mb-1 block">Cuenta de Salida</label>
-                                        <select
-                                            id="aparato-bank"
-                                            value={form.bankAccount}
-                                            onChange={e => setForm(f => ({ ...f, bankAccount: e.target.value as any }))}
-                                            className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-amber-400 outline-none font-medium bg-white"
-                                        >
-                                            <option value="">Seleccionar cuenta...</option>
-                                            <option value="cuenta1">Cuenta 1 (Efectivo/Principal)</option>
-                                            <option value="cuenta2">Cuenta 2 (Secundaria)</option>
-                                        </select>
-                                    </div>
-                                )}
-                            </>
+                                <div className="space-y-3">
+                                    {form.payments.map((p, idx) => (
+                                        <div key={p.id} className="bg-gray-50 rounded-2xl p-4 border border-gray-100 relative">
+                                            {form.payments.length > 1 && (
+                                                <button
+                                                    aria-label="Eliminar pago"
+                                                    onClick={() => setForm(f => ({ ...f, payments: f.payments.filter(pay => pay.id !== p.id) }))}
+                                                    className="absolute -top-2 -right-2 bg-white border border-gray-200 text-red-500 p-1.5 rounded-full shadow-sm hover:bg-red-50 transition-colors"
+                                                >
+                                                    <X className="w-3 h-3" />
+                                                </button>
+                                            )}
+
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <div>
+                                                    <label htmlFor={`edit-method-${idx}`} className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1 block">Medio</label>
+                                                    <select
+                                                        id={`edit-method-${idx}`}
+                                                        value={p.method}
+                                                        onChange={e => {
+                                                            const newPayments = [...form.payments];
+                                                            newPayments[idx] = { ...newPayments[idx], method: e.target.value as any };
+                                                            if (e.target.value === 'cash') newPayments[idx].bankAccount = null;
+                                                            setForm(f => ({ ...f, payments: newPayments }));
+                                                        }}
+                                                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white"
+                                                    >
+                                                        {Object.entries(PAYMENT_METHOD_LABELS).map(([val, label]) => (
+                                                            <option key={val} value={val}>{label}</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <label htmlFor={`edit-amount-${idx}`} className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1 block">Monto</label>
+                                                    <input
+                                                        id={`edit-amount-${idx}`}
+                                                        type="number"
+                                                        min="0"
+                                                        value={p.amount}
+                                                        onChange={e => {
+                                                            const newPayments = [...form.payments];
+                                                            newPayments[idx] = { ...newPayments[idx], amount: e.target.value };
+                                                            setForm(f => ({ ...f, payments: newPayments }));
+                                                        }}
+                                                        placeholder="0"
+                                                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white"
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            {p.method !== 'cash' && (
+                                                <div className="mt-3">
+                                                    <label htmlFor={`edit-account-${idx}`} className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1 block">Cuenta</label>
+                                                    <select
+                                                        id={`edit-account-${idx}`}
+                                                        value={p.bankAccount || 'cuenta1'}
+                                                        onChange={e => {
+                                                            const newPayments = [...form.payments];
+                                                            newPayments[idx] = { ...newPayments[idx], bankAccount: e.target.value as any };
+                                                            setForm(f => ({ ...f, payments: newPayments }));
+                                                        }}
+                                                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white"
+                                                    >
+                                                        <option value="cuenta1">Cuenta 1</option>
+                                                        <option value="cuenta2">Cuenta 2</option>
+                                                    </select>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+
+                                <div className="flex justify-between items-center px-1 mt-3">
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Total:</span>
+                                    <span className="text-sm font-black text-amber-600">
+                                        {formatCurrency(form.payments.reduce((s, p) => s + (Number(p.amount) || 0), 0))}
+                                    </span>
+                                </div>
+                            </div>
                         )}
 
                         <div>
@@ -639,55 +745,98 @@ export default function AparatosPage() {
                             Registrá el pago para <span className="font-bold text-gray-700">{selectedSession.professionalName}</span> por la sesión de <span className="font-bold text-gray-700">{selectedSession.treatment}</span> del {formatDate(selectedSession.date)}.
                         </p>
 
-                        <div className="space-y-4 pt-2">
-                            <div>
-                                <label htmlFor="close-fixed-fee" className="text-xs font-black uppercase tracking-widest text-gray-500 mb-1 block">Monto a Pagar *</label>
-                                <div className="relative">
-                                    <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                    <input
-                                        id="close-fixed-fee"
-                                        type="number"
-                                        min="0"
-                                        value={form.fixedFee}
-                                        onChange={e => setForm(f => ({ ...f, fixedFee: e.target.value }))}
-                                        placeholder="0"
-                                        className="w-full border border-gray-200 rounded-xl pl-10 pr-4 py-3 focus:ring-2 focus:ring-[#34baab] outline-none font-medium"
-                                    />
-                                </div>
-                            </div>
-
-                            <div>
-                                <label htmlFor="close-payment-method" className="text-xs font-black uppercase tracking-widest text-gray-500 mb-1 block">Método de Pago *</label>
-                                <select
-                                    id="close-payment-method"
-                                    value={form.paymentMethod}
-                                    onChange={e => setForm(f => ({ ...f, paymentMethod: e.target.value as any }))}
-                                    className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-[#34baab] outline-none font-medium bg-white"
+                        <div className="pt-2 max-h-[50vh] overflow-y-auto pr-1 -mr-1">
+                            <div className="flex items-center justify-between mb-3">
+                                <label className="text-xs font-black uppercase tracking-widest text-gray-500">Desglose de Pagos *</label>
+                                <button
+                                    onClick={() => setForm(f => ({ ...f, payments: [...f.payments, emptyPayment()] }))}
+                                    className="text-[10px] font-black uppercase tracking-widest bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-xl transition-colors flex items-center gap-1.5 text-gray-600"
                                 >
-                                    {Object.entries(PAYMENT_METHOD_LABELS).map(([val, label]) => (
-                                        <option key={val} value={val}>{label}</option>
-                                    ))}
-                                </select>
+                                    <Plus className="w-3 h-3" /> Agregar Pago
+                                </button>
                             </div>
 
-                            {(form.paymentMethod === 'transfer' || form.paymentMethod === 'qr' || form.paymentMethod === 'debit') && (
-                                <div>
-                                    <label htmlFor="close-bank" className="text-xs font-black uppercase tracking-widest text-gray-500 mb-1 block">Cuenta de Salida *</label>
-                                    <select
-                                        id="close-bank"
-                                        value={form.bankAccount}
-                                        onChange={e => setForm(f => ({ ...f, bankAccount: e.target.value as any }))}
-                                        className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-[#34baab] outline-none font-medium bg-white"
-                                    >
-                                        <option value="">Seleccionar cuenta...</option>
-                                        <option value="cuenta1">Cuenta 1 (Efectivo/Principal)</option>
-                                        <option value="cuenta2">Cuenta 2 (Secundaria)</option>
-                                    </select>
-                                </div>
-                            )}
+                            <div className="space-y-3">
+                                {form.payments.map((p, idx) => (
+                                    <div key={p.id} className="bg-gray-50 rounded-2xl p-4 border border-gray-100 relative">
+                                        {form.payments.length > 1 && (
+                                            <button
+                                                aria-label="Eliminar pago"
+                                                onClick={() => setForm(f => ({ ...f, payments: f.payments.filter(pay => pay.id !== p.id) }))}
+                                                className="absolute -top-2 -right-2 bg-white border border-gray-200 text-red-500 p-1.5 rounded-full shadow-sm hover:bg-red-50 transition-colors"
+                                            >
+                                                <X className="w-3 h-3" />
+                                            </button>
+                                        )}
+
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div>
+                                                <label htmlFor={`close-method-${idx}`} className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1 block">Medio</label>
+                                                <select
+                                                    id={`close-method-${idx}`}
+                                                    value={p.method}
+                                                    onChange={e => {
+                                                        const newPayments = [...form.payments];
+                                                        newPayments[idx] = { ...newPayments[idx], method: e.target.value as any };
+                                                        if (e.target.value === 'cash') newPayments[idx].bankAccount = null;
+                                                        setForm(f => ({ ...f, payments: newPayments }));
+                                                    }}
+                                                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#34baab] bg-white"
+                                                >
+                                                    {Object.entries(PAYMENT_METHOD_LABELS).map(([val, label]) => (
+                                                        <option key={val} value={val}>{label}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label htmlFor={`close-amount-${idx}`} className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1 block">Monto</label>
+                                                <input
+                                                    id={`close-amount-${idx}`}
+                                                    type="number"
+                                                    min="0"
+                                                    value={p.amount}
+                                                    onChange={e => {
+                                                        const newPayments = [...form.payments];
+                                                        newPayments[idx] = { ...newPayments[idx], amount: e.target.value };
+                                                        setForm(f => ({ ...f, payments: newPayments }));
+                                                    }}
+                                                    placeholder="0"
+                                                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-[#34baab] bg-white"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        {p.method !== 'cash' && (
+                                            <div className="mt-3">
+                                                <label htmlFor={`close-account-${idx}`} className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1 block">Cuenta</label>
+                                                <select
+                                                    id={`close-account-${idx}`}
+                                                    value={p.bankAccount || 'cuenta1'}
+                                                    onChange={e => {
+                                                        const newPayments = [...form.payments];
+                                                        newPayments[idx] = { ...newPayments[idx], bankAccount: e.target.value as any };
+                                                        setForm(f => ({ ...f, payments: newPayments }));
+                                                    }}
+                                                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#34baab] bg-white"
+                                                >
+                                                    <option value="cuenta1">Cuenta 1</option>
+                                                    <option value="cuenta2">Cuenta 2</option>
+                                                </select>
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
                         </div>
 
-                        <div className="flex gap-3 pt-4">
+                        <div className="flex justify-between items-center px-1">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Total a Pagar:</span>
+                            <span className="text-lg font-black text-[#34baab]">
+                                {formatCurrency(form.payments.reduce((s, p) => s + (Number(p.amount) || 0), 0))}
+                            </span>
+                        </div>
+
+                        <div className="flex gap-3 pt-2">
                             <button
                                 onClick={() => setCloseModalOpen(false)}
                                 className="flex-1 py-3 rounded-2xl border border-gray-200 font-bold text-gray-600 hover:bg-gray-50 transition-colors"
@@ -747,19 +896,35 @@ export default function AparatosPage() {
                                             <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Monto Abonado</span>
                                             <span className="text-lg font-black text-gray-900">{formatCurrency(selectedSession.fixedFee || 0)}</span>
                                         </div>
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Método</span>
-                                            <span className="text-xs font-bold text-gray-600 uppercase tracking-widest">
-                                                {PAYMENT_METHOD_LABELS[selectedSession.paymentMethod || 'cash']}
-                                            </span>
-                                        </div>
-                                        {selectedSession.bankAccount && (
-                                            <div className="flex items-center justify-between">
-                                                <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Cuenta</span>
-                                                <span className="text-xs font-bold text-gray-600 italic">
-                                                    {selectedSession.bankAccount === 'cuenta1' ? 'Cuenta 1' : 'Cuenta 2'}
-                                                </span>
+                                        {selectedSession.payments && selectedSession.payments.length > 1 ? (
+                                            <div className="space-y-1.5">
+                                                {selectedSession.payments.map((p, idx) => (
+                                                    <div key={p.id || idx} className="flex items-center justify-between">
+                                                        <span className="text-xs font-bold text-gray-600 uppercase tracking-widest">
+                                                            {PAYMENT_METHOD_LABELS[p.method]}
+                                                            {p.bankAccount && ` (${p.bankAccount === 'cuenta1' ? 'Cta 1' : 'Cta 2'})`}
+                                                        </span>
+                                                        <span className="text-xs font-bold text-gray-600">{formatCurrency(p.amount)}</span>
+                                                    </div>
+                                                ))}
                                             </div>
+                                        ) : (
+                                            <>
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Método</span>
+                                                    <span className="text-xs font-bold text-gray-600 uppercase tracking-widest">
+                                                        {PAYMENT_METHOD_LABELS[selectedSession.paymentMethod || 'cash']}
+                                                    </span>
+                                                </div>
+                                                {selectedSession.bankAccount && (
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Cuenta</span>
+                                                        <span className="text-xs font-bold text-gray-600 italic">
+                                                            {selectedSession.bankAccount === 'cuenta1' ? 'Cuenta 1' : 'Cuenta 2'}
+                                                        </span>
+                                                    </div>
+                                                )}
+                                            </>
                                         )}
                                     </>
                                 )}
