@@ -277,6 +277,10 @@ async function runTool(name: string, args: any, clientId: string): Promise<strin
                     duracionMinutos: firstDuration,
                     depositAmount: data.depositAmount || 0,
                     requiereSeña: (data.depositAmount || 0) > 0,
+                    requiereAparato: data.requiereAparato || null,
+                    notaDisponibilidad: data.requiereAparato
+                        ? 'Este tratamiento requiere una máquina especial que se alquila en fechas específicas. La disponibilidad de turnos está limitada a esas fechas. Avisale al cliente antes de buscar horarios.'
+                        : null,
                 });
             }
 

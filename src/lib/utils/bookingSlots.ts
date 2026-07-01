@@ -144,10 +144,64 @@ export interface TreatmentGroup {
 }
 
 /**
+ * Determina la lista de fechas candidatas para buscar disponibilidad.
+ * Si algún grupo requiere un aparato, solo se consideran las fechas registradas
+ * en `aparato_sessions` para ese tipo de aparato. En caso contrario, itera
+ * los próximos MAX_SEARCH_DAYS días.
+ */
+async function buildCandidateDates(
+    groups: TreatmentGroup[],
+    today: Date,
+    todayStr: string,
+    startAfterDate?: string
+): Promise<string[]> {
+    const aparatoDatesPerGroup = await Promise.all(
+        groups.map(async (group) => {
+            const treatSnap = await adminDb.collection('treatments').doc(group.treatmentId).get();
+            if (!treatSnap.exists) return null;
+            const requiereAparato: string | undefined = treatSnap.data()!.requiereAparato;
+            if (!requiereAparato) return null;
+
+            const sesSnap = await adminDb
+                .collection('aparato_sessions')
+                .where('treatment', '==', requiereAparato)
+                .where('date', '>=', todayStr)
+                .get();
+            return sesSnap.docs.map(d => d.data().date as string).sort();
+        })
+    );
+
+    const constrained = aparatoDatesPerGroup.filter((d): d is string[] => d !== null);
+
+    if (constrained.length > 0) {
+        // Intersección: solo fechas disponibles para TODOS los grupos con restricción
+        let allowed = new Set(constrained[0]);
+        for (let i = 1; i < constrained.length; i++) {
+            allowed = new Set([...allowed].filter(d => constrained[i].includes(d)));
+        }
+        return [...allowed]
+            .filter(d => d > todayStr && (!startAfterDate || d > startAfterDate))
+            .sort();
+    }
+
+    // Sin restricción de aparato: generar los próximos MAX_SEARCH_DAYS días
+    const dates: string[] = [];
+    for (let offset = 1; offset <= MAX_SEARCH_DAYS; offset++) {
+        const d = new Date(today);
+        d.setDate(today.getDate() + offset);
+        const date = formatDate(d);
+        if (startAfterDate && date <= startAfterDate) continue;
+        dates.push(date);
+    }
+    return dates;
+}
+
+/**
  * Busca las próximas opciones disponibles para uno o más tratamientos.
  * Si todos los tratamientos los puede hacer el mismo profesional, devuelve una sola franja.
  * Si requieren distintos profesionales, intenta encontrar combinaciones el mismo día (consecutivas o con poco gap).
- * Busca día a día y para en cuanto tiene MAX_RESULTS opciones.
+ * Si algún tratamiento requiere un aparato (campo `requiereAparato` en Firestore), solo
+ * considera las fechas registradas en `aparato_sessions` para ese tipo de aparato.
  */
 export async function findAvailableBookingOptions(
     groups: TreatmentGroup[],
@@ -176,15 +230,15 @@ export async function findAvailableBookingOptions(
         });
     });
 
-    const results: BookingOption[] = [];
+    // 3. Determinar fechas candidatas (respeta restricciones de aparato)
     const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+    const candidateDates = await buildCandidateDates(groups, today, todayStr, startAfterDate);
 
-    for (let dayOffset = 1; dayOffset <= MAX_SEARCH_DAYS && results.length < MAX_RESULTS; dayOffset++) {
-        const d = new Date(today);
-        d.setDate(today.getDate() + dayOffset);
-        const date = formatDate(d);
+    const results: BookingOption[] = [];
 
-        if (startAfterDate && date <= startAfterDate) continue;
+    for (const date of candidateDates) {
+        if (results.length >= MAX_RESULTS) break;
 
         if (groups.length === 1) {
             // Caso simple: un solo tratamiento
