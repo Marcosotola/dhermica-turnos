@@ -30,7 +30,7 @@ export default function ReservarPage() {
 
     useEffect(() => {
         if (!loading && !user) router.push('/');
-        if (!loading && user && profile?.role !== 'client' && profile?.role !== 'cliente-prueba') router.push('/dashboard');
+        if (!loading && user && profile?.role !== 'cliente-prueba') router.push('/dashboard');
     }, [user, profile, loading, router]);
 
     useEffect(() => {
