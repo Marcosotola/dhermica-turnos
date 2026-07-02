@@ -87,19 +87,23 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ received: true });
         }
 
-        // Verificar que el pendingBooking existe y está pendiente
+        // Verificar y reclamar el pendingBooking de forma atómica para evitar que
+        // notificaciones concurrentes de MercadoPago (el mismo pago llega más de una vez)
+        // procesen el mismo pago en paralelo y dupliquen turnos y avisos de WhatsApp.
         const bookingRef = adminDb.collection('pendingBookings').doc(pendingBookingId);
-        const bookingSnap = await bookingRef.get();
+        const booking = await adminDb.runTransaction(async (tx) => {
+            const snap = await tx.get(bookingRef);
+            if (!snap.exists) return null;
 
-        if (!bookingSnap.exists) {
-            console.error('[webhook] PendingBooking no encontrado:', pendingBookingId);
-            return NextResponse.json({ received: true });
-        }
+            const data = snap.data()!;
+            if (data.status === 'confirmed' || data.status === 'processing') return null;
 
-        const booking = bookingSnap.data()!;
+            tx.update(bookingRef, { status: 'processing', updatedAt: Timestamp.now() });
+            return data;
+        });
 
-        if (booking.status === 'confirmed') {
-            // Pago duplicado, ya procesado
+        if (!booking) {
+            // No encontrado, ya confirmado, o ya está siendo procesado por otra notificación
             return NextResponse.json({ received: true });
         }
 
