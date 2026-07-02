@@ -4,12 +4,22 @@ import * as logger from "firebase-functions/logger";
 
 admin.initializeApp();
 
+// Recordatorios automáticos desactivados: el envío ahora es solo manual
+// desde el menú de Avisos (secretaria/notificaciones). Para reactivar, volver a poner en true
+// Y volver a desplegar con `firebase deploy --only functions`.
+const AUTOMATED_PUSH_NOTIFICATIONS_ENABLED = false;
+
 /**
  * Scheduled function to send appointment reminders
  * Runs every 30 minutes
  */
 export const sendAppointmentReminders = onSchedule("every 30 minutes",
     async () => {
+        if (!AUTOMATED_PUSH_NOTIFICATIONS_ENABLED) {
+            logger.info("Skipped: automated push notifications are disabled.");
+            return;
+        }
+
         const db = admin.firestore();
         const messaging = admin.messaging();
 

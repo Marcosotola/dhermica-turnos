@@ -22,6 +22,10 @@ import { getUserProfile, formatPhone } from './users';
 
 const APPOINTMENTS_COLLECTION = 'appointments';
 
+// Notificaciones push automáticas desactivadas: el envío ahora es solo manual
+// desde el menú de Avisos (secretaria/notificaciones). Para reactivar, volver a poner en true.
+const AUTOMATED_PUSH_NOTIFICATIONS_ENABLED = false;
+
 /**
  * Notifies n8n webhook when a new appointment is created (fire-and-forget)
  */
@@ -143,6 +147,8 @@ async function notifyN8nAppointmentCancelled(
  * Sends an automated push notification via the API
  */
 async function sendAutomatedNotification(title: string, body: string, uid: string, url: string) {
+    if (!AUTOMATED_PUSH_NOTIFICATIONS_ENABLED) return;
+
     try {
         const clientProfile = await getUserProfile(uid);
         if (!clientProfile || !clientProfile.fcmTokens || clientProfile.fcmTokens.length === 0 || clientProfile.notificationsEnabled === false) {

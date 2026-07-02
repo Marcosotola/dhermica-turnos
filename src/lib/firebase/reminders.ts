@@ -1,11 +1,20 @@
 import { adminDb, adminMessaging } from './admin';
 import * as admin from 'firebase-admin';
 
+// Recordatorios automáticos desactivados: el envío ahora es solo manual
+// desde el menú de Avisos (secretaria/notificaciones). Para reactivar, volver a poner en true.
+const AUTOMATED_PUSH_NOTIFICATIONS_ENABLED = false;
+
 /**
  * Checks for upcoming appointments and sends reminder notifications.
  * Should be called periodically (e.g., every 15-30 minutes).
  */
 export async function checkAndSendReminders() {
+    if (!AUTOMATED_PUSH_NOTIFICATIONS_ENABLED) {
+        console.log('[Reminders] Skipped: automated push notifications are disabled.');
+        return { notified48h: 0, notified24h: 0, notified1h: 0, errors: 0 };
+    }
+
     console.log('[Reminders] Starting check...');
     const now = new Date();
 

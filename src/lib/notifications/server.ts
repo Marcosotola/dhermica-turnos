@@ -1,6 +1,10 @@
 import { adminDb, adminMessaging } from '@/lib/firebase/admin';
 import * as admin from 'firebase-admin';
 
+// Notificaciones push automáticas desactivadas: el envío ahora es solo manual
+// desde el menú de Avisos (secretaria/notificaciones). Para reactivar, volver a poner en true.
+const AUTOMATED_PUSH_NOTIFICATIONS_ENABLED = false;
+
 /**
  * Sends an FCM push notification from server-side (API routes).
  * Uses the admin SDK directly instead of calling the /api/notifications/send endpoint.
@@ -16,6 +20,8 @@ export async function sendServerFCMNotification({
     body: string;
     url?: string;
 }) {
+    if (!AUTOMATED_PUSH_NOTIFICATIONS_ENABLED) return;
+
     try {
         const userDoc = await adminDb.collection('users').doc(clientId).get();
         const userData = userDoc.data();
