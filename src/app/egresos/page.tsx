@@ -71,13 +71,15 @@ interface EgresoForm {
     payments: EgresoFormPayment[];
 }
 
-const defaultForm: EgresoForm = {
-    date: todayStr(),
-    category: 'otros',
-    amount: '',
-    description: '',
-    payments: [{ id: Date.now().toString(), method: 'cash', amount: '', bankAccount: null }],
-};
+function getDefaultForm(): EgresoForm {
+    return {
+        date: todayStr(),
+        category: 'otros',
+        amount: '',
+        description: '',
+        payments: [{ id: Date.now().toString(), method: 'cash', amount: '', bankAccount: null }],
+    };
+}
 
 export default function EgresosPage() {
     const { profile, loading: authLoading } = useAuth();
@@ -88,7 +90,7 @@ export default function EgresosPage() {
     const [showModal, setShowModal] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [deletingId, setDeletingId] = useState<string | null>(null);
-    const [form, setForm] = useState<EgresoForm>(defaultForm);
+    const [form, setForm] = useState<EgresoForm>(getDefaultForm);
     const [saving, setSaving] = useState(false);
     const [financeOverview, setFinanceOverview] = useState<FinanceOverview | null>(null);
 
@@ -172,7 +174,7 @@ export default function EgresosPage() {
 
     function openNew() {
         setEditingId(null);
-        setForm(defaultForm);
+        setForm(getDefaultForm());
         setShowModal(true);
     }
 
@@ -524,10 +526,15 @@ export default function EgresosPage() {
                                                         id={`egreso-method-${idx}`}
                                                         value={p.method}
                                                         onChange={e => {
-                                                            const newPayments = [...form.payments];
-                                                            newPayments[idx].method = e.target.value as any;
-                                                            if (e.target.value === 'cash') newPayments[idx].bankAccount = null;
-                                                            setForm(f => ({ ...f, payments: newPayments }));
+                                                            const method = e.target.value as EgresoFormPayment['method'];
+                                                            setForm(f => ({
+                                                                ...f,
+                                                                payments: f.payments.map((pay, i) => i !== idx ? pay : {
+                                                                    ...pay,
+                                                                    method,
+                                                                    bankAccount: method === 'cash' ? null : pay.bankAccount,
+                                                                }),
+                                                            }));
                                                         }}
                                                         className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#34baab] bg-white"
                                                     >
@@ -543,9 +550,11 @@ export default function EgresosPage() {
                                                         type="number"
                                                         value={p.amount}
                                                         onChange={e => {
-                                                            const newPayments = [...form.payments];
-                                                            newPayments[idx].amount = e.target.value;
-                                                            setForm(f => ({ ...f, payments: newPayments }));
+                                                            const amount = e.target.value;
+                                                            setForm(f => ({
+                                                                ...f,
+                                                                payments: f.payments.map((pay, i) => i !== idx ? pay : { ...pay, amount }),
+                                                            }));
                                                         }}
                                                         placeholder="0"
                                                         className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-[#34baab] bg-white"
@@ -560,9 +569,11 @@ export default function EgresosPage() {
                                                         id={`egreso-account-${idx}`}
                                                         value={p.bankAccount || 'cuenta1'}
                                                         onChange={e => {
-                                                            const newPayments = [...form.payments];
-                                                            newPayments[idx].bankAccount = e.target.value as any;
-                                                            setForm(f => ({ ...f, payments: newPayments }));
+                                                            const bankAccount = e.target.value as NonNullable<EgresoFormPayment['bankAccount']>;
+                                                            setForm(f => ({
+                                                                ...f,
+                                                                payments: f.payments.map((pay, i) => i !== idx ? pay : { ...pay, bankAccount }),
+                                                            }));
                                                         }}
                                                         className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#34baab] bg-white"
                                                     >
