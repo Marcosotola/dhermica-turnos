@@ -113,6 +113,13 @@ async function notifyN8nAppointmentCancelled(
             } catch {}
         }
 
+        const treatmentsList = (data.treatments || []).map((t: any) => ({
+            name: t.name || t.treatmentName || '',
+            zone: t.zone || null,
+            price: t.price,
+            duration: t.duration,
+        }));
+
         await fetch(webhookUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -126,9 +133,13 @@ async function notifyN8nAppointmentCancelled(
                 },
                 appointment: {
                     treatment: data.treatment || data.servicio || '',
+                    treatments: treatmentsList,
                     date,
                     dateFormatted: formattedDate,
                     time: data.time || data.hora || '',
+                    duration: data.duration || data.duracion || null,
+                    price: data.price || 0,
+                    notes: data.notes || null,
                 },
                 professional: {
                     id: data.professionalId || null,

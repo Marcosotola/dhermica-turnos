@@ -203,7 +203,7 @@ export async function POST(req: NextRequest) {
                 treatment: fullTreatment,
                 treatments: slot.treatmentIds.map((id: string, i: number) => ({
                     treatmentId: id,
-                    treatmentName: slot.treatmentNames[i],
+                    name: slot.treatmentNames[i],
                     zone: slot.zones[i] || '',
                     price: slot.estimatedPrice / slot.treatmentIds.length,
                     duration: slot.durationMinutes / slot.treatmentIds.length / 60,
