@@ -28,8 +28,8 @@ export const getPromotions = async (): Promise<Promotion[]> => {
     return querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
-        createdAt: (doc.data().createdAt as Timestamp).toDate(),
-        updatedAt: (doc.data().updatedAt as Timestamp).toDate(),
+        createdAt: doc.data().createdAt?.toDate?.() || new Date(),
+        updatedAt: doc.data().updatedAt?.toDate?.() || new Date(),
     } as Promotion));
 };
 

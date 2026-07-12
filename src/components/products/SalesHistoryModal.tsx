@@ -7,6 +7,7 @@ import { CurrencyInput } from '../ui/CurrencyInput';
 import { Select } from '../ui/Select';
 import { Button } from '../ui/Button';
 import { formatCurrencyWithSymbol } from '@/lib/utils/currency';
+import { formatPaymentMethod } from '@/lib/utils/clientLedger';
 import { Sale } from '@/lib/types/sale';
 import { getSalesByDateRange, deleteSale, updateSale } from '@/lib/firebase/sales';
 import { Professional } from '@/lib/types/professional';
@@ -28,10 +29,6 @@ const PAYMENT_OPTIONS = [
     { value: 'credit', label: 'Crédito' },
     { value: 'qr', label: 'QR / Digital' },
 ];
-
-const PAYMENT_LABELS: Record<string, string> = {
-    cash: 'Efectivo', transfer: 'Transferencia', debit: 'Débito', credit: 'Crédito', qr: 'QR / Digital'
-};
 
 export function SalesHistoryModal({ isOpen, onClose, professionals, onRefresh }: SalesHistoryModalProps) {
     const today = getTodayDate();
@@ -228,7 +225,7 @@ export function SalesHistoryModal({ isOpen, onClose, professionals, onRefresh }:
                                                         sale.payments.map((p, idx) => (
                                                             <div key={p.id || idx} className="flex items-center gap-2 text-[9px]">
                                                                 <CreditCard className="w-3 h-3 text-gray-400" />
-                                                                <span className="font-bold text-gray-700">{PAYMENT_LABELS[p.method]}</span>
+                                                                <span className="font-bold text-gray-700">{formatPaymentMethod(p.method)}</span>
                                                                 {p.bankAccount && <span className="text-gray-400">({p.bankAccount === 'cuenta1' ? 'CTA 1' : 'CTA 2'})</span>}
                                                                 <span className="ml-auto font-black text-gray-900">{formatCurrency(p.amount)}</span>
                                                             </div>
@@ -236,7 +233,7 @@ export function SalesHistoryModal({ isOpen, onClose, professionals, onRefresh }:
                                                     ) : (
                                                         <div className="flex items-center gap-2 text-[9px]">
                                                             <CreditCard className="w-3 h-3 text-gray-400" />
-                                                            <span className="font-bold text-gray-700">{PAYMENT_LABELS[sale.paymentMethod]}</span>
+                                                            <span className="font-bold text-gray-700">{formatPaymentMethod(sale.paymentMethod)}</span>
                                                             {sale.bankAccount && <span className="text-gray-400">({sale.bankAccount === 'cuenta1' ? 'CTA 1' : 'CTA 2'})</span>}
                                                             <span className="ml-auto font-black text-gray-900">{formatCurrency(sale.totalAmount)}</span>
                                                         </div>

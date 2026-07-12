@@ -211,7 +211,7 @@ export async function getFinanceOverview(startDate: string, endDate: string, tar
 
     // 2. Procesar Turnos
     appointments.forEach(apt => {
-        const status = (apt.status as string || '').toLowerCase();
+        const status = (apt.status || '').toLowerCase();
         const isCompleted = status === 'completed' || status === 'realizado';
         const isAptInDateRange = apt.date >= startDate && apt.date <= endDate;
 

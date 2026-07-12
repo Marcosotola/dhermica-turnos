@@ -103,7 +103,7 @@ export async function getEgresosByDateRange(
         promises.push(getDocs(qDate).then(snap => {
             snap.docs.forEach(d => {
                 const egreso = mapDoc(d);
-                allEgresosMap.set(`date_${egreso.id}`, egreso);
+                allEgresosMap.set(egreso.id, egreso);
             });
         }));
 
@@ -116,9 +116,8 @@ export async function getEgresosByDateRange(
         promises.push(getDocs(qFecha).then(snap => {
             snap.docs.forEach(d => {
                 const egreso = mapDoc(d);
-                const key = `fecha_${egreso.id}`;
-                if (!allEgresosMap.has(key)) {
-                    allEgresosMap.set(key, egreso);
+                if (!allEgresosMap.has(egreso.id)) {
+                    allEgresosMap.set(egreso.id, egreso);
                 }
             });
         }));
@@ -150,9 +149,8 @@ export async function getEgresosByDateRange(
                 fallbackPromises.push(getDocs(query(collection(db, EGRESOS_COLLECTION), where(fieldName, '==', value))).then(snap => {
                     snap.docs.forEach(docSnap => {
                         const egreso = mapDoc(docSnap);
-                        const key = `fallback_${fieldName}_${value}_${egreso.id}`;
-                        if (!allEgresosMap.has(key)) {
-                            allEgresosMap.set(key, egreso);
+                        if (!allEgresosMap.has(egreso.id)) {
+                            allEgresosMap.set(egreso.id, egreso);
                         }
                     });
                 }).catch(() => {}));

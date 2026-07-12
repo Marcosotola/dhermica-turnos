@@ -15,6 +15,17 @@ import { auth } from './config';
 
 const googleProvider = new GoogleAuthProvider();
 
+/**
+ * fetch() que agrega el ID token de Firebase del usuario en el header Authorization,
+ * para llamar a rutas de API que requieren autenticación server-side.
+ */
+export async function authFetch(user: User, url: string, options: RequestInit = {}): Promise<Response> {
+    const token = await user.getIdToken();
+    const headers = new Headers(options.headers);
+    headers.set('Authorization', `Bearer ${token}`);
+    return fetch(url, { ...options, headers });
+}
+
 export const loginWithEmail = (email: string, pass: string) =>
     signInWithEmailAndPassword(auth, email, pass);
 

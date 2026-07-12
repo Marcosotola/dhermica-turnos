@@ -8,7 +8,7 @@ import { UserProfile } from '@/lib/types/user';
 import { Toaster } from 'sonner';
 import { BookOpen, Search, User as UserIcon, Phone, Calendar, Heart, AlertCircle, Info, CalendarCheck, ChevronDown, Loader2, ArrowLeft, CheckCircle2, Clock, XCircle, Eye, Smartphone, ClipboardList, Users } from 'lucide-react';
 import { Appointment } from '@/lib/types/appointment';
-import { getAppointmentsByClientId, searchAppointmentsByClient } from '@/lib/firebase/appointments';
+import { getAppointmentsByClientId, searchAppointmentsByClient, getAppointmentsByDateRange } from '@/lib/firebase/appointments';
 import { Button } from '@/components/ui/Button';
 import { getActiveProfessionals } from '@/lib/firebase/professionals';
 import { Professional } from '@/lib/types/professional';
@@ -17,8 +17,8 @@ import { CreateClientModal } from '@/components/dashboard/CreateClientModal';
 import { AppointmentModal } from '@/components/appointments/AppointmentModal';
 import { CancelAppointmentDialog, CreditAction } from '@/components/appointments/CancelAppointmentDialog';
 import { DeleteAppointmentDialog } from '@/components/appointments/DeleteAppointmentDialog';
-import { cancelAppointment, deleteAppointment } from '@/lib/firebase/appointments';
-import { createClientCredit } from '@/lib/firebase/clientCredits';
+import { deleteAppointment } from '@/lib/firebase/appointments';
+import { cancelAppointmentWithCredit } from '@/lib/utils/appointmentCancellation';
 import { ChevronUp, DollarSign, UserPlus, History, Pencil, Trash2, Gift, Ban } from 'lucide-react';
 import { toast } from 'sonner';
 import { ClientCredit } from '@/lib/types/clientCredit';
@@ -47,6 +47,7 @@ export default function AgendaPage() {
     const [professionals, setProfessionals] = useState<Professional[]>([]);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [editDayAppointments, setEditDayAppointments] = useState<Appointment[]>([]);
     const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
     const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
     const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
@@ -225,7 +226,13 @@ export default function AgendaPage() {
 
     const handleEditClick = (apt: Appointment) => {
         setSelectedAppointment(apt);
+        setEditDayAppointments([]);
         setIsEditModalOpen(true);
+        // Traer los turnos del mismo día para poder validar superposición de horarios
+        // contra el resto de los turnos del profesional (no solo los de este cliente).
+        getAppointmentsByDateRange(apt.date, apt.date)
+            .then(setEditDayAppointments)
+            .catch((error) => console.error('Error cargando turnos del día para validar superposición:', error));
     };
 
     const handleCancelClick = (apt: Appointment) => {
@@ -258,33 +265,7 @@ export default function AgendaPage() {
         if (!selectedAppointment) return;
         setIsDeleting(true);
         try {
-            const totalPaid = (selectedAppointment.payments || []).reduce((sum, p) => sum + p.amount, 0);
-
-            if (creditAction !== 'none' && totalPaid > 0) {
-                await createClientCredit({
-                    clientId: selectedAppointment.clientId || `legacy-${selectedAppointment.clientName?.replace(/\s+/g, '-').toLowerCase()}`,
-                    clientName: selectedAppointment.clientName,
-                    amount: totalPaid,
-                    reason: 'cancelled_appointment',
-                    status: creditAction === 'retain' ? 'available' : 'forfeited',
-                    sourceAppointmentId: selectedAppointment.id,
-                    sourceAppointmentDate: selectedAppointment.date,
-                    sourceTreatmentName: selectedAppointment.treatment,
-                    notes: notes,
-                    createdBy: user?.uid,
-                });
-            }
-
-            await cancelAppointment(selectedAppointment.id);
-
-            if (creditAction === 'retain' && totalPaid > 0) {
-                toast.success(`Turno cancelado. Crédito de $${totalPaid.toLocaleString('es-AR')} retenido a favor del cliente.`);
-            } else if (creditAction === 'forfeit' && totalPaid > 0) {
-                toast.success('Turno cancelado. Seña registrada como perdida.');
-            } else {
-                toast.success('Turno cancelado.');
-            }
-
+            await cancelAppointmentWithCredit(selectedAppointment, creditAction, notes, user?.uid);
             setIsCancelDialogOpen(false);
             fetchHistory();
         } catch (error) {
@@ -683,9 +664,9 @@ export default function AgendaPage() {
                                                                     <div>
                                                                         <div className="flex items-center gap-2">
                                                                             <h4 className="font-bold text-gray-900 text-sm">{apt.treatment}</h4>
-                                                                            {((status as any) === 'completed' || (status as any) === 'realizado') && <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />}
-                                                                            {((status as any) === 'pending') && <Clock className="w-3.5 h-3.5 text-orange-500" />}
-                                                                            {((status as any) === 'cancelled' || (status as any) === 'cancelado') && <XCircle className="w-3.5 h-3.5 text-red-500" />}
+                                                                            {(status === 'completed' || status === 'realizado') && <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />}
+                                                                            {(status === 'pending') && <Clock className="w-3.5 h-3.5 text-orange-500" />}
+                                                                            {(status === 'cancelled' || status === 'cancelado') && <XCircle className="w-3.5 h-3.5 text-red-500" />}
                                                                         </div>
                                                                         <p className="text-xs text-gray-500">
                                                                             {(() => {
@@ -701,9 +682,9 @@ export default function AgendaPage() {
                                                                             <DollarSign className="w-3 h-3" />
                                                                             <span>{formatArgentineCurrency(apt.price || 0)}</span>
                                                                         </div>
-                                                                        {((status as any) === 'completed' || (status as any) === 'realizado') ? (
+                                                                        {(status === 'completed' || status === 'realizado') ? (
                                                                             <span className="text-[8px] font-black bg-green-100 text-green-600 px-1.5 py-0.5 rounded uppercase tracking-widest">Realizado</span>
-                                                                        ) : ((status as any) === 'cancelled' || (status as any) === 'cancelado') ? (
+                                                                        ) : (status === 'cancelled' || status === 'cancelado') ? (
                                                                             <span className="text-[8px] font-black bg-red-100 text-red-600 px-1.5 py-0.5 rounded uppercase tracking-widest">Cancelado</span>
                                                                         ) : (
                                                                             <span className="text-[8px] font-black bg-amber-100 text-amber-600 px-1.5 py-0.5 rounded uppercase tracking-widest">Pendiente</span>
@@ -808,7 +789,7 @@ export default function AgendaPage() {
                     appointment={selectedAppointment}
                     date={selectedAppointment.date}
                     professionals={professionals}
-                    existingAppointments={[]} // No validamos superposición aquí por simplicidad y porque es edición
+                    existingAppointments={editDayAppointments}
                 />
             )}
 
@@ -933,11 +914,11 @@ export default function AgendaPage() {
                                                         </div>
                                                         <div className="flex flex-col items-end gap-1 shrink-0">
                                                             <span className="text-sm font-black text-[#34baab]">$ {formatArgentineCurrency(apt.price || 0)}</span>
-                                                            {(status as string) === 'completed' || (status as string) === 'realizado' ? (
+                                                            {status === 'completed' || status === 'realizado' ? (
                                                                 <span className="px-2 py-0.5 bg-green-100 text-green-600 rounded-full text-[9px] uppercase font-black flex items-center gap-1">
                                                                     <CheckCircle2 className="w-2.5 h-2.5" /> Realizado
                                                                 </span>
-                                                            ) : (status as string) === 'cancelled' || (status as string) === 'cancelado' ? (
+                                                            ) : status === 'cancelled' || status === 'cancelado' ? (
                                                                 <span className="px-2 py-0.5 bg-red-100 text-red-600 rounded-full text-[9px] uppercase font-black flex items-center gap-1">
                                                                     <XCircle className="w-2.5 h-2.5" /> Cancelado
                                                                 </span>

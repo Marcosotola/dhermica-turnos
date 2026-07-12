@@ -11,6 +11,7 @@ import {
     Timestamp,
     orderBy,
     arrayUnion,
+    runTransaction,
 } from 'firebase/firestore';
 import { db } from './config';
 import { GiftCard, GiftCardRedemption, GiftCardStatus } from '../types/giftCard';
@@ -177,37 +178,45 @@ export async function redeemGiftCard(
     recipientName?: string,
     redeemedBy?: string
 ): Promise<void> {
-    const card = await getGiftCardById(giftCardId);
-    if (!card) throw new Error('Gift card no encontrada');
+    const cardRef = doc(db, COLLECTION, giftCardId);
 
-    const newBalance = Math.max(0, card.remainingBalance - amountUsed);
-    const newStatus: GiftCardStatus = newBalance <= 0 ? 'redeemed' : 'partially_used';
+    // Transaccional: leer el saldo y descontarlo tienen que pasar juntos — si dos
+    // redenciones llegaran casi al mismo tiempo (doble click, reintento), una lectura
+    // suelta podía pisar el descuento de la otra y sobre-redimir la gift card.
+    await runTransaction(db, async (tx) => {
+        const snap = await tx.get(cardRef);
+        if (!snap.exists()) throw new Error('Gift card no encontrada');
+        const card = mapGiftCard(snap.id, snap.data());
 
-    const redemption: GiftCardRedemption = {
-        appointmentId,
-        amount: amountUsed,
-        date,
-        ...(redeemedBy ? { redeemedBy } : {}),
-        ...(recipientClientId ? { recipientClientId } : {}),
-        ...(recipientName ? { recipientName } : {}),
-    };
+        const newBalance = Math.max(0, card.remainingBalance - amountUsed);
+        const newStatus: GiftCardStatus = newBalance <= 0 ? 'redeemed' : 'partially_used';
 
-    const update: Record<string, unknown> = {
-        remainingBalance: newBalance,
-        status: newStatus,
-        updatedAt: Timestamp.now(),
-        redemptions: arrayUnion(redemption),
-    };
+        const redemption: GiftCardRedemption = {
+            appointmentId,
+            amount: amountUsed,
+            date,
+            ...(redeemedBy ? { redeemedBy } : {}),
+            ...(recipientClientId ? { recipientClientId } : {}),
+            ...(recipientName ? { recipientName } : {}),
+        };
 
-    // Si el receptor no estaba linkeado, lo linkeamos al primer uso
-    if (recipientClientId && !card.recipientClientId) {
-        update.recipientClientId = recipientClientId;
-    }
-    if (recipientName && !card.recipientName) {
-        update.recipientName = recipientName;
-    }
+        const update: Record<string, unknown> = {
+            remainingBalance: newBalance,
+            status: newStatus,
+            updatedAt: Timestamp.now(),
+            redemptions: arrayUnion(redemption),
+        };
 
-    await updateDoc(doc(db, COLLECTION, giftCardId), update);
+        // Si el receptor no estaba linkeado, lo linkeamos al primer uso
+        if (recipientClientId && !card.recipientClientId) {
+            update.recipientClientId = recipientClientId;
+        }
+        if (recipientName && !card.recipientName) {
+            update.recipientName = recipientName;
+        }
+
+        tx.update(cardRef, update);
+    });
 }
 
 export async function updateGiftCardStatus(

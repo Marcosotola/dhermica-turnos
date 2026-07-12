@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { UserProfile } from '@/lib/types/user';
-import { createUserProfile, formatPhone } from '@/lib/firebase/users';
+import { createManualUserProfile } from '@/lib/firebase/users';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
@@ -44,22 +44,16 @@ export function CreateClientModal({ isOpen, onClose, onCreated }: CreateClientMo
         setLoading(true);
 
         try {
-            // Generate manual ID and Email if not provided
-            const timestamp = Date.now();
-            const manualId = `manual_${timestamp}_${Math.random().toString(36).substr(2, 9)}`;
-
             // Use provided email or generate a placeholder
-            const finalEmail = formData.email.trim() || `manual_${timestamp}@dhermica.internal`;
-
+            const finalEmail = formData.email.trim() || `manual_${Date.now()}@dhermica.internal`;
             const fullName = `${formData.firstName.trim()} ${formData.lastName.trim()}`;
 
-            const newProfile: Omit<UserProfile, 'createdAt' | 'updatedAt'> = {
-                uid: manualId,
+            const newProfile: Omit<UserProfile, 'uid' | 'createdAt' | 'updatedAt'> = {
                 email: finalEmail,
                 firstName: formData.firstName.trim(),
                 lastName: formData.lastName.trim(),
                 fullName: fullName,
-                phone: formatPhone(`${countryCode}${formData.phone}`),
+                phone: `${countryCode}${formData.phone}`,
                 birthDate: formData.birthDate,
                 sex: formData.sex,
                 hasTattoos: formData.hasTattoos,
@@ -68,7 +62,7 @@ export function CreateClientModal({ isOpen, onClose, onCreated }: CreateClientMo
                 role: 'client',
             };
 
-            await createUserProfile(newProfile);
+            await createManualUserProfile(newProfile);
             toast.success('Cliente creado correctamente');
             onCreated();
             onClose();

@@ -1,7 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase/admin';
+import { requireRole } from '@/lib/firebase/serverAuth';
 
-export async function GET() {
+const ALLOWED_ROLES = ['admin', 'secretary'];
+
+export async function GET(req: NextRequest) {
+    const authed = await requireRole(req, ALLOWED_ROLES);
+    if (!authed) {
+        return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    }
+
     try {
         const snap = await adminDb
             .collection('pendingBookings')
@@ -35,6 +43,11 @@ export async function GET() {
 }
 
 export async function DELETE(req: NextRequest) {
+    const authed = await requireRole(req, ALLOWED_ROLES);
+    if (!authed) {
+        return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    }
+
     try {
         const { id } = await req.json();
         if (!id) {

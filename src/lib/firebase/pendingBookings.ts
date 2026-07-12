@@ -62,12 +62,6 @@ export async function getPendingBookingById(id: string): Promise<PendingBooking 
     return mapBooking(snap.id, snap.data());
 }
 
-export async function getPendingBookingsByClientId(clientId: string): Promise<PendingBooking[]> {
-    const q = query(collection(db, COLLECTION), where('clientId', '==', clientId));
-    const snap = await getDocs(q);
-    return snap.docs.map(d => mapBooking(d.id, d.data()));
-}
-
 export async function updatePendingBookingStatus(
     id: string,
     status: PendingBookingStatus,

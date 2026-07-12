@@ -14,8 +14,8 @@ import { QuickPaymentModal } from '@/components/appointments/QuickPaymentModal';
 import { useAppointments } from '@/lib/hooks/useAppointments';
 import { useProfessionals } from '@/lib/hooks/useProfessionals';
 import { Appointment } from '@/lib/types/appointment';
-import { cancelAppointment, deleteAppointment } from '@/lib/firebase/appointments';
-import { createClientCredit } from '@/lib/firebase/clientCredits';
+import { deleteAppointment } from '@/lib/firebase/appointments';
+import { cancelAppointmentWithCredit } from '@/lib/utils/appointmentCancellation';
 import { getTodayDate } from '@/lib/utils/time';
 import { updateProfessional } from '@/lib/firebase/professionals';
 import { ExceptionModal } from '@/components/professionals/ExceptionModal';
@@ -152,33 +152,7 @@ function TurnosContent() {
 
         setDeleting(true);
         try {
-            const totalPaid = (selectedAppointment.payments || []).reduce((sum, p) => sum + p.amount, 0);
-
-            if (creditAction !== 'none' && totalPaid > 0) {
-                await createClientCredit({
-                    clientId: selectedAppointment.clientId || `legacy-${selectedAppointment.clientName?.replace(/\s+/g, '-').toLowerCase()}`,
-                    clientName: selectedAppointment.clientName,
-                    amount: totalPaid,
-                    reason: 'cancelled_appointment',
-                    status: creditAction === 'retain' ? 'available' : 'forfeited',
-                    sourceAppointmentId: selectedAppointment.id,
-                    sourceAppointmentDate: selectedAppointment.date,
-                    sourceTreatmentName: selectedAppointment.treatment,
-                    notes,
-                    createdBy: user?.uid,
-                });
-            }
-
-            await cancelAppointment(selectedAppointment.id);
-
-            if (creditAction === 'retain' && totalPaid > 0) {
-                toast.success(`Turno cancelado. Crédito de $${totalPaid.toLocaleString('es-AR')} retenido a favor del cliente.`);
-            } else if (creditAction === 'forfeit' && totalPaid > 0) {
-                toast.success('Turno cancelado. Seña registrada como perdida.');
-            } else {
-                toast.success('Turno cancelado.');
-            }
-
+            await cancelAppointmentWithCredit(selectedAppointment, creditAction, notes, user?.uid);
             setCancelDialogOpen(false);
             setSelectedAppointment(null);
         } catch (error) {

@@ -4,14 +4,14 @@ import {
     updateDoc,
     deleteDoc,
     doc,
-    getDoc,
     query,
     where,
     getDocs,
     Timestamp,
+    runTransaction,
 } from 'firebase/firestore';
 import { db } from './config';
-import { ClientCredit, ClientCreditStatus, ClientCreditReason } from '../types/clientCredit';
+import { ClientCredit } from '../types/clientCredit';
 
 const COLLECTION = 'clientCredits';
 
@@ -72,18 +72,6 @@ export async function getClientCredits(
     );
 }
 
-export async function updateCreditStatus(
-    creditId: string,
-    status: ClientCreditStatus,
-    extra?: { usedInAppointmentId?: string; usedDate?: string }
-): Promise<void> {
-    await updateDoc(doc(db, COLLECTION, creditId), {
-        status,
-        ...extra,
-        updatedAt: Timestamp.now(),
-    });
-}
-
 // Marks a credit as used. If amountUsed < credit.amount, creates a new available credit for the remainder.
 export async function useCredit(
     creditId: string,
@@ -92,56 +80,46 @@ export async function useCredit(
     usedDate: string,
 ): Promise<void> {
     const creditRef = doc(db, COLLECTION, creditId);
-    const snap = await getDoc(creditRef);
-    if (!snap.exists()) return;
 
-    const data = snap.data();
-    const originalAmount = data.amount as number;
+    // Transaccional: marcar como usado y crear el residual (si lo hay) tienen que
+    // pasar juntos — si uno fallara suelto, se podía perder el saldo residual del cliente.
+    // También evita que el mismo crédito se use dos veces por una carrera de escrituras.
+    await runTransaction(db, async (tx) => {
+        const snap = await tx.get(creditRef);
+        if (!snap.exists()) return;
 
-    await updateDoc(creditRef, {
-        status: 'used',
-        usedInAppointmentId: appointmentId,
-        usedDate,
-        updatedAt: Timestamp.now(),
-    });
+        const data = snap.data();
+        if (data.status !== 'available') return;
 
-    if (originalAmount > amountUsed) {
-        const now = Timestamp.now();
-        await addDoc(collection(db, COLLECTION), {
-            clientId: data.clientId,
-            clientName: data.clientName,
-            amount: originalAmount - amountUsed,
-            reason: data.reason,
-            status: 'available',
-            sourceAppointmentId: data.sourceAppointmentId,
-            sourceAppointmentDate: data.sourceAppointmentDate,
-            sourceTreatmentName: data.sourceTreatmentName,
-            notes: 'Saldo residual de uso parcial de crédito',
-            createdAt: now,
-            updatedAt: now,
+        const originalAmount = data.amount as number;
+
+        tx.update(creditRef, {
+            status: 'used',
+            usedInAppointmentId: appointmentId,
+            usedDate,
+            updatedAt: Timestamp.now(),
         });
-    }
+
+        if (originalAmount > amountUsed) {
+            const now = Timestamp.now();
+            const residualRef = doc(collection(db, COLLECTION));
+            tx.set(residualRef, {
+                clientId: data.clientId,
+                clientName: data.clientName,
+                amount: originalAmount - amountUsed,
+                reason: data.reason,
+                status: 'available',
+                sourceAppointmentId: data.sourceAppointmentId,
+                sourceAppointmentDate: data.sourceAppointmentDate,
+                sourceTreatmentName: data.sourceTreatmentName,
+                notes: 'Saldo residual de uso parcial de crédito',
+                createdAt: now,
+                updatedAt: now,
+            });
+        }
+    });
 }
 
 export async function deleteClientCredit(creditId: string): Promise<void> {
     await deleteDoc(doc(db, COLLECTION, creditId));
-}
-
-export async function deleteClientCreditsBySourceAppointment(appointmentId: string): Promise<void> {
-    const q = query(collection(db, COLLECTION), where('sourceAppointmentId', '==', appointmentId));
-    const snap = await getDocs(q);
-    await Promise.all(snap.docs.map(d => deleteDoc(d.ref)));
-}
-
-export async function restoreCreditsUsedInAppointment(appointmentId: string): Promise<void> {
-    const q = query(collection(db, COLLECTION), where('usedInAppointmentId', '==', appointmentId));
-    const snap = await getDocs(q);
-    await Promise.all(snap.docs.map(d =>
-        updateDoc(d.ref, {
-            status: 'available',
-            usedInAppointmentId: null,
-            usedDate: null,
-            updatedAt: Timestamp.now(),
-        })
-    ));
 }

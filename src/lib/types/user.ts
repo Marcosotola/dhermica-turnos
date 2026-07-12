@@ -11,7 +11,7 @@ export interface UserProfile {
     firstName?: string;
     lastName?: string;
     birthDate?: string; // ISO format YYYY-MM-DD
-    phone: string; // Format: (3523908198)
+    phone: string; // Formato E.164, ej: +5493523908198
     hasTattoos: boolean;
     isPregnant: boolean;
     sex: 'male' | 'female';

@@ -1,6 +1,7 @@
 'use client';
 
 import { useAuth } from '@/lib/contexts/AuthContext';
+import { authFetch } from '@/lib/firebase/auth';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { Send, Loader2, Bot, CalendarCheck } from 'lucide-react';
@@ -47,12 +48,11 @@ export default function ReservarPage() {
         setIsThinking(true);
 
         try {
-            const res = await fetch('/api/booking/chat', {
+            const res = await authFetch(user!, '/api/booking/chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     messages: newMessages,
-                    clientId: user!.uid,
                     clientName: profile?.fullName || '',
                     clientEmail: profile?.email || user?.email || '',
                     clientPhone: profile?.phone || '',

@@ -35,7 +35,7 @@ export function OrphanAlertBanner() {
                 const foundConflicts: { appointment: Appointment; professional: Professional; reason: string }[] = [];
 
                 appointments.forEach(apt => {
-                    if ((apt.status as any) === 'cancelled' || (apt.status as any) === 'cancelado') return;
+                    if (apt.status === 'cancelled' || apt.status === 'cancelado') return;
                     
                     // Si es un profesional, solo ver sus propios conflictos
                     if (profile?.role === 'professional' && apt.professionalId !== profile?.uid) return;

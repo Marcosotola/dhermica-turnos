@@ -19,10 +19,7 @@ import { getAllUsers, createManualUserProfile } from '@/lib/firebase/users';
 import { capitalizeName, timeToDecimal } from '@/lib/utils/time';
 import { validateAppointment, checkOverlap, checkAppointmentConflict } from '@/lib/utils/validation';
 import { createAppointment, updateAppointment } from '@/lib/firebase/appointments';
-import { GiftCard } from '@/lib/types/giftCard';
-import { getGiftCardByCode, redeemGiftCard } from '@/lib/firebase/giftCards';
-import { ClientCredit } from '@/lib/types/clientCredit';
-import { getClientCredits, useCredit } from '@/lib/firebase/clientCredits';
+import { usePaymentEntry } from '@/lib/hooks/usePaymentEntry';
 import { formatArgentineCurrency } from '@/lib/utils/currency';
 import { toast } from 'sonner';
 import { PhoneInput } from '../ui/PhoneInput';
@@ -82,13 +79,23 @@ export function AppointmentModal({
         date: new Date().toLocaleDateString('en-CA') // Default to today
     });
     const [showPaymentForm, setShowPaymentForm] = useState(false);
-    const [gcCode, setGcCode] = useState('');
-    const [gcSearching, setGcSearching] = useState(false);
-    const [gcFound, setGcFound] = useState<GiftCard | null>(null);
-    const [gcError, setGcError] = useState('');
-    const [gcAmountToApply, setGcAmountToApply] = useState(0);
-    const [activeCredits, setActiveCredits] = useState<ClientCredit[]>([]);
-    const [selectedCreditId, setSelectedCreditId] = useState<string>('');
+    const {
+        gcCode, setGcCode,
+        gcSearching,
+        gcFound, setGcFound,
+        gcError, setGcError,
+        gcAmountToApply, setGcAmountToApply,
+        activeCredits,
+        selectedCreditId, setSelectedCreditId,
+        resetAll: resetPaymentEntry,
+        fetchActiveCredits,
+        searchGiftCard,
+        buildGiftCardPayment,
+        buildCreditPaymentFromSelected,
+        buildCreditPaymentQuickApply,
+        restoreCreditIfRemoved,
+        settleRedemptions,
+    } = usePaymentEntry();
     const [loading, setLoading] = useState(false);
     const today = new Date().toLocaleDateString('en-CA');
     const [clients, setClients] = useState<UserProfile[]>([]);
@@ -135,34 +142,8 @@ export function AppointmentModal({
 
     const handleSearchGiftCard = async () => {
         if (!gcCode.trim()) return;
-        setGcSearching(true);
-        setGcError('');
-        setGcFound(null);
-        try {
-            const card = await getGiftCardByCode(gcCode.trim());
-            if (!card) { setGcError('Código no encontrado'); return; }
-            if (card.status === 'redeemed') { setGcError('Esta gift card ya fue utilizada completamente'); return; }
-            if (card.status === 'cancelled') { setGcError('Esta gift card fue cancelada'); return; }
-            if (card.status === 'expired' || (card.expiryDate && card.expiryDate < today)) { setGcError('Esta gift card está vencida'); return; }
-            if (formData.payments.some(p => p.giftCardId === card.id)) { setGcError('Esta gift card ya fue agregada'); return; }
-            setGcFound(card);
-            const pending = (formData.price || 0) - formData.payments.reduce((s, p) => s + p.amount, 0);
-            setGcAmountToApply(Math.min(card.remainingBalance, pending > 0 ? pending : card.remainingBalance));
-        } catch {
-            setGcError('Error al buscar la gift card');
-        } finally {
-            setGcSearching(false);
-        }
-    };
-
-    const fetchActiveCredits = (clientId: string, clientName?: string) => {
-        if (!clientId) { setActiveCredits([]); return; }
-        getClientCredits(clientId, clientName || '').then(credits => {
-            setActiveCredits(credits.filter(c => c.status === 'available'));
-        }).catch(err => {
-            console.error('[Credits] Error al buscar créditos:', err);
-            setActiveCredits([]);
-        });
+        const pending = (formData.price || 0) - formData.payments.reduce((s, p) => s + p.amount, 0);
+        await searchGiftCard(pending, formData.payments);
     };
 
     // Filter clients based on search query
@@ -280,11 +261,7 @@ export function AppointmentModal({
         setErrors([]);
         setSearchQuery('');
         setShowSuggestions(false);
-        setSelectedCreditId('');
-        setGcCode('');
-        setGcFound(null);
-        setGcError('');
-        setGcAmountToApply(0);
+        resetPaymentEntry();
         setNewPayment({
             amount: 0,
             method: 'cash',
@@ -295,9 +272,8 @@ export function AppointmentModal({
         setShowPaymentForm(false);
         if (appointment?.clientId) {
             fetchActiveCredits(appointment.clientId, appointment.clientName);
-        } else {
-            setActiveCredits([]);
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [appointment, defaultTime, defaultProfessionalId, isOpen]);
 
     const handleClientSearch = (value: string) => {
@@ -331,48 +307,26 @@ export function AppointmentModal({
 
     const handleAddPayment = () => {
         if (newPayment.method === 'gift_card') {
-            if (!gcFound) { toast.error('Buscá una gift card primero'); return; }
-            if (gcAmountToApply <= 0) { toast.error('El monto a aplicar debe ser mayor a 0'); return; }
-            if (gcAmountToApply > gcFound.remainingBalance) { toast.error(`El monto supera el saldo disponible`); return; }
-            const payment: Payment = {
-                id: Math.random().toString(36).substring(2, 9),
-                amount: gcAmountToApply,
-                method: 'gift_card',
-                label: `Gift Card (${gcFound.code})`,
-                bankAccount: null,
-                giftCardId: gcFound.id,
-                date: newPayment.date,
-                createdAt: new Date().toISOString() as any,
-            };
-            setFormData(prev => ({ ...prev, payments: [...prev.payments, payment] }));
-            setGcCode('');
-            setGcFound(null);
-            setGcError('');
-            setGcAmountToApply(0);
+            const result = buildGiftCardPayment(newPayment.date);
+            if ('error' in result) {
+                if (result.error === 'not_found') toast.error('Buscá una gift card primero');
+                else if (result.error === 'invalid_amount') toast.error('El monto a aplicar debe ser mayor a 0');
+                else if (result.error === 'exceeds_balance') toast.error(`El monto supera el saldo disponible`);
+                return;
+            }
+            setFormData(prev => ({ ...prev, payments: [...prev.payments, result.payment] }));
             setShowPaymentForm(false);
-            toast.success(`Gift Card ${payment.label} agregada`);
+            toast.success(`Gift Card ${result.payment.label} agregada`);
             return;
         }
 
         if (newPayment.method === 'client_credit') {
-            if (!selectedCreditId) { toast.error('Seleccioná un crédito'); return; }
             const credit = activeCredits.find(c => c.id === selectedCreditId);
-            if (!credit) return;
-            const payment: Payment = {
-                id: Math.random().toString(36).substring(2, 9),
-                amount: credit.amount,
-                method: 'client_credit',
-                label: 'Saldo a Favor',
-                bankAccount: null,
-                creditId: credit.id,
-                date: newPayment.date,
-                createdAt: new Date().toISOString() as any,
-            };
+            const payment = buildCreditPaymentFromSelected(newPayment.date);
+            if (!payment) { toast.error('Seleccioná un crédito'); return; }
             setFormData(prev => ({ ...prev, payments: [...prev.payments, payment] }));
-            setActiveCredits(prev => prev.filter(c => c.id !== credit.id));
-            setSelectedCreditId('');
             setShowPaymentForm(false);
-            toast.success(`Saldo a favor de $${formatArgentineCurrency(credit.amount)} aplicado`);
+            toast.success(`Saldo a favor de $${formatArgentineCurrency(credit!.amount)} aplicado`);
             return;
         }
 
@@ -409,13 +363,8 @@ export function AppointmentModal({
     const removePayment = (id: string) => {
         const removed = formData.payments.find(p => p.id === id);
         setFormData(prev => ({ ...prev, payments: prev.payments.filter(p => p.id !== id) }));
-        if (removed?.method === 'client_credit' && removed.creditId) {
-            const clientId = formData.clientId || `legacy-${formData.clientName?.replace(/\s+/g, '-').toLowerCase()}`;
-            getClientCredits(clientId, formData.clientName).then(credits => {
-                const restored = credits.find(c => c.id === removed.creditId && c.status === 'available');
-                if (restored) setActiveCredits(prev => [...prev, restored]);
-            }).catch(() => {});
-        }
+        const clientId = formData.clientId || `legacy-${formData.clientName?.replace(/\s+/g, '-').toLowerCase()}`;
+        restoreCreditIfRemoved(removed, clientId, formData.clientName);
     };
 
     const totalPaid = formData.payments.reduce((sum, p) => sum + p.amount, 0);
@@ -478,8 +427,8 @@ export function AppointmentModal({
         const otherAppointments = existingAppointments.filter(
             (apt) =>
                 apt.id !== appointment?.id &&
-                (apt.status as any) !== 'cancelled' && // No verificar contra turnos cancelados
-                (apt.status as any) !== 'cancelado' &&
+                apt.status !== 'cancelled' && // No verificar contra turnos cancelados
+                apt.status !== 'cancelado' &&
                 appointmentData.professionalId && // Tiene professionalId
                 appointmentData.professionalId !== '' && // No es string vacío
                 apt.professionalId === appointmentData.professionalId // Y coincide con otro turno
@@ -500,8 +449,8 @@ export function AppointmentModal({
         if (!appointment) {
             const clientHasAppointment = existingAppointments.some(
                 (apt) =>
-                    (apt.status as any) !== 'cancelled' && // No contar turnos cancelados
-                    (apt.status as any) !== 'cancelado' &&
+                    apt.status !== 'cancelled' && // No contar turnos cancelados
+                    apt.status !== 'cancelado' &&
                     apt.clientName.toLowerCase() === appointmentData.clientName.toLowerCase()
             );
 
@@ -527,7 +476,6 @@ export function AppointmentModal({
 
                     if (existingClient) {
                         finalClientId = existingClient.uid;
-                        console.log('Cliente manual ya existente encontrado:', finalClientId);
                     } else {
                         // 2. Si no existe, lo creamos
                         const newUid = await createManualUserProfile({
@@ -544,7 +492,6 @@ export function AppointmentModal({
                             birthDate: formData.clientBirthDate || '',
                         });
                         finalClientId = newUid;
-                        console.log('Nuevo cliente manual creado:', finalClientId);
                     }
                 } catch (userError) {
                     console.error('Error al gestionar el perfil del cliente:', userError);
@@ -573,26 +520,7 @@ export function AppointmentModal({
                 toast.success('Turno creado y cliente registrado');
             }
 
-            const gcPayments = finalPayments.filter(p => p.method === 'gift_card' && p.giftCardId);
-            if (gcPayments.length > 0) {
-                await Promise.all(gcPayments.map(p =>
-                    redeemGiftCard(
-                        p.giftCardId!,
-                        p.amount,
-                        savedId,
-                        today,
-                        formData.clientId,
-                        formData.clientName,
-                    )
-                ));
-            }
-
-            const creditPayments = finalPayments.filter(p => p.method === 'client_credit' && p.creditId);
-            if (creditPayments.length > 0) {
-                await Promise.all(creditPayments.map(p =>
-                    useCredit(p.creditId!, p.amount, savedId, today)
-                ));
-            }
+            await settleRedemptions(finalPayments, savedId, formData.clientId, formData.clientName, today);
 
             onClose();
         } catch (error) {
@@ -1201,18 +1129,8 @@ export function AppointmentModal({
                                                 key={credit.id}
                                                 type="button"
                                                 onClick={() => {
-                                                    const payment: Payment = {
-                                                        id: Math.random().toString(36).substring(2, 9),
-                                                        amount: amountToApply,
-                                                        method: 'client_credit',
-                                                        label: 'Saldo a Favor',
-                                                        bankAccount: null,
-                                                        creditId: credit.id,
-                                                        date: newPayment.date,
-                                                        createdAt: new Date().toISOString() as any,
-                                                    };
+                                                    const payment = buildCreditPaymentQuickApply(credit, amountToApply, newPayment.date);
                                                     setFormData(prev => ({ ...prev, payments: [...prev.payments, payment] }));
-                                                    setActiveCredits(prev => prev.filter(c => c.id !== credit.id));
                                                     toast.success(`Saldo a favor de $${formatArgentineCurrency(amountToApply)} aplicado`);
                                                 }}
                                                 className="w-full flex items-center justify-between p-3 rounded-xl border-2 border-amber-200 bg-amber-50 hover:border-amber-400 hover:bg-amber-100 transition-all"

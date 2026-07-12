@@ -105,8 +105,8 @@ export function ProfessionalSchedule({ professional, onUpdate }: ProfessionalSch
                 // Filtrar solo futuros y no cancelados
                 const futureAppointments = appointments.filter(apt => 
                     apt.date >= today && 
-                    (apt.status as any) !== 'cancelled' && 
-                    (apt.status as any) !== 'cancelado'
+                    apt.status !== 'cancelled' && 
+                    apt.status !== 'cancelado'
                 );
 
                 const conflictsFound = futureAppointments.filter(apt => {

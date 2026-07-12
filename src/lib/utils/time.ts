@@ -68,11 +68,25 @@ export function getDayOfWeek(dateString: string): number {
 }
 
 /**
- * Formatea un número como moneda argentina
+ * Calcula el rango de fechas (YYYY-MM-DD) para un filtro de día/semana/mes centrado en `date`.
+ * La semana arranca el lunes (ISO), no el domingo — compartido entre Finanzas, Egresos y el
+ * detalle financiero por profesional, que antes calculaban cada uno el inicio de semana con un
+ * criterio distinto y podían no coincidir en el mismo día.
  */
-export function formatArgentineCurrency(amount: number): string {
-    return new Intl.NumberFormat('es-AR', {
-        style: 'currency',
-        currency: 'ARS',
-    }).format(amount);
+export function getDayWeekMonthRange(range: 'day' | 'week' | 'month', date: Date): { start: string; end: string } {
+    if (range === 'day') {
+        const s = formatDate(date);
+        return { start: s, end: s };
+    }
+    if (range === 'week') {
+        const day = date.getDay();
+        const diff = day === 0 ? -6 : 1 - day; // lunes como inicio de semana
+        const monday = new Date(date.getFullYear(), date.getMonth(), date.getDate() + diff);
+        const sunday = new Date(date.getFullYear(), date.getMonth(), date.getDate() + diff + 6);
+        return { start: formatDate(monday), end: formatDate(sunday) };
+    }
+    // month
+    const start = formatDate(new Date(date.getFullYear(), date.getMonth(), 1));
+    const end = formatDate(new Date(date.getFullYear(), date.getMonth() + 1, 0));
+    return { start, end };
 }

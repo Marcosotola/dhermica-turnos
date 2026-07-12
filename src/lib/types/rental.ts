@@ -16,7 +16,7 @@ export interface Rental {
     price: number;
     sellerId: string;
     sellerName: string;
-    commission: number;
+    commission?: number; // Puede faltar en alquileres legacy sin comisión cargada
     paymentMethod: 'cash' | 'transfer' | 'debit' | 'credit' | 'qr'; // Legacy/Primary
     bankAccount?: 'cuenta1' | 'cuenta2' | null; // Legacy/Primary
     payments?: RentalPayment[]; // Multi-payment support

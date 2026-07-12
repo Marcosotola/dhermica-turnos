@@ -13,7 +13,8 @@ import {
     Zap,
     Home
 } from 'lucide-react';
-import { formatDate } from '@/lib/utils/time';
+import { formatDate, getDayWeekMonthRange } from '@/lib/utils/time';
+import { formatCurrencyWithSymbol } from '@/lib/utils/currency';
 
 interface ProfessionalFinanceProps {
     professional: Professional;
@@ -50,20 +51,7 @@ export function ProfessionalFinance({ professional, isAdmin }: ProfessionalFinan
                     start = customRange.start;
                     end = customRange.end;
                 } else {
-                    const d = new Date(currentDate);
-                    if (dateRange === 'day') {
-                        const dateStr = formatDate(d);
-                        start = dateStr;
-                        end = dateStr;
-                    } else if (dateRange === 'week') {
-                        const first = d.getDate() - d.getDay();
-                        const last = first + 6;
-                        start = formatDate(new Date(d.getFullYear(), d.getMonth(), first));
-                        end = formatDate(new Date(d.getFullYear(), d.getMonth(), last));
-                    } else if (dateRange === 'month') {
-                        start = formatDate(new Date(d.getFullYear(), d.getMonth(), 1));
-                        end = formatDate(new Date(d.getFullYear(), d.getMonth() + 1, 0));
-                    }
+                    ({ start, end } = getDayWeekMonthRange(dateRange, currentDate));
                 }
 
                 const data = await getFinanceOverview(start, end, professional.id);
@@ -78,9 +66,7 @@ export function ProfessionalFinance({ professional, isAdmin }: ProfessionalFinan
         loadData();
     }, [dateRange, currentDate, customRange, professional.id, professional.userId]);
 
-    const formatCurrency = (amount: number) => {
-        return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(amount);
-    };
+    const formatCurrency = formatCurrencyWithSymbol;
 
     const cleanName = professional.name.trim().toLowerCase();
     const profData = overview?.byProfessional[professional.name.trim()] || 

@@ -1,6 +1,7 @@
 'use client';
 
 import { useAuth } from '@/lib/contexts/AuthContext';
+import { authFetch } from '@/lib/firebase/auth';
 import { useRouter, useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { CalendarCheck, Loader2, ShieldCheck, ChevronLeft, Clock, DollarSign, Gift, Mail } from 'lucide-react';
@@ -50,7 +51,7 @@ export default function PagoPage() {
     const handlePrepararPago = async () => {
         setCreatingPayment(true);
         try {
-            const res = await fetch('/api/payments/create', {
+            const res = await authFetch(user!, '/api/payments/create', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ pendingBookingId: id, payerEmail }),
@@ -75,10 +76,10 @@ export default function PagoPage() {
     const handleConfirmarGratis = async () => {
         setConfirming(true);
         try {
-            const res = await fetch('/api/booking/confirm-free', {
+            const res = await authFetch(user!, '/api/booking/confirm-free', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ pendingBookingId: id, clientId: user!.uid }),
+                body: JSON.stringify({ pendingBookingId: id }),
             });
             const data = await res.json();
             if (data.confirmed) {

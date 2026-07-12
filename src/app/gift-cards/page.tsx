@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
     Gift, Plus, Search, ChevronDown, ChevronUp, Trash2,
-    Pencil, XCircle, CheckCircle2, Clock, AlertCircle, X, MessageCircle
+    Pencil, XCircle, CheckCircle2, Clock, AlertCircle, X, MessageCircle, Calendar
 } from 'lucide-react';
 import { GiftCardDownloadButton } from '@/components/clients/GiftCardDownloadButton';
 import { ClientNameAutocomplete } from '@/components/ui/ClientNameAutocomplete';
@@ -13,6 +13,7 @@ import {
     updateGiftCardStatus, generateGiftCardCode, defaultExpiryDate
 } from '@/lib/firebase/giftCards';
 import { formatArgentineCurrency } from '@/lib/utils/currency';
+import { formatPaymentMethod } from '@/lib/utils/clientLedger';
 import { Button } from '@/components/ui/Button';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -561,6 +562,12 @@ function GiftCardListItem({ card, canManage, cancellingId, onEdit, onCancel, onD
                                     <span className="text-gray-400"> de $ {formatArgentineCurrency(card.originalAmount)}</span>
                                 )}
                             </span>
+                            {card.createdAt && (
+                                <span className="text-xs text-gray-400 flex items-center gap-1">
+                                    <Calendar className="w-3 h-3" />
+                                    Creada {card.createdAt.toLocaleDateString('es-AR')}
+                                </span>
+                            )}
                             {card.expiryDate && (
                                 <span className="text-xs text-gray-400 flex items-center gap-1">
                                     <Clock className="w-3 h-3" />
@@ -568,7 +575,7 @@ function GiftCardListItem({ card, canManage, cancellingId, onEdit, onCancel, onD
                                 </span>
                             )}
                             {card.purchaseMethod && (
-                                <span className="text-xs text-gray-400">{PAYMENT_METHOD_LABELS[card.purchaseMethod] || card.purchaseMethod}</span>
+                                <span className="text-xs text-gray-400">{formatPaymentMethod(card.purchaseMethod)}</span>
                             )}
                         </div>
                     </div>

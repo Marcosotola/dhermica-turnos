@@ -82,8 +82,13 @@ async function getOccupiedBlocks(
         .where('status', 'in', ['pending_payment', 'confirmed'])
         .get();
 
+    const now = new Date();
     pending.docs.forEach(d => {
         const data = d.data();
+        // Una reserva pending_payment vencida no debe seguir bloqueando el horario —
+        // el cliente abandonó el checkout de MercadoPago sin pagar.
+        if (data.status === 'pending_payment' && data.expiresAt?.toDate?.() < now) return;
+
         const slots: any[] = data.slots || [];
         slots.forEach(slot => {
             if (slot.professionalId === professionalId && slot.date === date) {

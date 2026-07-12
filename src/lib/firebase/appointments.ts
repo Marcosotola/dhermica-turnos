@@ -13,6 +13,7 @@ import {
     setDoc,
     orderBy,
     serverTimestamp,
+    writeBatch,
 } from 'firebase/firestore';
 import { db } from './config';
 import { Professional } from '../types/professional';
@@ -549,15 +550,28 @@ export async function deleteAppointment(id: string): Promise<void> {
         payments = data.payments || [];
     }
 
-    // Limpiar créditos asociados a este turno antes de eliminarlo
-    const { deleteClientCreditsBySourceAppointment, restoreCreditsUsedInAppointment } = await import('./clientCredits');
-    await Promise.all([
-        deleteClientCreditsBySourceAppointment(id),
-        restoreCreditsUsedInAppointment(id),
-    ]);
+    // Limpiar créditos asociados a este turno y borrar el turno en un solo batch atómico —
+    // si el borrado del turno fallara después de tocar los créditos por separado, quedaba
+    // un turno "vivo" con sus créditos ya borrados/restaurados, un estado inconsistente.
+    const batch = writeBatch(db);
 
-    // Eliminar de la colección principal
-    await deleteDoc(docRef);
+    const creditsToDeleteSnap = await getDocs(
+        query(collection(db, 'clientCredits'), where('sourceAppointmentId', '==', id))
+    );
+    creditsToDeleteSnap.docs.forEach(d => batch.delete(d.ref));
+
+    const creditsToRestoreSnap = await getDocs(
+        query(collection(db, 'clientCredits'), where('usedInAppointmentId', '==', id))
+    );
+    creditsToRestoreSnap.docs.forEach(d => batch.update(d.ref, {
+        status: 'available',
+        usedInAppointmentId: null,
+        usedDate: null,
+        updatedAt: Timestamp.now(),
+    }));
+
+    batch.delete(docRef);
+    await batch.commit();
 
     // Notificar al cliente y a n8n
     if (snap.exists()) {
@@ -996,132 +1010,6 @@ export async function searchAppointmentsByClient(
     } catch (error) {
         console.error('Error en búsqueda global:', error);
         return [];
-    }
-}
-
-/**
- * Trae todos los nombres únicos de clientes de todas las colecciones de turnos
- * (colección principal + colecciones legacy de cada profesional).
- * Se usa en Fichas para construir la lista de clientes históricos sin search term.
- */
-export async function getAllLegacyClientNames(): Promise<string[]> {
-    const names = new Set<string>();
-
-    try {
-        const professionals = await getActiveProfessionals();
-        const promises: Promise<void>[] = [];
-
-        // Colección principal
-        promises.push(getDocs(collection(db, APPOINTMENTS_COLLECTION)).then(snap => {
-            snap.docs.forEach(d => {
-                const name = d.data().clientName || d.data().nombre || '';
-                if (name.trim()) names.add(name.trim());
-            });
-        }));
-
-        // Colecciones legacy de profesionales
-        professionals.forEach(prof => {
-            if (prof.legacyCollectionName) {
-                promises.push(getDocs(collection(db, prof.legacyCollectionName)).then(snap => {
-                    snap.docs.forEach(d => {
-                        const name = d.data().clientName || d.data().nombre || '';
-                        if (name.trim()) names.add(name.trim());
-                    });
-                }));
-            }
-        });
-
-        await Promise.all(promises);
-        return Array.from(names);
-    } catch (error) {
-        console.error('Error obteniendo nombres de clientes legacy:', error);
-        return [];
-    }
-}
-
-/**
- * Obtiene todos los turnos de un profesional específico
- */
-export async function getAppointmentsByProfessional(
-    professionalId: string
-): Promise<Appointment[]> {
-    try {
-        const q = query(
-            collection(db, APPOINTMENTS_COLLECTION),
-            where('professionalId', '==', professionalId)
-        );
-
-        const snapshot = await getDocs(q);
-        const appointments = snapshot.docs.map((doc) => mapLegacyAppointment(doc.id, doc.data(), professionalId));
-
-        // Ordenar en memoria para evitar requerir índices compuestos en Firestore
-        return appointments.sort((a, b) => {
-            const dateCompare = b.date.localeCompare(a.date);
-            if (dateCompare !== 0) return dateCompare;
-            return a.time.localeCompare(b.time);
-        });
-    } catch (error) {
-        console.error('Error fetching appointments by professional:', error);
-        return [];
-    }
-}
-
-/**
- * Backfills contact information for future appointments that are missing it.
- * Only targets appointments from a specific date onwards for registered clients.
- */
-export async function backfillFutureAppointments(startDate: string): Promise<{ updated: number, errors: number }> {
-    let updatedCount = 0;
-    let errorCount = 0;
-
-    try {
-        console.log(`[Backfill] Iniciando actualización de turnos desde: ${startDate}`);
-        const q = query(
-            collection(db, APPOINTMENTS_COLLECTION),
-            where('date', '>=', startDate)
-        );
-
-        const querySnapshot = await getDocs(q);
-        console.log(`[Backfill] Se encontraron ${querySnapshot.docs.length} turnos futuros en total.`);
-        
-        const missingPhoneDocs = querySnapshot.docs.filter(d => {
-            const d2 = d.data();
-            return d2.clientId && !d2.clientPhone;
-        });
-
-        // Pre-fetch all unique users in parallel
-        const uniqueClientIds = [...new Set(missingPhoneDocs.map(d => d.data().clientId as string))];
-        const userDocs = await Promise.all(
-            uniqueClientIds.map(uid => getDoc(doc(db, 'users', uid)))
-        );
-        const userCache: Record<string, any> = {};
-        userDocs.forEach(userDoc => {
-            if (userDoc.exists()) userCache[userDoc.id] = userDoc.data();
-        });
-
-        for (const docSnap of missingPhoneDocs) {
-            const data = docSnap.data();
-            try {
-                const userData = userCache[data.clientId];
-                if (userData?.phone) {
-                    await updateDoc(docSnap.ref, {
-                        clientPhone: userData.phone,
-                        clientEmail: userData.email || '',
-                        updatedAt: serverTimestamp()
-                    });
-                    updatedCount++;
-                }
-            } catch (e) {
-                console.error(`[Backfill] Error actualizando turno ${docSnap.id}:`, e);
-                errorCount++;
-            }
-        }
-
-        console.log(`[Backfill] Finalizado. Actualizados: ${updatedCount}, Errores: ${errorCount}`);
-        return { updated: updatedCount, errors: errorCount };
-    } catch (error) {
-        console.error('[Backfill] Error fatal en proceso:', error);
-        throw error;
     }
 }
 

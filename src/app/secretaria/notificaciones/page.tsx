@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/contexts/AuthContext';
+import { authFetch } from '@/lib/firebase/auth';
 import { useRouter } from 'next/navigation';
 import { Bell, Send, Users, User, History, Trash2, ArrowLeft, Search } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
@@ -59,9 +60,6 @@ export default function NotificationsPage() {
                 getNotificationHistory(),
                 getAllUsers()
             ]);
-            console.log('FCM DEBUG: Total users fetched:', usersData.length);
-            console.log('FCM DEBUG: Users found with tokens:', usersData.filter(u => u.fcmTokens?.length).length);
-
             setHistory(historyData);
             setAllUsers(usersData);
             setClients(usersData);
@@ -158,7 +156,7 @@ export default function NotificationsPage() {
                 return;
             }
 
-            const res = await fetch('/api/notifications/send', {
+            const res = await authFetch(user!, '/api/notifications/send', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

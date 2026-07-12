@@ -7,7 +7,9 @@ import { getUnpaidAppointmentsFromDate, UnpaidAppointment, getAppointmentById } 
 import { Appointment } from '@/lib/types/appointment';
 import { deleteEgreso } from '@/lib/firebase/egresos';
 import { QuickPaymentModal } from '@/components/appointments/QuickPaymentModal';
-import { getTodayDate, formatDate } from '@/lib/utils/time';
+import { getTodayDate, formatDate, getDayWeekMonthRange } from '@/lib/utils/time';
+import { BALANCE_SINCE } from '@/lib/utils/clientLedger';
+import { formatCurrencyWithSymbol } from '@/lib/utils/currency';
 import {
     DollarSign,
     TrendingUp,
@@ -58,8 +60,6 @@ export default function FinanzasPage() {
     const [showAptModal, setShowAptModal] = useState(false);
     const [showEgresoDetail, setShowEgresoDetail] = useState(false);
 
-    const UNPAID_FROM_DATE = '2026-05-01';
-
     const isAdmin = profile?.role === 'admin';
     const isSecretary = profile?.role === 'secretary';
     const isContador = profile?.role === 'contador';
@@ -74,9 +74,12 @@ export default function FinanzasPage() {
 
     useEffect(() => {
         if (!isAdmin && !isSecretary) return;
-        getUnpaidAppointmentsFromDate(UNPAID_FROM_DATE)
+        getUnpaidAppointmentsFromDate(BALANCE_SINCE)
             .then(setUnpaidAppointments)
-            .catch(() => {});
+            .catch((error) => {
+                console.error('Error loading unpaid appointments:', error);
+                toast.error('Error al cargar los turnos sin cobrar');
+            });
     }, [isAdmin, isSecretary]);
 
     const loadData = async () => {
@@ -86,22 +89,11 @@ export default function FinanzasPage() {
             let start = '';
             let end = '';
 
-            const d = new Date(currentDate);
-            if (dateRange === 'day') {
-                const dateStr = formatDate(d);
-                start = dateStr;
-                end = dateStr;
-            } else if (dateRange === 'week') {
-                const first = d.getDate() - d.getDay();
-                const last = first + 6;
-                start = formatDate(new Date(d.getFullYear(), d.getMonth(), first));
-                end = formatDate(new Date(d.getFullYear(), d.getMonth(), last));
-            } else if (dateRange === 'month') {
-                start = formatDate(new Date(d.getFullYear(), d.getMonth(), 1));
-                end = formatDate(new Date(d.getFullYear(), d.getMonth() + 1, 0));
-            } else {
+            if (dateRange === 'custom') {
                 start = customRange.start;
                 end = customRange.end;
+            } else {
+                ({ start, end } = getDayWeekMonthRange(dateRange, currentDate));
             }
 
             const data = await getFinanceOverview(start, end);
@@ -122,9 +114,7 @@ export default function FinanzasPage() {
         setCurrentDate(d);
     };
 
-    const formatCurrency = (amount: number) => {
-        return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(amount);
-    };
+    const formatCurrency = formatCurrencyWithSymbol;
 
     const getDateLabel = () => {
         if (dateRange === 'day') return currentDate.toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' });

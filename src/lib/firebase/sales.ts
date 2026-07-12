@@ -57,7 +57,7 @@ export async function getSalesByDateRange(startDate: string, endDate: string): P
     return snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
-        createdAt: (doc.data().createdAt as Timestamp).toDate()
+        createdAt: doc.data().createdAt?.toDate?.() || new Date()
     })) as Sale[];
 }
 
@@ -79,6 +79,6 @@ export async function getSalesByProfessional(professionalId: string, startDate?:
     return snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
-        createdAt: (doc.data().createdAt as Timestamp).toDate()
+        createdAt: doc.data().createdAt?.toDate?.() || new Date()
     })) as Sale[];
 }

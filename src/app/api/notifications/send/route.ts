@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminMessaging, adminDb } from '@/lib/firebase/admin';
+import { requireRole } from '@/lib/firebase/serverAuth';
 import * as admin from 'firebase-admin';
 
 export async function POST(req: NextRequest) {
+    const authed = await requireRole(req, ['admin', 'secretary']);
+    if (!authed) {
+        return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    }
+
     try {
         const { title, body, targetUserId, targetUserName, tokens, sentBy, type, url } = await req.json();
 

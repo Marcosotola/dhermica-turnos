@@ -3,13 +3,10 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
-import { getAppointmentsByProfessional } from '@/lib/firebase/appointments';
-import { Appointment } from '@/lib/types/appointment';
 import { Calendar, TrendingUp, Sparkles, BookOpen, ShoppingBag, MapPin, Users } from 'lucide-react';
 import { ProfileSection } from '@/components/dashboard/ProfileSection';
 import { EditProfileModal } from '@/components/dashboard/EditProfileModal';
 import { toast, Toaster } from 'sonner';
-import { updateAppointment } from '@/lib/firebase/appointments';
 
 export default function ProfesionalPage() {
     const { user, profile, loading: authLoading } = useAuth();

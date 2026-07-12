@@ -1,6 +1,6 @@
 'use client';
 
-import { Appointment } from '@/lib/types/appointment';
+import { Appointment, AppointmentStatus } from '@/lib/types/appointment';
 import { Professional } from '@/lib/types/professional';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
@@ -53,7 +53,7 @@ export function AppointmentDetailModal({
     const [year, month, day] = appointment.date.split('-');
     const formattedDate = `${day}/${month}/${year}`;
 
-    const getStatusInfo = (status: string) => {
+    const getStatusInfo = (status: AppointmentStatus) => {
         switch (status) {
             case 'completed':
             case 'realizado':
@@ -66,7 +66,7 @@ export function AppointmentDetailModal({
         }
     };
 
-    const statusInfo = getStatusInfo(appointment.status as any || 'pending');
+    const statusInfo = getStatusInfo(appointment.status || 'pending');
 
     return (
         <Modal

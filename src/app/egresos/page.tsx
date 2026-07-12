@@ -32,7 +32,9 @@ import {
 } from 'lucide-react';
 import { toast, Toaster } from 'sonner';
 import { TopNavbar } from '@/components/navigation/TopNavbar';
-import { formatDate, getTodayDate } from '@/lib/utils/time';
+import { formatDate, getTodayDate, getDayWeekMonthRange } from '@/lib/utils/time';
+import { formatCurrencyWithSymbol as formatCurrency } from '@/lib/utils/currency';
+import { formatPaymentMethod } from '@/lib/utils/clientLedger';
 
 const PAYMENT_LABELS: Record<string, string> = {
     cash: 'Efectivo',
@@ -41,10 +43,6 @@ const PAYMENT_LABELS: Record<string, string> = {
     credit: 'T. Crédito',
     qr: 'QR / Digital',
 };
-
-function formatCurrency(n: number) {
-    return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0 }).format(n);
-}
 
 function formatDateDisplay(dateStr: string): string {
     if (!dateStr) return '';
@@ -105,30 +103,13 @@ export default function EgresosPage() {
     }, [authLoading, profile, router]);
 
     function getDateRange(): { start: string; end: string } {
-        const d = new Date(currentDate);
-        if (filterRange === 'day') {
-            const s = formatDate(d);
-            return { start: s, end: s };
-        }
-        if (filterRange === 'week') {
-            const day = d.getDay();
-            const diff = (day === 0 ? -6 : 1 - day);
-            const mon = new Date(d.getFullYear(), d.getMonth(), d.getDate() + diff);
-            const sun = new Date(d.getFullYear(), d.getMonth(), d.getDate() + diff + 6);
-            return {
-                start: formatDate(mon),
-                end: formatDate(sun),
-            };
-        }
-        if (filterRange === 'month') {
-            const start = formatDate(new Date(d.getFullYear(), d.getMonth(), 1));
-            const end = formatDate(new Date(d.getFullYear(), d.getMonth() + 1, 0));
+        if (filterRange === 'all') {
+            // all: last 2 years
+            const end = getTodayDate();
+            const start = formatDate(new Date(new Date().getFullYear() - 2, new Date().getMonth(), new Date().getDate()));
             return { start, end };
         }
-        // all: last 2 years
-        const end = getTodayDate();
-        const start = formatDate(new Date(new Date().getFullYear() - 2, new Date().getMonth(), new Date().getDate()));
-        return { start, end };
+        return getDayWeekMonthRange(filterRange, currentDate);
     }
 
     function getDateLabel(): string {
@@ -404,12 +385,12 @@ export default function EgresosPage() {
                                         {e.payments && e.payments.length > 0 ? (
                                             e.payments.map((p, idx) => (
                                                 <p key={idx} className="text-xs text-gray-400 font-medium">
-                                                    {PAYMENT_LABELS[p.method]} {p.bankAccount && `(${p.bankAccount === 'cuenta1' ? 'Cta 1' : 'Cta 2'})`}: {formatCurrency(p.amount)}
+                                                    {formatPaymentMethod(p.method)} {p.bankAccount && `(${p.bankAccount === 'cuenta1' ? 'Cta 1' : 'Cta 2'})`}: {formatCurrency(p.amount)}
                                                 </p>
                                             ))
                                         ) : (
                                             <p className="text-xs text-gray-400 font-medium">
-                                                {PAYMENT_LABELS[e.paymentMethod]} {e.bankAccount && `(${e.bankAccount === 'cuenta1' ? 'Cta 1' : 'Cta 2'})`}
+                                                {formatPaymentMethod(e.paymentMethod)} {e.bankAccount && `(${e.bankAccount === 'cuenta1' ? 'Cta 1' : 'Cta 2'})`}
                                             </p>
                                         )}
                                     </div>

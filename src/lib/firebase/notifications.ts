@@ -1,11 +1,8 @@
 import {
     collection,
-    addDoc,
     getDocs,
     query,
     orderBy,
-    where,
-    Timestamp,
     doc,
     deleteDoc,
     limit
@@ -24,20 +21,6 @@ export interface NotificationRecord {
 }
 
 const NOTIFICATIONS_COLLECTION = 'notifications';
-
-export async function createNotificationRecord(notification: Omit<NotificationRecord, 'id' | 'sentAt'>): Promise<string> {
-    // Clean undefined values to prevent Firestore crash
-    const cleanData = Object.entries(notification).reduce((acc, [key, value]) => {
-        if (value !== undefined) acc[key] = value;
-        return acc;
-    }, {} as any);
-
-    const docRef = await addDoc(collection(db, NOTIFICATIONS_COLLECTION), {
-        ...cleanData,
-        sentAt: Timestamp.now(),
-    });
-    return docRef.id;
-}
 
 export async function getNotificationHistory(maxResults: number = 50): Promise<NotificationRecord[]> {
     const q = query(

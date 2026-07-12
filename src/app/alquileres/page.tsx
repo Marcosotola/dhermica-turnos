@@ -6,7 +6,7 @@ import { Rental } from '@/lib/types/rental';
 import { deleteRental } from '@/lib/firebase/rentals';
 import { RentalTable } from '@/components/rentals/RentalTable';
 import { RentalModal } from '@/components/rentals/RentalModal';
-import { DeleteConfirmDialog } from '@/components/appointments/DeleteConfirmDialog';
+import { DeleteConfirmDialog } from '@/components/ui/DeleteConfirmDialog';
 import { Plus, ArrowLeft, Truck } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';

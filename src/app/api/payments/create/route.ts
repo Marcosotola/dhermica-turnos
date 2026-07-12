@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { MercadoPagoConfig, Preference } from 'mercadopago';
 import { adminDb } from '@/lib/firebase/admin';
 import { Timestamp } from 'firebase-admin/firestore';
+import { getAuthenticatedUser } from '@/lib/firebase/serverAuth';
 
 const mp = new MercadoPagoConfig({
     accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN || '',
@@ -9,6 +10,11 @@ const mp = new MercadoPagoConfig({
 
 export async function POST(req: NextRequest) {
     try {
+        const authed = await getAuthenticatedUser(req);
+        if (!authed) {
+            return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+        }
+
         const { pendingBookingId, payerEmail } = await req.json();
 
         if (!pendingBookingId) {
@@ -22,6 +28,10 @@ export async function POST(req: NextRequest) {
         }
 
         const booking = snap.data()!;
+
+        if (booking.clientId !== authed.uid) {
+            return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
+        }
 
         if (booking.status !== 'pending_payment') {
             return NextResponse.json({ error: 'Esta reserva ya fue procesada' }, { status: 400 });

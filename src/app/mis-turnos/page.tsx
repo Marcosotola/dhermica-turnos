@@ -199,11 +199,11 @@ export default function MisTurnosPage() {
                                                         </div>
                                                         <div className="flex flex-col items-end gap-1 shrink-0">
                                                             <span className="text-sm font-black text-[#34baab]">$ {formatArgentineCurrency(apt.price || 0)}</span>
-                                                            {(status as string) === 'completed' || (status as string) === 'realizado' ? (
+                                                            {status === 'completed' || status === 'realizado' ? (
                                                                 <span className="px-2 py-0.5 bg-green-100 text-green-600 rounded-full text-[9px] uppercase font-black flex items-center gap-1">
                                                                     <CheckCircle2 className="w-2.5 h-2.5" /> Realizado
                                                                 </span>
-                                                            ) : (status as string) === 'cancelled' || (status as string) === 'cancelado' ? (
+                                                            ) : status === 'cancelled' || status === 'cancelado' ? (
                                                                 <span className="px-2 py-0.5 bg-red-100 text-red-600 rounded-full text-[9px] uppercase font-black flex items-center gap-1">
                                                                     <XCircle className="w-2.5 h-2.5" /> Cancelado
                                                                 </span>

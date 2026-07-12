@@ -6,11 +6,8 @@ import { Button } from '../ui/Button';
 import { CurrencyInput } from '../ui/CurrencyInput';
 import { Select } from '../ui/Select';
 import { Appointment, AppointmentStatus, Payment } from '@/lib/types/appointment';
-import { GiftCard } from '@/lib/types/giftCard';
-import { ClientCredit } from '@/lib/types/clientCredit';
 import { updateAppointment } from '@/lib/firebase/appointments';
-import { getGiftCardByCode, redeemGiftCard } from '@/lib/firebase/giftCards';
-import { getClientCredits, useCredit } from '@/lib/firebase/clientCredits';
+import { usePaymentEntry } from '@/lib/hooks/usePaymentEntry';
 import { formatArgentineCurrency } from '@/lib/utils/currency';
 import { toast } from 'sonner';
 import {
@@ -42,15 +39,24 @@ export function QuickPaymentModal({
     const [price, setPrice] = useState(0);
     const [payments, setPayments] = useState<Payment[]>([]);
     const [showPaymentForm, setShowPaymentForm] = useState(false);
-    const [activeCredits, setActiveCredits] = useState<ClientCredit[]>([]);
-    const [selectedCreditId, setSelectedCreditId] = useState<string>('');
 
-    // Gift card por código
-    const [gcCode, setGcCode] = useState('');
-    const [gcSearching, setGcSearching] = useState(false);
-    const [gcFound, setGcFound] = useState<GiftCard | null>(null);
-    const [gcError, setGcError] = useState('');
-    const [gcAmountToApply, setGcAmountToApply] = useState(0);
+    const {
+        gcCode, setGcCode,
+        gcSearching,
+        gcFound, setGcFound,
+        gcError, setGcError,
+        gcAmountToApply, setGcAmountToApply,
+        activeCredits,
+        selectedCreditId, setSelectedCreditId,
+        resetAll: resetPaymentEntry,
+        fetchActiveCredits,
+        searchGiftCard,
+        buildGiftCardPayment,
+        buildCreditPaymentFromSelected,
+        buildCreditPaymentQuickApply,
+        restoreCreditIfRemoved,
+        settleRedemptions,
+    } = usePaymentEntry();
 
     const [newPayment, setNewPayment] = useState({
         amount: 0,
@@ -75,20 +81,12 @@ export function QuickPaymentModal({
                 date: today
             });
             setShowPaymentForm(false);
-            setSelectedCreditId('');
-            setGcCode('');
-            setGcFound(null);
-            setGcError('');
-            setGcAmountToApply(0);
+            resetPaymentEntry();
 
             const clientId = appointment.clientId || `legacy-${appointment.clientName?.replace(/\s+/g, '-').toLowerCase()}`;
-            getClientCredits(clientId, appointment.clientName).then(credits => {
-                setActiveCredits(credits.filter(c => c.status === 'available'));
-            }).catch(err => {
-                console.error('[Credits] Error al buscar créditos:', err);
-                setActiveCredits([]);
-            });
+            fetchActiveCredits(clientId, appointment.clientName);
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [appointment, isOpen]);
 
     if (!appointment) return null;
@@ -98,68 +96,20 @@ export function QuickPaymentModal({
 
     const handleSearchGiftCard = async () => {
         if (!gcCode.trim()) return;
-        setGcSearching(true);
-        setGcError('');
-        setGcFound(null);
-        try {
-            const card = await getGiftCardByCode(gcCode.trim());
-            if (!card) {
-                setGcError('Código no encontrado');
-                return;
-            }
-            if (card.status === 'redeemed') {
-                setGcError('Esta gift card ya fue utilizada completamente');
-                return;
-            }
-            if (card.status === 'cancelled') {
-                setGcError('Esta gift card fue cancelada');
-                return;
-            }
-            if (card.status === 'expired' || (card.expiryDate && card.expiryDate < today)) {
-                setGcError('Esta gift card está vencida');
-                return;
-            }
-            if (payments.some(p => p.giftCardId === card.id)) {
-                setGcError('Esta gift card ya fue agregada al pago');
-                return;
-            }
-            setGcFound(card);
-            const pendingBalance = price - payments.reduce((s, p) => s + p.amount, 0);
-            setGcAmountToApply(Math.min(card.remainingBalance, pendingBalance > 0 ? pendingBalance : card.remainingBalance));
-        } catch {
-            setGcError('Error al buscar la gift card');
-        } finally {
-            setGcSearching(false);
-        }
+        const pendingBalance = price - payments.reduce((s, p) => s + p.amount, 0);
+        await searchGiftCard(pendingBalance, payments);
     };
 
     const handleAddGiftCardPayment = () => {
-        if (!gcFound) return;
-        if (gcAmountToApply <= 0) {
-            toast.error('El monto a aplicar debe ser mayor a 0');
+        const result = buildGiftCardPayment(newPayment.date);
+        if ('error' in result) {
+            if (result.error === 'invalid_amount') toast.error('El monto a aplicar debe ser mayor a 0');
+            else if (result.error === 'exceeds_balance') toast.error(`El monto supera el saldo disponible ($${gcFound!.remainingBalance.toLocaleString('es-AR')})`);
             return;
         }
-        if (gcAmountToApply > gcFound.remainingBalance) {
-            toast.error(`El monto supera el saldo disponible ($${gcFound.remainingBalance.toLocaleString('es-AR')})`);
-            return;
-        }
-        const payment: Payment = {
-            id: Math.random().toString(36).substring(2, 9),
-            amount: gcAmountToApply,
-            method: 'gift_card',
-            label: `Gift Card (${gcFound.code})`,
-            bankAccount: null,
-            giftCardId: gcFound.id,
-            date: newPayment.date,
-            createdAt: new Date().toISOString() as any,
-        };
-        setPayments(prev => [...prev, payment]);
-        setGcCode('');
-        setGcFound(null);
-        setGcError('');
-        setGcAmountToApply(0);
+        setPayments(prev => [...prev, result.payment]);
         setShowPaymentForm(false);
-        toast.success(`Gift Card ${gcFound.code} agregada`);
+        toast.success(`Gift Card ${gcFound!.code} agregada`);
     };
 
     const handleAddPayment = () => {
@@ -169,27 +119,15 @@ export function QuickPaymentModal({
         }
 
         if (newPayment.method === 'client_credit') {
-            if (!selectedCreditId) {
+            const credit = activeCredits.find(c => c.id === selectedCreditId);
+            const payment = buildCreditPaymentFromSelected(newPayment.date);
+            if (!payment) {
                 toast.error('Seleccioná un crédito');
                 return;
             }
-            const credit = activeCredits.find(c => c.id === selectedCreditId);
-            if (!credit) return;
-            const payment: Payment = {
-                id: Math.random().toString(36).substring(2, 9),
-                amount: credit.amount,
-                method: 'client_credit',
-                label: 'Saldo a Favor',
-                bankAccount: null,
-                creditId: credit.id,
-                date: newPayment.date,
-                createdAt: new Date().toISOString() as any
-            };
             setPayments(prev => [...prev, payment]);
-            setActiveCredits(prev => prev.filter(c => c.id !== credit.id));
-            setSelectedCreditId('');
             setShowPaymentForm(false);
-            toast.success(`Saldo a favor de $${formatArgentineCurrency(credit.amount)} aplicado`);
+            toast.success(`Saldo a favor de $${formatArgentineCurrency(credit!.amount)} aplicado`);
             return;
         }
 
@@ -220,13 +158,8 @@ export function QuickPaymentModal({
     const removePayment = (id: string) => {
         const removed = payments.find(p => p.id === id);
         setPayments(prev => prev.filter(p => p.id !== id));
-        if (removed?.method === 'client_credit' && removed.creditId) {
-            const clientId = appointment!.clientId || `legacy-${appointment!.clientName?.replace(/\s+/g, '-').toLowerCase()}`;
-            getClientCredits(clientId, appointment!.clientName).then(credits => {
-                const restored = credits.find(c => c.id === removed.creditId && c.status === 'available');
-                if (restored) setActiveCredits(prev => [...prev, restored]);
-            }).catch(() => {});
-        }
+        const clientId = appointment!.clientId || `legacy-${appointment!.clientName?.replace(/\s+/g, '-').toLowerCase()}`;
+        restoreCreditIfRemoved(removed, clientId, appointment!.clientName);
     };
 
     const handleSubmit = async () => {
@@ -251,24 +184,8 @@ export function QuickPaymentModal({
                 payments: finalPayments
             });
 
-            // Redimir las gift cards usadas en este turno (soporta redención parcial)
-            const gcPayments = finalPayments.filter(p => p.method === 'gift_card' && p.giftCardId);
-            await Promise.all(gcPayments.map(p =>
-                redeemGiftCard(
-                    p.giftCardId!,
-                    p.amount,
-                    appointment.id,
-                    today,
-                    appointment.clientId,
-                    appointment.clientName,
-                )
-            ));
-
-            // Marcar créditos usados (crea crédito residual si se usó parcialmente)
-            const creditPayments = finalPayments.filter(p => p.method === 'client_credit' && p.creditId);
-            await Promise.all(creditPayments.map(p =>
-                useCredit(p.creditId!, p.amount, appointment.id, today)
-            ));
+            // Redimir gift cards y marcar créditos usados (crea crédito residual si se usó parcialmente)
+            await settleRedemptions(finalPayments, appointment.id, appointment.clientId, appointment.clientName, today);
 
             toast.success('Turno actualizado correctamente');
             onSuccess?.();
@@ -422,18 +339,8 @@ export function QuickPaymentModal({
                                     key={credit.id}
                                     type="button"
                                     onClick={() => {
-                                        const payment: Payment = {
-                                            id: Math.random().toString(36).substring(2, 9),
-                                            amount: amountToApply,
-                                            method: 'client_credit',
-                                            label: 'Saldo a Favor',
-                                            bankAccount: null,
-                                            creditId: credit.id,
-                                            date: today,
-                                            createdAt: new Date().toISOString() as any,
-                                        };
+                                        const payment = buildCreditPaymentQuickApply(credit, amountToApply, today);
                                         setPayments(prev => [...prev, payment]);
-                                        setActiveCredits(prev => prev.filter(c => c.id !== credit.id));
                                         setShowPaymentForm(false);
                                         toast.success(`Saldo a favor de $${formatArgentineCurrency(amountToApply)} aplicado`);
                                     }}

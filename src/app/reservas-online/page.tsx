@@ -1,6 +1,7 @@
 'use client';
 
 import { useAuth } from '@/lib/contexts/AuthContext';
+import { authFetch } from '@/lib/firebase/auth';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import {
@@ -32,7 +33,7 @@ const STATUS_CONFIG: Record<string, { label: string; icon: any; className: strin
 };
 
 export default function ReservasOnlinePage() {
-    const { profile, loading } = useAuth();
+    const { user, profile, loading } = useAuth();
     const router = useRouter();
     const [bookings, setBookings] = useState<PendingBookingRow[]>([]);
     const [fetching, setFetching] = useState(true);
@@ -48,17 +49,19 @@ export default function ReservasOnlinePage() {
     }, [profile, loading, router]);
 
     useEffect(() => {
-        fetch('/api/admin/pending-bookings')
+        if (!user) return;
+        authFetch(user, '/api/admin/pending-bookings')
             .then(r => r.json())
             .then(d => setBookings(d.bookings || []))
             .catch(() => {})
             .finally(() => setFetching(false));
-    }, []);
+    }, [user]);
 
     const handleDelete = async (id: string) => {
+        if (!user) return;
         setDeletingId(id);
         try {
-            const res = await fetch('/api/admin/pending-bookings', {
+            const res = await authFetch(user, '/api/admin/pending-bookings', {
                 method: 'DELETE',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ id }),
@@ -159,7 +162,7 @@ export default function ReservasOnlinePage() {
                                                 {firstSlot && (
                                                     <p className="text-xs text-gray-400 flex items-center gap-1 mt-0.5">
                                                         <Calendar className="w-3 h-3" />
-                                                        {firstSlot.date} a las {firstSlot.time}
+                                                        {firstSlot.date.split('-').reverse().join('-')} a las {firstSlot.time}
                                                     </p>
                                                 )}
                                             </div>

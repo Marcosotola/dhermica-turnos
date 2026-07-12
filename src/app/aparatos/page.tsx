@@ -16,7 +16,9 @@ import { AparatoSession, AparatoPayment, AparatoTreatment, APARATO_TREATMENTS } 
 import { Professional } from '@/lib/types/professional';
 import { Zap, Plus, Pencil, Trash2, Loader2, CalendarDays, DollarSign, CheckCircle2, Eye, Search, Filter, X } from 'lucide-react';
 import { toast, Toaster } from 'sonner';
-import { DeleteConfirmDialog } from '@/components/appointments/DeleteConfirmDialog';
+import { DeleteConfirmDialog } from '@/components/ui/DeleteConfirmDialog';
+import { formatCurrencyWithSymbol } from '@/lib/utils/currency';
+import { formatPaymentMethod } from '@/lib/utils/clientLedger';
 
 const PAYMENT_METHOD_LABELS: Record<string, string> = {
     cash: 'Efectivo',
@@ -330,8 +332,7 @@ export default function AparatosPage() {
         }
     };
 
-    const formatCurrency = (n: number) =>
-        new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(n);
+    const formatCurrency = formatCurrencyWithSymbol;
 
     const formatDate = (dateStr: string) => {
         const [y, m, d] = dateStr.split('-');
@@ -489,7 +490,7 @@ export default function AparatosPage() {
                                                             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">
                                                                 {session.payments && session.payments.length > 1
                                                                     ? `${session.payments.length} métodos`
-                                                                    : PAYMENT_METHOD_LABELS[session.paymentMethod || 'cash']}
+                                                                    : formatPaymentMethod(session.paymentMethod || 'cash')}
                                                             </span>
                                                             <span className="text-sm font-black text-gray-900">
                                                                 {formatCurrency(session.fixedFee || 0)}
@@ -901,7 +902,7 @@ export default function AparatosPage() {
                                                 {selectedSession.payments.map((p, idx) => (
                                                     <div key={p.id || idx} className="flex items-center justify-between">
                                                         <span className="text-xs font-bold text-gray-600 uppercase tracking-widest">
-                                                            {PAYMENT_METHOD_LABELS[p.method]}
+                                                            {formatPaymentMethod(p.method)}
                                                             {p.bankAccount && ` (${p.bankAccount === 'cuenta1' ? 'Cta 1' : 'Cta 2'})`}
                                                         </span>
                                                         <span className="text-xs font-bold text-gray-600">{formatCurrency(p.amount)}</span>
@@ -913,7 +914,7 @@ export default function AparatosPage() {
                                                 <div className="flex items-center justify-between">
                                                     <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Método</span>
                                                     <span className="text-xs font-bold text-gray-600 uppercase tracking-widest">
-                                                        {PAYMENT_METHOD_LABELS[selectedSession.paymentMethod || 'cash']}
+                                                        {formatPaymentMethod(selectedSession.paymentMethod || 'cash')}
                                                     </span>
                                                 </div>
                                                 {selectedSession.bankAccount && (

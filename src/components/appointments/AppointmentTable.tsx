@@ -44,8 +44,8 @@ export function AppointmentTable({
             (apt) =>
                 apt.professionalId === professionalId &&
                 isTimeSlotOccupied(time, apt) &&
-                (apt.status as any) !== 'cancelled' &&
-                (apt.status as any) !== 'cancelado'
+                apt.status !== 'cancelled' &&
+                apt.status !== 'cancelado'
         );
     };
 
@@ -55,8 +55,8 @@ export function AppointmentTable({
             (apt) =>
                 !apt.professionalId &&
                 isTimeSlotOccupied(time, apt) &&
-                (apt.status as any) !== 'cancelled' &&
-                (apt.status as any) !== 'cancelado'
+                apt.status !== 'cancelled' &&
+                apt.status !== 'cancelado'
         );
     };
 

@@ -1,4 +1,7 @@
-export type AppointmentStatus = 'pending' | 'completed' | 'cancelled';
+// 'realizado'/'cancelado' son valores legacy (turnos viejos en español) que todavía
+// aparecen en datos reales — se mantienen en el tipo para no forzar casteos `as any`
+// en las comparaciones de status por todo el código.
+export type AppointmentStatus = 'pending' | 'completed' | 'cancelled' | 'realizado' | 'cancelado';
 
 export interface SelectedTreatment {
     treatmentId: string;

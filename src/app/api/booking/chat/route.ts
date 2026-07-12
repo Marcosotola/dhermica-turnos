@@ -3,6 +3,7 @@ import { GoogleGenAI } from '@google/genai';
 import { adminDb } from '@/lib/firebase/admin';
 import { findAvailableBookingOptions, assignBestProfessional, TreatmentGroup } from '@/lib/utils/bookingSlots';
 import { createPendingBookingAdmin } from '@/lib/firebase/pendingBookingsAdmin';
+import { getAuthenticatedUser } from '@/lib/firebase/serverAuth';
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
 
@@ -517,7 +518,15 @@ async function runTool(name: string, args: any, clientId: string): Promise<strin
 
 export async function POST(req: NextRequest) {
     try {
-        const { messages, clientId, clientName, clientEmail, clientPhone, clientSex } = await req.json();
+        const authed = await getAuthenticatedUser(req);
+        if (!authed) {
+            return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+        }
+        // El clientId siempre sale del token verificado, nunca del body — evita que un
+        // cliente consulte el saldo o reserve turnos a nombre de otro clientId ajeno.
+        const clientId = authed.uid;
+
+        const { messages, clientName, clientEmail, clientPhone, clientSex } = await req.json();
 
         if (!process.env.GEMINI_API_KEY) {
             return NextResponse.json({ error: 'Gemini API key no configurada' }, { status: 500 });

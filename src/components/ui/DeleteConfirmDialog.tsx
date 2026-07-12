@@ -1,7 +1,7 @@
 'use client';
 
-import { Modal } from '../ui/Modal';
-import { Button } from '../ui/Button';
+import { Modal } from './Modal';
+import { Button } from './Button';
 import { AlertTriangle } from 'lucide-react';
 
 interface DeleteConfirmDialogProps {

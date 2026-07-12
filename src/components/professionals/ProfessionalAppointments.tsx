@@ -15,7 +15,7 @@ import {
     DollarSign
 } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
-import { formatArgentineCurrency } from '@/lib/utils/time';
+import { formatCurrencyWithSymbol } from '@/lib/utils/currency';
 import { AppointmentDetailModal } from '../appointments/AppointmentDetailModal';
 import { DeleteAppointmentDialog } from '../appointments/DeleteAppointmentDialog';
 import { toast } from 'sonner';
@@ -275,7 +275,7 @@ export function ProfessionalAppointments({ professional }: ProfessionalAppointme
                                         </div>
                                         <div className="flex items-center justify-end gap-1.5 text-[#34baab] mt-1">
                                             <DollarSign className="w-3" style={{ height: '12px' }} />
-                                            <span className="text-xs font-black">{formatArgentineCurrency(apt.price || 0)}</span>
+                                            <span className="text-xs font-black">{formatCurrencyWithSymbol(apt.price || 0)}</span>
                                         </div>
                                     </div>
                                     <ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-[#484450] group-hover:translate-x-1 transition-all" />
