@@ -64,10 +64,11 @@ FLUJO DE RESERVA (los pasos se pueden comprimir si el cliente ya dio la info):
 13. Calculá: mercadopagoAmount = seña total - crédito usado - gift card usada (mínimo $0)
 15. Mostrá resumen completo y preguntá si confirma
 16. Si confirma → LLAMÁ A create_pending_booking INMEDIATAMENTE (sin generar texto antes). Pasá EXACTAMENTE:
-    - slots: array con date, time y durationMinutes del resultado de find_available_slots (el profesional se asigna automáticamente)
-    - treatmentIds: array con el id del tratamiento elegido (obtenido de get_treatments)
-    - treatmentNames: array con el nombre del tratamiento
-    - zones: array con la zona elegida por el cliente (ej: ["Abdomen"])
+    - slots: array de objetos, uno por turno a reservar. CADA objeto del array debe incluir TODOS estos campos (no los pases sueltos afuera de slots):
+        - date, time y durationMinutes del resultado de find_available_slots (el profesional se asigna automáticamente)
+        - treatmentIds: array con el/los id del/de los tratamiento/s elegidos para ESE turno (obtenidos de get_treatments)
+        - treatmentNames: array con el/los nombre/s del/de los tratamiento/s (mismo orden que treatmentIds)
+        - zones: array con la/las zona/s elegida/s por el cliente (ej: ["Abdomen"], mismo orden que treatmentIds)
     - depositAmount: el valor de depositAmount de get_treatment_details (puede ser 0)
     - depositBreakdown: { mercadopagoAmount: depositAmount } (o menos si usó gift card)
 
@@ -405,10 +406,16 @@ async function runTool(name: string, args: any, clientId: string): Promise<strin
                 const slotsWithNames = await Promise.all(
                     rawSlots.map(async (slot: any) => {
                         // 1. Normalizar tratamientos y zonas contra la BD (se necesitan para el fallback de profesional)
+                        // Fallback: si Gemini mandó treatmentIds/treatmentNames/zones sueltos a nivel superior
+                        // (en vez de anidados en cada slot), se usan esos para todos los slots.
                         const rawTreatmentIds: string[] = Array.isArray(slot.treatmentIds) ? slot.treatmentIds
-                            : slot.treatmentId ? [slot.treatmentId] : [];
+                            : slot.treatmentId ? [slot.treatmentId]
+                            : Array.isArray(args.treatmentIds) ? args.treatmentIds : [];
                         const rawZones: string[] = Array.isArray(slot.zones) ? slot.zones
-                            : slot.zone ? [slot.zone] : [];
+                            : slot.zone ? [slot.zone]
+                            : Array.isArray(args.zones) ? args.zones : [];
+                        const fallbackTreatmentNames: string[] = Array.isArray(slot.treatmentNames) ? slot.treatmentNames
+                            : Array.isArray(args.treatmentNames) ? args.treatmentNames : [];
 
                         const normalizedTreatmentNames: string[] = [];
                         const normalizedZones: string[] = [];
@@ -424,7 +431,7 @@ async function runTool(name: string, args: any, clientId: string): Promise<strin
                                 }
                             }
                             const tData = treatCache[tid];
-                            normalizedTreatmentNames.push(tData?.name || slot.treatmentName || slot.treatmentNames?.[i] || '');
+                            normalizedTreatmentNames.push(tData?.name || slot.treatmentName || fallbackTreatmentNames[i] || '');
 
                             const rawZone = rawZones[i] || '';
                             const dbZones: string[] = (tData?.prices || []).map((p: any) => p.zone).filter(Boolean);

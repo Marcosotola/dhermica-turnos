@@ -368,10 +368,6 @@ export async function createAppointment(
         updatedAt: now,
     });
 
-
-    // Sincronizar con legacy
-    await syncWithLegacy(data.professionalId, docRef.id, 'create', data);
-
     // Notificar al cliente si existe
     if (data.clientId) {
         const [year, month, day] = data.date.split('-');
@@ -464,12 +460,6 @@ export async function updateAppointment(
                 '/mis-turnos'
             );
         }
-
-        const professionalId = data.professionalId || oldData.professionalId;
-        // Sincronizar con legacy
-        if (professionalId) {
-            await syncWithLegacy(professionalId as string, id, 'update', data);
-        }
     } else {
         // Documento NO existe en appointments - es un turno legacy
         console.log(`[Update] Turno no encontrado en appointments, buscando en colecciones legacy...`);
@@ -514,11 +504,6 @@ export async function cancelAppointment(id: string): Promise<void> {
 
     if (snap.exists()) {
         const data = snap.data();
-        const professionalId = data.professionalId;
-
-        if (professionalId) {
-            await syncWithLegacy(professionalId, id, 'update', { status: 'cancelled', updatedAt: Timestamp.now() });
-        }
 
         const appointmentDate = data.date || '';
         const appointmentTime = data.time || '';
