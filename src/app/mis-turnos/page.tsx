@@ -15,7 +15,6 @@ import {
     XCircle,
     Gift,
     AlertCircle,
-    DollarSign,
     Filter,
     Search,
 } from 'lucide-react';
@@ -331,9 +330,6 @@ export default function MisTurnosPage() {
 
                     {/* Historial de Transacciones */}
                     <div>
-                        <p className="text-xs font-black text-gray-400 uppercase tracking-widest px-1 mb-2 flex items-center gap-2">
-                            <DollarSign className="w-3.5 h-3.5 text-[#34baab]" /> Historial de Transacciones
-                        </p>
                         <ClientLedger
                             appointments={appointments}
                             credits={credits}
