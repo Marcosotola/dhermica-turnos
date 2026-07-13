@@ -311,20 +311,6 @@ export function ClientLedger({ appointments, credits, giftCards = [], isAdmin, l
                     </div>
                 )}
             </div>
-
-            {/* Legend */}
-            <div className="flex flex-wrap gap-3 px-1">
-                {[
-                    { icon: <ArrowUpCircle className="w-3 h-3 text-[#34baab]" />, label: 'Pago recibido' },
-                    { icon: <Gift className="w-3 h-3 text-amber-500" />, label: 'Crédito generado' },
-                    { icon: <ArrowDownCircle className="w-3 h-3 text-blue-500" />, label: 'Crédito aplicado' },
-                    { icon: <XCircle className="w-3 h-3 text-red-400" />, label: 'Seña perdida' },
-                ].map(({ icon, label }) => (
-                    <div key={label} className="flex items-center gap-1.5 text-[10px] text-gray-400 font-medium">
-                        {icon} {label}
-                    </div>
-                ))}
-            </div>
         </div>
     );
 }
