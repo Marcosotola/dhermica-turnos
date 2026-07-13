@@ -24,7 +24,6 @@ import {
     LedgerEntry,
     formatPaymentMethod,
     formatLedgerDate,
-    BALANCE_SINCE,
 } from '@/lib/utils/clientLedger';
 import { formatArgentineCurrency } from '@/lib/utils/currency';
 
@@ -171,10 +170,6 @@ export function ClientLedger({ appointments, credits, giftCards = [], isAdmin, l
                 </div>
             )}
             </>}
-
-            <p className="text-[10px] text-gray-400 font-medium px-1">
-                * Saldo calculado desde el {formatLedgerDate(BALANCE_SINCE)}. Turnos anteriores no tenían registro de pagos.
-            </p>
 
             {/* Timeline toggle */}
             <div className="border border-gray-100 rounded-3xl overflow-hidden bg-white shadow-sm">

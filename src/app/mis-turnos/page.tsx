@@ -16,6 +16,8 @@ import {
     Gift,
     AlertCircle,
     DollarSign,
+    Filter,
+    Search,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Appointment } from '@/lib/types/appointment';
@@ -26,8 +28,8 @@ import { ClientCredit } from '@/lib/types/clientCredit';
 import { getClientCredits } from '@/lib/firebase/clientCredits';
 import { ClientLedger } from '@/components/clients/ClientLedger';
 import { GiftCard } from '@/lib/types/giftCard';
-import { getGiftCardsByPurchaser, getGiftCardsByRecipient } from '@/lib/firebase/giftCards';
-import { getClientLedgerSummary, BALANCE_SINCE } from '@/lib/utils/clientLedger';
+import { getGiftCardsByRecipient } from '@/lib/firebase/giftCards';
+import { getClientLedgerSummary } from '@/lib/utils/clientLedger';
 import { ClientCancelButton } from '@/components/appointments/ClientCancelButton';
 import { CalendarPlus } from 'lucide-react';
 
@@ -36,10 +38,13 @@ export default function MisTurnosPage() {
     const router = useRouter();
     const [appointments, setAppointments] = useState<Appointment[]>([]);
     const [credits, setCredits] = useState<ClientCredit[]>([]);
-    const [giftCards, setGiftCards] = useState<GiftCard[]>([]);
     const [receivedGiftCards, setReceivedGiftCards] = useState<GiftCard[]>([]);
     const [historyLoading, setHistoryLoading] = useState(true);
     const [turnosOpen, setTurnosOpen] = useState(false);
+    const [aptStatus, setAptStatus] = useState<'all' | 'pending' | 'completed' | 'cancelled'>('all');
+    const [aptSearch, setAptSearch] = useState('');
+    const [aptDateFrom, setAptDateFrom] = useState('');
+    const [aptDateTo, setAptDateTo] = useState('');
 
     useEffect(() => {
         if (!loading && (!user || (profile?.role !== 'client' && profile?.role !== 'cliente-prueba'))) {
@@ -52,15 +57,13 @@ export default function MisTurnosPage() {
             if (!user || !profile) return;
             setHistoryLoading(true);
             try {
-                const [apts, creds, gcs, receivedGcs] = await Promise.all([
+                const [apts, creds, receivedGcs] = await Promise.all([
                     getAppointmentsByClientId(user.uid, profile.fullName),
                     getClientCredits(user.uid, profile.fullName),
-                    getGiftCardsByPurchaser(user.uid, profile.fullName),
                     getGiftCardsByRecipient(user.uid, profile.fullName),
                 ]);
                 setAppointments(apts);
                 setCredits(creds);
-                setGiftCards(gcs);
                 setReceivedGiftCards(receivedGcs);
             } catch (error) {
                 console.error('Error fetching history:', error);
@@ -84,10 +87,22 @@ export default function MisTurnosPage() {
 
     const summary = getClientLedgerSummary(appointments, credits, receivedGiftCards);
     const today = new Date().toISOString().split('T')[0];
-    const activeGiftCards = giftCards.filter(g =>
-        (g.status === 'active' || g.status === 'partially_used') &&
-        (!g.expiryDate || g.expiryDate >= today)
-    );
+
+    const hasAptFilters = aptStatus !== 'all' || !!aptSearch || !!aptDateFrom || !!aptDateTo;
+
+    const normalizedStatus = (s?: string) => {
+        if (s === 'completed' || s === 'realizado') return 'completed';
+        if (s === 'cancelled' || s === 'cancelado') return 'cancelled';
+        return 'pending';
+    };
+
+    const filteredAppointments = appointments.filter(apt => {
+        const matchStatus = aptStatus === 'all' || normalizedStatus(apt.status) === aptStatus;
+        const matchSearch = !aptSearch || (apt.treatment || '').toLowerCase().includes(aptSearch.toLowerCase());
+        const matchFrom = !aptDateFrom || apt.date >= aptDateFrom;
+        const matchTo = !aptDateTo || apt.date <= aptDateTo;
+        return matchStatus && matchSearch && matchFrom && matchTo;
+    });
 
     return (
         <div className="min-h-screen bg-gray-50 pb-24">
@@ -145,12 +160,6 @@ export default function MisTurnosPage() {
                         </div>
                     )}
 
-                    {!historyLoading && (
-                        <p className="text-[10px] text-gray-400 font-medium px-1">
-                            * Saldo calculado desde el {(() => { const [y, m, d] = BALANCE_SINCE.split('-'); return `${d}/${m}/${y}`; })()}. Turnos anteriores no tenían registro de pagos.
-                        </p>
-                    )}
-
                     {/* Historial de Turnos colapsable */}
                     <div className="border border-gray-100 rounded-2xl overflow-hidden bg-white shadow-sm">
                         <button
@@ -161,13 +170,81 @@ export default function MisTurnosPage() {
                             <div className="flex items-center gap-2">
                                 <CalendarCheck className="w-4 h-4 text-[#34baab]" />
                                 <span className="font-bold text-gray-900 text-sm">Mis Turnos</span>
-                                <span className="text-xs text-gray-400 font-medium">({appointments.length})</span>
+                                <span className="text-xs text-gray-400 font-medium">
+                                    ({hasAptFilters ? `${filteredAppointments.length} de ${appointments.length}` : appointments.length})
+                                </span>
+                                {hasAptFilters && (
+                                    <span className="text-[9px] font-black bg-[#34baab] text-white px-1.5 py-0.5 rounded uppercase tracking-wide">Filtrado</span>
+                                )}
                             </div>
                             {turnosOpen ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
                         </button>
 
                         {turnosOpen && (
-                            <div className="p-3 space-y-2 animate-in slide-in-from-top-2 duration-200">
+                            <div className="p-3 space-y-3 animate-in slide-in-from-top-2 duration-200">
+                                {/* Filtros */}
+                                <div className="space-y-2">
+                                    <div className="flex flex-wrap gap-1">
+                                        {([
+                                            { value: 'all', label: 'Todos' },
+                                            { value: 'pending', label: 'Pendientes' },
+                                            { value: 'completed', label: 'Realizados' },
+                                            { value: 'cancelled', label: 'Cancelados' },
+                                        ] as const).map(f => (
+                                            <button
+                                                key={f.value}
+                                                type="button"
+                                                onClick={() => setAptStatus(f.value)}
+                                                className={`px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-wide transition-colors ${
+                                                    aptStatus === f.value
+                                                        ? 'bg-[#34baab] text-white'
+                                                        : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                                                }`}
+                                            >
+                                                {f.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <Search className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                                        <input
+                                            type="text"
+                                            value={aptSearch}
+                                            onChange={e => setAptSearch(e.target.value)}
+                                            placeholder="Buscar tratamiento..."
+                                            className="flex-1 px-2 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-[#34baab]"
+                                        />
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <Filter className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                                        <div className="flex-1 grid grid-cols-2 gap-1.5">
+                                            <input
+                                                type="date"
+                                                value={aptDateFrom}
+                                                onChange={e => setAptDateFrom(e.target.value)}
+                                                title="Desde"
+                                                className="w-full px-2 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-[#34baab]"
+                                            />
+                                            <input
+                                                type="date"
+                                                value={aptDateTo}
+                                                onChange={e => setAptDateTo(e.target.value)}
+                                                title="Hasta"
+                                                className="w-full px-2 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-[#34baab]"
+                                            />
+                                        </div>
+                                        {hasAptFilters && (
+                                            <button
+                                                type="button"
+                                                onClick={() => { setAptStatus('all'); setAptSearch(''); setAptDateFrom(''); setAptDateTo(''); }}
+                                                className="text-[10px] text-[#34baab] font-bold whitespace-nowrap hover:underline"
+                                            >
+                                                Limpiar
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+
                                 {historyLoading ? (
                                     <div className="flex justify-center py-8">
                                         <Loader2 className="w-8 h-8 text-[#34baab] animate-spin" />
@@ -178,8 +255,13 @@ export default function MisTurnosPage() {
                                         <p className="font-black text-gray-400 text-sm">No hay turnos registrados</p>
                                         <p className="text-gray-400 text-xs mt-1">¡Te esperamos pronto!</p>
                                     </div>
+                                ) : filteredAppointments.length === 0 ? (
+                                    <div className="py-10 text-center">
+                                        <Clock className="w-10 h-10 text-gray-300 mx-auto mb-2" />
+                                        <p className="font-black text-gray-400 text-sm">No hay turnos que coincidan con el filtro</p>
+                                    </div>
                                 ) : (
-                                    [...appointments]
+                                    [...filteredAppointments]
                                         .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
                                         .map(apt => {
                                             const totalPaid = (apt.payments || []).reduce((s, p) => s + p.amount, 0);
@@ -244,38 +326,6 @@ export default function MisTurnosPage() {
                                         })
                                 )}
                             </div>
-                        )}
-                    </div>
-
-                    {/* Gift Cards */}
-                    <div className="space-y-2">
-                        <p className="text-xs font-black text-gray-400 uppercase tracking-widest px-1 flex items-center gap-2">
-                            <Gift className="w-3.5 h-3.5 text-[#34baab]" /> Mis Gift Cards
-                        </p>
-                        {activeGiftCards.length === 0 ? (
-                            <div className="bg-white border border-gray-100 rounded-2xl p-5 text-center shadow-sm">
-                                <Gift className="w-8 h-8 text-gray-200 mx-auto mb-2" />
-                                <p className="text-sm font-bold text-gray-400">No tenés gift cards activas</p>
-                                <p className="text-xs text-gray-300 mt-0.5">Podés consultarnos para obtener una.</p>
-                            </div>
-                        ) : (
-                            activeGiftCards.map(gc => (
-                                <div key={gc.id} className="rounded-2xl bg-gradient-to-r from-teal-500 via-teal-400 to-cyan-400 p-4 shadow-sm">
-                                    <div className="flex items-start justify-between">
-                                        <div>
-                                            <p className="text-[10px] font-black text-white/70 uppercase tracking-widest mb-1">Gift Card activa</p>
-                                            <p className="text-2xl font-black text-white">$ {formatArgentineCurrency(gc.remainingBalance)}</p>
-                                            <p className="text-xs font-mono text-white/80 mt-1">{gc.code}</p>
-                                        </div>
-                                        {gc.expiryDate && (
-                                            <p className="text-[10px] text-white/70">
-                                                Vence {(() => { const [y, m, d] = gc.expiryDate!.split('-'); return `${d}/${m}/${y}`; })()}
-                                            </p>
-                                        )}
-                                    </div>
-                                    {gc.notes && <p className="text-[10px] text-white/70 mt-2 italic">"{gc.notes}"</p>}
-                                </div>
-                            ))
                         )}
                     </div>
 
