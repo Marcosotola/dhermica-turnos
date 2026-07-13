@@ -26,7 +26,7 @@ import { getClientCredits } from '@/lib/firebase/clientCredits';
 import { ClientLedger } from '@/components/clients/ClientLedger';
 import { getClientLedgerSummary } from '@/lib/utils/clientLedger';
 import { GiftCard } from '@/lib/types/giftCard';
-import { getGiftCardsByPurchaser } from '@/lib/firebase/giftCards';
+import { getGiftCardsByPurchaser, getGiftCardsByRecipient } from '@/lib/firebase/giftCards';
 import { GiftCardSection } from '@/components/clients/GiftCardSection';
 
 export default function AgendaPage() {
@@ -56,6 +56,7 @@ export default function AgendaPage() {
     const [creditsLoading, setCreditsLoading] = useState(false);
     const [giftCards, setGiftCards] = useState<GiftCard[]>([]);
     const [giftCardsLoading, setGiftCardsLoading] = useState(false);
+    const [receivedGiftCards, setReceivedGiftCards] = useState<GiftCard[]>([]);
     const [aptSearch, setAptSearch] = useState('');
     const [aptStatusFilter, setAptStatusFilter] = useState<'all' | 'pending' | 'completed' | 'cancelled'>('all');
     const [aptDateFrom, setAptDateFrom] = useState('');
@@ -199,14 +200,16 @@ export default function AgendaPage() {
         setCreditsLoading(true);
         setGiftCardsLoading(true);
         try {
-            const [apts, credits, gCards] = await Promise.all([
+            const [apts, credits, gCards, receivedCards] = await Promise.all([
                 getAppointmentsByClientId(selectedUser.uid, selectedUser.fullName),
                 getClientCredits(selectedUser.uid, selectedUser.fullName),
                 getGiftCardsByPurchaser(selectedUser.uid, selectedUser.fullName),
+                getGiftCardsByRecipient(selectedUser.uid, selectedUser.fullName),
             ]);
             setAppointments(apts);
             setClientCredits(credits);
             setGiftCards(gCards);
+            setReceivedGiftCards(receivedCards);
         } catch (error) {
             console.error('Error fetching history:', error);
         } finally {
@@ -516,6 +519,7 @@ export default function AgendaPage() {
                                     <ClientLedger
                                         appointments={appointments}
                                         credits={clientCredits}
+                                        giftCards={receivedGiftCards}
                                         isAdmin={true}
                                         loading={historyLoading || creditsLoading}
                                     />
@@ -811,7 +815,7 @@ export default function AgendaPage() {
 
             {/* Vista del cliente modal */}
             {showClientView && selectedUser && (() => {
-                const cvSummary = getClientLedgerSummary(appointments, clientCredits);
+                const cvSummary = getClientLedgerSummary(appointments, clientCredits, receivedGiftCards);
                 const today = new Date().toISOString().split('T')[0];
                 const activeGiftCards = giftCards.filter(g =>
                     (g.status === 'active' || g.status === 'partially_used') &&
@@ -980,6 +984,7 @@ export default function AgendaPage() {
                             <ClientLedger
                                 appointments={appointments}
                                 credits={clientCredits}
+                                giftCards={receivedGiftCards}
                                 loading={historyLoading || creditsLoading}
                                 hideSummary
                             />

@@ -26,7 +26,7 @@ import { ClientCredit } from '@/lib/types/clientCredit';
 import { getClientCredits } from '@/lib/firebase/clientCredits';
 import { ClientLedger } from '@/components/clients/ClientLedger';
 import { GiftCard } from '@/lib/types/giftCard';
-import { getGiftCardsByPurchaser } from '@/lib/firebase/giftCards';
+import { getGiftCardsByPurchaser, getGiftCardsByRecipient } from '@/lib/firebase/giftCards';
 import { getClientLedgerSummary, BALANCE_SINCE } from '@/lib/utils/clientLedger';
 import { ClientCancelButton } from '@/components/appointments/ClientCancelButton';
 import { CalendarPlus } from 'lucide-react';
@@ -37,6 +37,7 @@ export default function MisTurnosPage() {
     const [appointments, setAppointments] = useState<Appointment[]>([]);
     const [credits, setCredits] = useState<ClientCredit[]>([]);
     const [giftCards, setGiftCards] = useState<GiftCard[]>([]);
+    const [receivedGiftCards, setReceivedGiftCards] = useState<GiftCard[]>([]);
     const [historyLoading, setHistoryLoading] = useState(true);
     const [turnosOpen, setTurnosOpen] = useState(false);
 
@@ -51,14 +52,16 @@ export default function MisTurnosPage() {
             if (!user || !profile) return;
             setHistoryLoading(true);
             try {
-                const [apts, creds, gcs] = await Promise.all([
+                const [apts, creds, gcs, receivedGcs] = await Promise.all([
                     getAppointmentsByClientId(user.uid, profile.fullName),
                     getClientCredits(user.uid, profile.fullName),
                     getGiftCardsByPurchaser(user.uid, profile.fullName),
+                    getGiftCardsByRecipient(user.uid, profile.fullName),
                 ]);
                 setAppointments(apts);
                 setCredits(creds);
                 setGiftCards(gcs);
+                setReceivedGiftCards(receivedGcs);
             } catch (error) {
                 console.error('Error fetching history:', error);
             } finally {
@@ -79,7 +82,7 @@ export default function MisTurnosPage() {
         );
     }
 
-    const summary = getClientLedgerSummary(appointments, credits);
+    const summary = getClientLedgerSummary(appointments, credits, receivedGiftCards);
     const today = new Date().toISOString().split('T')[0];
     const activeGiftCards = giftCards.filter(g =>
         (g.status === 'active' || g.status === 'partially_used') &&
@@ -284,6 +287,7 @@ export default function MisTurnosPage() {
                         <ClientLedger
                             appointments={appointments}
                             credits={credits}
+                            giftCards={receivedGiftCards}
                             loading={historyLoading}
                             hideSummary
                         />

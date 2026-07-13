@@ -17,6 +17,7 @@ import {
 import { useState } from 'react';
 import { Appointment } from '@/lib/types/appointment';
 import { ClientCredit } from '@/lib/types/clientCredit';
+import { GiftCard } from '@/lib/types/giftCard';
 import {
     buildClientLedger,
     getClientLedgerSummary,
@@ -30,6 +31,7 @@ import { formatArgentineCurrency } from '@/lib/utils/currency';
 interface ClientLedgerProps {
     appointments: Appointment[];
     credits: ClientCredit[];
+    giftCards?: GiftCard[];
     isAdmin?: boolean;
     loading?: boolean;
     hideSummary?: boolean;
@@ -62,7 +64,7 @@ function entryAmountColor(type: LedgerEntry['type']): string {
     }
 }
 
-export function ClientLedger({ appointments, credits, isAdmin, loading, hideSummary }: ClientLedgerProps) {
+export function ClientLedger({ appointments, credits, giftCards = [], isAdmin, loading, hideSummary }: ClientLedgerProps) {
     const [open, setOpen] = useState(false);
     const [txType, setTxType] = useState<'all' | LedgerEntry['type']>('all');
     const [txDateFrom, setTxDateFrom] = useState('');
@@ -77,7 +79,7 @@ export function ClientLedger({ appointments, credits, isAdmin, loading, hideSumm
     }
 
     const entries = buildClientLedger(appointments, credits);
-    const summary = getClientLedgerSummary(appointments, credits);
+    const summary = getClientLedgerSummary(appointments, credits, giftCards);
 
     const hasFilters = txType !== 'all' || !!txDateFrom || !!txDateTo;
 

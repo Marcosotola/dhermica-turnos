@@ -87,12 +87,14 @@ export function AppointmentModal({
         gcAmountToApply, setGcAmountToApply,
         activeCredits,
         selectedCreditId, setSelectedCreditId,
+        linkedGiftCards,
         resetAll: resetPaymentEntry,
         fetchActiveCredits,
         searchGiftCard,
         buildGiftCardPayment,
         buildCreditPaymentFromSelected,
         buildCreditPaymentQuickApply,
+        buildGiftCardPaymentQuickApply,
         restoreCreditIfRemoved,
         settleRedemptions,
     } = usePaymentEntry();
@@ -1150,6 +1152,44 @@ export function AppointmentModal({
                                                     )}
                                                 </div>
                                                 <span className="font-black text-sm text-amber-700">$ {formatArgentineCurrency(amountToApply)}</span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            )}
+
+                            {/* Gift Card vinculada con saldo disponible */}
+                            {linkedGiftCards.length > 0 && (
+                                <div className="space-y-2">
+                                    <div className="flex items-center gap-2">
+                                        <Gift className="w-4 h-4 text-teal-500" />
+                                        <p className="text-[10px] font-black text-teal-600 uppercase tracking-widest">Gift Card Disponible</p>
+                                    </div>
+                                    {linkedGiftCards.map(card => {
+                                        const amountToApply = balance > 0 ? Math.min(card.remainingBalance, balance) : card.remainingBalance;
+                                        return (
+                                            <button
+                                                key={card.id}
+                                                type="button"
+                                                onClick={() => {
+                                                    const payment = buildGiftCardPaymentQuickApply(card, amountToApply, newPayment.date);
+                                                    setFormData(prev => ({ ...prev, payments: [...prev.payments, payment] }));
+                                                    toast.success(`Gift Card ${card.code} aplicada por $${formatArgentineCurrency(amountToApply)}`);
+                                                }}
+                                                className="w-full flex items-center justify-between p-3 rounded-xl border-2 border-teal-200 bg-teal-50 hover:border-teal-400 hover:bg-teal-100 transition-all"
+                                            >
+                                                <div className="flex flex-col items-start gap-0.5">
+                                                    <div className="flex items-center gap-2">
+                                                        <Gift className="w-4 h-4 text-teal-600 shrink-0" />
+                                                        <span className="text-xs font-bold text-teal-800">Aplicar Gift Card ({card.code})</span>
+                                                    </div>
+                                                    {amountToApply < card.remainingBalance && (
+                                                        <span className="text-[9px] text-teal-600 ml-6 font-bold">
+                                                            Resta $ {formatArgentineCurrency(card.remainingBalance - amountToApply)} de saldo
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <span className="font-black text-sm text-teal-700">$ {formatArgentineCurrency(amountToApply)}</span>
                                             </button>
                                         );
                                     })}

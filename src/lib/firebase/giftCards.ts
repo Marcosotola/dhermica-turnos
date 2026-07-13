@@ -134,16 +134,30 @@ export async function getGiftCardsByPurchaser(
 
 // Busca gift cards donde el cliente es el receptor (para mostrar saldo disponible en su ficha)
 export async function getGiftCardsByRecipient(
-    recipientClientId: string
+    recipientClientId: string,
+    recipientName?: string
 ): Promise<GiftCard[]> {
-    const q = query(
-        collection(db, COLLECTION),
-        where('recipientClientId', '==', recipientClientId)
+    const map = new Map<string, GiftCard>();
+
+    if (recipientClientId) {
+        const q = query(collection(db, COLLECTION), where('recipientClientId', '==', recipientClientId));
+        const snap = await getDocs(q);
+        snap.docs.forEach(d => map.set(d.id, mapGiftCard(d.id, d.data())));
+    }
+
+    // Fallback: el recipientClientId recién se linkea al primer canje exitoso, así que
+    // una gift card asignada por nombre pero nunca canjeada no aparecería por ese campo solo.
+    if (recipientName) {
+        const q = query(collection(db, COLLECTION), where('recipientName', '==', recipientName));
+        const snap = await getDocs(q);
+        snap.docs.forEach(d => {
+            if (!map.has(d.id)) map.set(d.id, mapGiftCard(d.id, d.data()));
+        });
+    }
+
+    return Array.from(map.values()).sort(
+        (a, b) => b.createdAt.getTime() - a.createdAt.getTime()
     );
-    const snap = await getDocs(q);
-    return snap.docs
-        .map(d => mapGiftCard(d.id, d.data()))
-        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 }
 
 export async function getAllGiftCards(): Promise<GiftCard[]> {

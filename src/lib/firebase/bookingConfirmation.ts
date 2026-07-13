@@ -44,9 +44,23 @@ export async function confirmBookingAndCreateAppointments({
     const batch = adminDb.batch();
 
     // Descontar gift card si aplica
+    let giftCardApplied = false;
+    let resolvedGiftCardRef: FirebaseFirestore.DocumentReference | null = null;
     if (bd?.giftCardId && bd?.giftCardAmount > 0) {
-        const gcRef = adminDb.collection('giftCards').doc(bd.giftCardId);
-        const gcSnap = await gcRef.get();
+        let gcRef = adminDb.collection('giftCards').doc(bd.giftCardId);
+        let gcSnap = await gcRef.get();
+        if (!gcSnap.exists) {
+            // Defensa extra: pendingBookings viejos pueden tener guardado el código en vez
+            // del id real (bug ya corregido en el punto de creación, ver chat/route.ts).
+            const byCode = await adminDb.collection('giftCards')
+                .where('code', '==', String(bd.giftCardId).trim().toUpperCase())
+                .limit(1)
+                .get();
+            if (!byCode.empty) {
+                gcSnap = byCode.docs[0];
+                gcRef = gcSnap.ref;
+            }
+        }
         if (gcSnap.exists) {
             const gcData = gcSnap.data()!;
             const newBalance = Math.max(0, (gcData.remainingBalance || 0) - bd.giftCardAmount);
@@ -67,6 +81,8 @@ export async function confirmBookingAndCreateAppointments({
                 gcUpdate.recipientName = booking.clientName;
             }
             batch.update(gcRef, gcUpdate);
+            giftCardApplied = true;
+            resolvedGiftCardRef = gcRef;
         }
     }
 
@@ -98,9 +114,9 @@ export async function confirmBookingAndCreateAppointments({
 
         const payments: any[] = [];
         if (extraPayment) payments.push({ ...extraPayment, date: today });
-        if (bd?.giftCardAmount > 0) {
+        if (giftCardApplied && bd?.giftCardAmount > 0) {
             payments.push({
-                id: `gc_${bd.giftCardId}`,
+                id: `gc_${resolvedGiftCardRef!.id}`,
                 amount: bd.giftCardAmount,
                 method: 'gift_card',
                 date: today,
@@ -160,8 +176,8 @@ export async function confirmBookingAndCreateAppointments({
     await batch.commit();
 
     // Linkear el appointmentId a la redemption de gift card (no se puede saber el id antes del batch)
-    if (bd?.giftCardId && bd?.giftCardAmount > 0 && appointmentIds.length > 0) {
-        const gcRef = adminDb.collection('giftCards').doc(bd.giftCardId);
+    if (giftCardApplied && resolvedGiftCardRef && appointmentIds.length > 0) {
+        const gcRef = resolvedGiftCardRef;
         const gcSnap = await gcRef.get();
         if (gcSnap.exists) {
             const redemptions = gcSnap.data()!.redemptions || [];

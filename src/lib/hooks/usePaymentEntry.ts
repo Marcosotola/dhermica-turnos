@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Payment } from '@/lib/types/appointment';
 import { GiftCard } from '@/lib/types/giftCard';
 import { ClientCredit } from '@/lib/types/clientCredit';
-import { getGiftCardByCode, redeemGiftCard } from '@/lib/firebase/giftCards';
+import { getGiftCardByCode, getGiftCardsByRecipient, redeemGiftCard } from '@/lib/firebase/giftCards';
 import { getClientCredits, useCredit } from '@/lib/firebase/clientCredits';
 
 function generatePaymentId(): string {
@@ -32,6 +32,11 @@ export function usePaymentEntry() {
     const [activeCredits, setActiveCredits] = useState<ClientCredit[]>([]);
     const [selectedCreditId, setSelectedCreditId] = useState('');
 
+    // Gift cards donde el cliente es el receptor y todavía tienen saldo — se ofrecen para
+    // aplicar igual que el "saldo a favor" de créditos, sin que el staff tenga que volver
+    // a tipear el código a mano (antes quedaban invisibles acá aunque tuvieran remanente).
+    const [linkedGiftCards, setLinkedGiftCards] = useState<GiftCard[]>([]);
+
     const resetGiftCardFields = () => {
         setGcCode('');
         setGcFound(null);
@@ -43,15 +48,24 @@ export function usePaymentEntry() {
         resetGiftCardFields();
         setSelectedCreditId('');
         setActiveCredits([]);
+        setLinkedGiftCards([]);
     };
 
     const fetchActiveCredits = (clientId: string, clientName?: string) => {
-        if (!clientId) { setActiveCredits([]); return; }
+        if (!clientId) { setActiveCredits([]); setLinkedGiftCards([]); return; }
         getClientCredits(clientId, clientName || '').then(credits => {
             setActiveCredits(credits.filter(c => c.status === 'available'));
         }).catch(err => {
             console.error('[Credits] Error al buscar créditos:', err);
             setActiveCredits([]);
+        });
+        getGiftCardsByRecipient(clientId, clientName).then(cards => {
+            setLinkedGiftCards(cards.filter(c =>
+                (c.status === 'active' || c.status === 'partially_used') && c.remainingBalance > 0
+            ));
+        }).catch(err => {
+            console.error('[GiftCards] Error al buscar gift cards vinculadas:', err);
+            setLinkedGiftCards([]);
         });
     };
 
@@ -141,12 +155,36 @@ export function usePaymentEntry() {
         return payment;
     };
 
-    /** Si el pago eliminado usaba un crédito, lo vuelve a traer a la lista de disponibles. */
+    /** Para el botón de aplicar directo el remanente de una gift card vinculada al cliente. */
+    const buildGiftCardPaymentQuickApply = (card: GiftCard, amountToApply: number, date: string): Payment => {
+        const payment: Payment = {
+            id: generatePaymentId(),
+            amount: amountToApply,
+            method: 'gift_card',
+            label: `Gift Card (${card.code})`,
+            bankAccount: null,
+            giftCardId: card.id,
+            date,
+            createdAt: new Date().toISOString() as any,
+        };
+        setLinkedGiftCards(prev => prev
+            .map(c => c.id === card.id ? { ...c, remainingBalance: c.remainingBalance - amountToApply } : c)
+            .filter(c => c.remainingBalance > 0));
+        return payment;
+    };
+
+    /** Si el pago eliminado usaba un crédito o gift card, lo vuelve a traer a la lista de disponibles. */
     const restoreCreditIfRemoved = (removed: Payment | undefined, clientId: string, clientName?: string) => {
         if (removed?.method === 'client_credit' && removed.creditId) {
             getClientCredits(clientId, clientName || '').then(credits => {
                 const restored = credits.find(c => c.id === removed.creditId && c.status === 'available');
                 if (restored) setActiveCredits(prev => [...prev, restored]);
+            }).catch(() => {});
+        }
+        if (removed?.method === 'gift_card' && removed.giftCardId) {
+            getGiftCardsByRecipient(clientId, clientName).then(cards => {
+                const restored = cards.find(c => c.id === removed.giftCardId && c.remainingBalance > 0);
+                if (restored) setLinkedGiftCards(prev => prev.some(c => c.id === restored.id) ? prev : [...prev, restored]);
             }).catch(() => {});
         }
     };
@@ -178,6 +216,7 @@ export function usePaymentEntry() {
         gcAmountToApply, setGcAmountToApply,
         activeCredits, setActiveCredits,
         selectedCreditId, setSelectedCreditId,
+        linkedGiftCards,
         resetGiftCardFields,
         resetAll,
         fetchActiveCredits,
@@ -185,6 +224,7 @@ export function usePaymentEntry() {
         buildGiftCardPayment,
         buildCreditPaymentFromSelected,
         buildCreditPaymentQuickApply,
+        buildGiftCardPaymentQuickApply,
         restoreCreditIfRemoved,
         settleRedemptions,
     };

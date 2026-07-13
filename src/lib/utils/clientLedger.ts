@@ -1,5 +1,6 @@
 import { Appointment } from '../types/appointment';
 import { ClientCredit } from '../types/clientCredit';
+import { GiftCard } from '../types/giftCard';
 
 // Turnos anteriores a esta fecha se excluyen del cálculo de saldo (no tenían registro de pagos)
 export const BALANCE_SINCE = '2026-05-01';
@@ -109,7 +110,8 @@ export function buildClientLedger(
 
 export function getClientLedgerSummary(
     appointments: Appointment[],
-    credits: ClientCredit[]
+    credits: ClientCredit[],
+    giftCards: GiftCard[] = []
 ): ClientLedgerSummary {
     const activeStatuses = new Set(['completed', 'pending', 'realizado']);
 
@@ -128,9 +130,14 @@ export function getClientLedgerSummary(
 
     const totalDebt = Math.max(0, totalBilled - totalPaid);
 
+    const today = new Date().toISOString().split('T')[0];
+    const availableGiftCardBalance = giftCards
+        .filter(g => (g.status === 'active' || g.status === 'partially_used') && (!g.expiryDate || g.expiryDate >= today))
+        .reduce((s, g) => s + g.remainingBalance, 0);
+
     const availableCredit = credits
         .filter(c => c.status === 'available')
-        .reduce((s, c) => s + c.amount, 0);
+        .reduce((s, c) => s + c.amount, 0) + availableGiftCardBalance;
 
     const netBalance = totalDebt - availableCredit;
 

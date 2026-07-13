@@ -478,8 +478,34 @@ async function runTool(name: string, args: any, clientId: string): Promise<strin
 
                 const depositAmount = args.depositAmount ?? 0;
                 const breakdown = args.depositBreakdown || { mercadopagoAmount: depositAmount };
+
+                // Gemini a veces manda el código que tipeó el cliente en vez del giftCardId real
+                // que devolvió validate_gift_card. Si no se corrige acá, bookingConfirmation.ts
+                // busca un doc con ese "id" y no lo encuentra: el descuento se saltea en silencio
+                // y la gift card queda intacta aunque el turno figure como pagado con ella.
+                if (breakdown.giftCardId) {
+                    let gcDoc = await adminDb.collection('giftCards').doc(breakdown.giftCardId).get();
+                    if (!gcDoc.exists) {
+                        const byCode = await adminDb.collection('giftCards')
+                            .where('code', '==', String(breakdown.giftCardId).trim().toUpperCase())
+                            .limit(1)
+                            .get();
+                        if (!byCode.empty) gcDoc = byCode.docs[0];
+                    }
+                    if (gcDoc.exists) {
+                        breakdown.giftCardId = gcDoc.id;
+                        const remaining = gcDoc.data()!.remainingBalance ?? 0;
+                        breakdown.giftCardAmount = Math.max(0, Math.min(breakdown.giftCardAmount || 0, remaining));
+                    } else {
+                        delete breakdown.giftCardId;
+                        breakdown.giftCardAmount = 0;
+                    }
+                }
+
                 const creditUsed = breakdown.clientCreditAmount || 0;
-                const giftCardUsed = breakdown.giftCardAmount || 0;
+                // La gift card nunca debe descontarse por más de lo que falta cubrir de la seña
+                const giftCardUsed = Math.max(0, Math.min(breakdown.giftCardAmount || 0, depositAmount - creditUsed));
+                breakdown.giftCardAmount = giftCardUsed;
                 breakdown.mercadopagoAmount = Math.max(0, depositAmount - creditUsed - giftCardUsed);
 
                 const pendingId = await createPendingBookingAdmin({
