@@ -31,8 +31,7 @@ export default function ReservarPage() {
 
     useEffect(() => {
         if (!loading && !user) router.push('/');
-        if (!loading && user && profile?.role !== 'cliente-prueba') router.push('/dashboard');
-    }, [user, profile, loading, router]);
+    }, [user, loading, router]);
 
     useEffect(() => {
         bottomRef.current?.scrollIntoView({ behavior: 'smooth' });

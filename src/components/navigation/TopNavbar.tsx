@@ -70,6 +70,7 @@ export function TopNavbar() {
 
     const navLinks: NavLink[] = [
         { href: '/dashboard', label: 'Panel', icon: LayoutDashboard },
+        { href: '/reservar', label: 'Reservar', icon: CalendarPlus },
         // Admin only - in dashboard order
         ...(role === 'admin' ? [
             { href: '/turnos', label: 'Turnos', icon: Calendar },
@@ -121,7 +122,6 @@ export function TopNavbar() {
         ] : []),
         // Client and Promotor
         ...(role === 'client' || role === 'cliente-prueba' || role === 'promotor' ? [
-            ...(role === 'cliente-prueba' ? [{ href: '/reservar', label: 'Reservar', icon: CalendarPlus }] : []),
             { href: '/mis-turnos', label: 'Mis Turnos', icon: Calendar },
             { href: '/tratamientos', label: 'Servicios', icon: Sparkles },
             { href: '/productos', label: 'Productos', icon: ShoppingBag },
