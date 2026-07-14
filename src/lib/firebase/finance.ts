@@ -220,7 +220,7 @@ export async function getFinanceOverview(startDate: string, endDate: string, tar
         const totalPaid = paymentsArray.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
         const actualPrice = Number(apt.price) || totalPaid;
 
-        if (paymentsArray.length > 0) {
+        if (isCompleted && paymentsArray.length > 0) {
             paymentsArray.forEach(p => {
                 const pDate = (p.date || '').substring(0, 10);
                 if (!pDate || pDate < startDate || pDate > endDate) return;
@@ -243,9 +243,9 @@ export async function getFinanceOverview(startDate: string, endDate: string, tar
                     referenceType: 'appointment',
                 });
             });
-        } else if (isAptInDateRange) {
+        } else if (isCompleted && isAptInDateRange) {
             // Legacy: turno sin array de pagos — usar fecha del turno
-            const amount = apt.isPaid || isCompleted ? actualPrice : 0;
+            const amount = actualPrice;
             if (amount > 0) {
                 allMovements.push({
                     id: `apt_service_${apt.id}`,
