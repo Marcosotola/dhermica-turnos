@@ -57,6 +57,10 @@ export interface Egreso {
     payments?: EgresoPayment[];
     paymentMethod: 'cash' | 'transfer' | 'debit' | 'credit' | 'qr';
     bankAccount?: 'cuenta1' | 'cuenta2' | null;
+    isCommissionPayment?: boolean;
+    professionalId?: string;
+    commissionPeriodStart?: string; // YYYY-MM-DD
+    commissionPeriodEnd?: string; // YYYY-MM-DD
     createdAt: Date;
     updatedAt: Date;
 }

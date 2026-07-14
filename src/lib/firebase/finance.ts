@@ -2,7 +2,7 @@ import { getSalesByDateRange } from './sales';
 import { getAppointmentsByDateRange, getAppointmentsByProfessionalId } from './appointments';
 import { getRentalsByDateRange } from './rentals';
 import { getAparatoSessionsByDateRange } from './aparatos';
-import { getEgresosByDateRange } from './egresos';
+import { getEgresosByDateRange, getCommissionPaymentEgresos } from './egresos';
 import { getProfessionals } from './professionals';
 import { getGiftCardsByDateRange } from './giftCards';
 import { Appointment } from '../types/appointment';
@@ -104,12 +104,13 @@ async function fetchAppointmentsForFinance(
 }
 
 export async function getFinanceOverview(startDate: string, endDate: string, targetProfessionalId?: string): Promise<FinanceOverview> {
-    const [appointments, sales, rentals, aparatos, egresos, giftCards, allProfessionals, admins, secretaries, promotors, profUsers] = await Promise.all([
+    const [appointments, sales, rentals, aparatos, egresos, commissionPayments, giftCards, allProfessionals, admins, secretaries, promotors, profUsers] = await Promise.all([
         fetchAppointmentsForFinance(startDate, endDate, targetProfessionalId).catch(() => [] as Appointment[]),
         getSalesByDateRange(startDate, endDate).catch(() => [] as Sale[]),
         getRentalsByDateRange(startDate, endDate).catch(() => [] as Rental[]),
         getAparatoSessionsByDateRange(startDate, endDate).catch(() => [] as AparatoSession[]),
         getEgresosByDateRange(startDate, endDate).catch(() => [] as Egreso[]),
+        getCommissionPaymentEgresos().catch(() => [] as Egreso[]),
         getGiftCardsByDateRange(startDate, endDate).catch(() => [] as GiftCard[]),
         getProfessionals().catch(() => [] as Professional[]),
         getUsersByRole('admin').catch(() => []),
@@ -457,6 +458,14 @@ export async function getFinanceOverview(startDate: string, endDate: string, tar
         registeredAparatoFees[profName] = (registeredAparatoFees[profName] || 0) + fee;
     });
 
+    // Comisiones ya liquidadas para este mismo profesional + este mismo período consultado
+    const liquidatedByKey: Record<string, number> = {};
+    commissionPayments.forEach(e => {
+        if (!e.professionalId || !e.commissionPeriodStart || !e.commissionPeriodEnd) return;
+        const key = `${e.professionalId}|${e.commissionPeriodStart}|${e.commissionPeriodEnd}`;
+        liquidatedByKey[key] = (liquidatedByKey[key] || 0) + (Number(e.amount) || 0);
+    });
+
     Object.values(overview.byProfessional).forEach((data) => {
         const alreadyPaid = registeredAparatoFees[data.name] || 0;
         const pendingAparatoFee = Math.max(0, data.aparatoFee - alreadyPaid);
@@ -464,8 +473,11 @@ export async function getFinanceOverview(startDate: string, endDate: string, tar
         // totalCommission = total ganado (para mostrar en el desglose de comisiones)
         data.totalCommission = data.serviceCommission + data.productCommission + data.rentalCommission + data.aparatoFee;
 
+        const prof = nameToProfessional[data.name];
+        const alreadyLiquidated = prof ? (liquidatedByKey[`${prof.id}|${startDate}|${endDate}`] || 0) : 0;
+
         // Solo crear movimiento pendiente por lo que NO se pagó aún
-        const virtualCommissionToPay = data.serviceCommission + data.productCommission + data.rentalCommission + pendingAparatoFee;
+        const virtualCommissionToPay = Math.max(0, data.serviceCommission + data.productCommission + data.rentalCommission + pendingAparatoFee - alreadyLiquidated);
 
         if (virtualCommissionToPay > 0) {
             overview.totalProfCommissions += virtualCommissionToPay;
@@ -477,6 +489,7 @@ export async function getFinanceOverview(startDate: string, endDate: string, tar
                 description: `Comisión (Pendiente): ${data.name}`,
                 method: 'cash',
                 amount: virtualCommissionToPay,
+                referenceId: prof?.id,
                 referenceType: 'commission',
             });
         }

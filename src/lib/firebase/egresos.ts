@@ -85,6 +85,12 @@ export async function getAllEgresos(): Promise<Egreso[]> {
     return snap.docs.map(mapDoc);
 }
 
+export async function getCommissionPaymentEgresos(): Promise<Egreso[]> {
+    const q = query(collection(db, EGRESOS_COLLECTION), where('isCommissionPayment', '==', true));
+    const snap = await getDocs(q);
+    return snap.docs.map(mapDoc);
+}
+
 export async function getEgresosByDateRange(
     startDate: string,
     endDate: string

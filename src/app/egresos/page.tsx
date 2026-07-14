@@ -10,7 +10,7 @@ import {
     updateEgreso, 
     deleteEgreso 
 } from '@/lib/firebase/egresos';
-import { getFinanceOverview, FinanceOverview } from '@/lib/firebase/finance';
+import { getFinanceOverview, FinanceOverview, FinanceMovement } from '@/lib/firebase/finance';
 import {
     Egreso,
     EgresoCategory,
@@ -29,6 +29,7 @@ import {
     ChevronRight,
     Calendar,
     FileText,
+    CheckCircle2,
 } from 'lucide-react';
 import { toast, Toaster } from 'sonner';
 import { TopNavbar } from '@/components/navigation/TopNavbar';
@@ -91,6 +92,12 @@ export default function EgresosPage() {
     const [form, setForm] = useState<EgresoForm>(getDefaultForm);
     const [saving, setSaving] = useState(false);
     const [financeOverview, setFinanceOverview] = useState<FinanceOverview | null>(null);
+
+    // Liquidación de comisiones
+    const [liquidateModalOpen, setLiquidateModalOpen] = useState(false);
+    const [liquidatingMovement, setLiquidatingMovement] = useState<FinanceMovement | null>(null);
+    const [liquidatePayments, setLiquidatePayments] = useState<EgresoFormPayment[]>([]);
+    const [liquidating, setLiquidating] = useState(false);
 
     // Filtros
     const [filterRange, setFilterRange] = useState<'day' | 'week' | 'month' | 'all'>('month');
@@ -245,6 +252,67 @@ export default function EgresosPage() {
         }
     }
 
+    function openLiquidate(comm: FinanceMovement) {
+        setLiquidatingMovement(comm);
+        setLiquidatePayments([{ id: Date.now().toString(), method: 'cash', amount: String(comm.amount), bankAccount: null }]);
+        setLiquidateModalOpen(true);
+    }
+
+    async function handleLiquidate() {
+        if (!liquidatingMovement || !liquidatingMovement.referenceId) return;
+
+        const amount = liquidatePayments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+        const hasInvalidPayment = liquidatePayments.some(p =>
+            !p.amount || Number(p.amount) <= 0 ||
+            ((p.method === 'transfer' || p.method === 'qr' || p.method === 'debit') && !p.bankAccount)
+        );
+
+        if (liquidatePayments.length === 0 || amount <= 0 || hasInvalidPayment) {
+            toast.error('Completá el monto y el método de pago de cada pago');
+            return;
+        }
+
+        if (amount > liquidatingMovement.amount + 0.01) {
+            toast.error('El monto no puede superar la comisión pendiente');
+            return;
+        }
+
+        setLiquidating(true);
+        try {
+            const { start, end } = getDateRange();
+            const professionalName = liquidatingMovement.description.replace('Comisión (Pendiente): ', '');
+            const payments = liquidatePayments.map(p => ({
+                id: p.id,
+                method: p.method,
+                amount: Number(p.amount),
+                bankAccount: p.method !== 'cash' ? (p.bankAccount || 'cuenta1') : null,
+            }));
+
+            await createEgreso({
+                date: todayStr(),
+                category: 'sueldos',
+                amount,
+                description: `Liquidación comisión: ${professionalName}`,
+                payments,
+                paymentMethod: payments[0].method,
+                bankAccount: payments[0].bankAccount,
+                professionalId: liquidatingMovement.referenceId,
+                isCommissionPayment: true,
+                commissionPeriodStart: start,
+                commissionPeriodEnd: end,
+            });
+
+            toast.success('Comisión liquidada');
+            setLiquidateModalOpen(false);
+            loadData();
+        } catch (error) {
+            console.error('Error liquidando comisión:', error);
+            toast.error('Error al liquidar la comisión');
+        } finally {
+            setLiquidating(false);
+        }
+    }
+
     const totalAmount = egresos.reduce((s, e) => s + (Number(e.amount) || 0), 0) + (financeOverview?.totalProfCommissions || 0);
 
     if (authLoading || !(profile?.role === 'admin' || profile?.role === 'secretary')) {
@@ -356,7 +424,17 @@ export default function EgresosPage() {
                                     </div>
                                     <div className="text-right flex flex-col items-end gap-2">
                                         <span className="text-red-500 font-black text-lg">$ {formatCurrency(comm.amount).replace('$', '').trim()}</span>
-                                        <span className="text-[8px] font-black uppercase text-amber-500 bg-amber-50 px-2 py-0.5 rounded-full">Automático</span>
+                                        {comm.referenceId ? (
+                                            <button
+                                                onClick={() => openLiquidate(comm)}
+                                                className="inline-flex items-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-white px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-sm border border-amber-600/20"
+                                            >
+                                                <DollarSign className="w-3 h-3" />
+                                                Liquidar
+                                            </button>
+                                        ) : (
+                                            <span className="text-[8px] font-black uppercase text-amber-500 bg-amber-50 px-2 py-0.5 rounded-full">Automático</span>
+                                        )}
                                     </div>
                                 </div>
                             ))
@@ -599,6 +677,131 @@ export default function EgresosPage() {
                                 className="w-full bg-[#34baab] hover:bg-[#2a968a] text-white font-black py-4 rounded-2xl transition-all active:scale-95 disabled:opacity-50"
                             >
                                 {saving ? 'Guardando...' : editingId ? 'Guardar Cambios' : 'Registrar Egreso'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal Liquidar Comisión */}
+            {liquidateModalOpen && liquidatingMovement && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-8 space-y-5">
+                        <div className="flex items-center gap-3 mb-2">
+                            <div className="w-10 h-10 bg-[#34baab]/20 rounded-full flex items-center justify-center">
+                                <CheckCircle2 className="w-6 h-6 text-[#34baab]" />
+                            </div>
+                            <h2 className="text-2xl font-black text-gray-900">Liquidar Comisión</h2>
+                        </div>
+
+                        <p className="text-sm text-gray-500 font-medium">
+                            Registrá el pago para <span className="font-bold text-gray-700">{liquidatingMovement.description.replace('Comisión (Pendiente): ', '')}</span> por el período mostrado. Pendiente: <span className="font-bold text-gray-700">{formatCurrency(liquidatingMovement.amount)}</span>
+                        </p>
+
+                        <div className="pt-2 max-h-[50vh] overflow-y-auto pr-1 -mr-1">
+                            <div className="flex items-center justify-between mb-3">
+                                <label className="text-xs font-black uppercase tracking-widest text-gray-500">Desglose de Pagos *</label>
+                                <button
+                                    onClick={() => setLiquidatePayments(p => [...p, { id: Date.now().toString(), method: 'cash', amount: '', bankAccount: null }])}
+                                    className="text-[10px] font-black uppercase tracking-widest bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-xl transition-colors flex items-center gap-1.5 text-gray-600"
+                                >
+                                    <Plus className="w-3 h-3" /> Agregar Pago
+                                </button>
+                            </div>
+
+                            <div className="space-y-3">
+                                {liquidatePayments.map((p, idx) => (
+                                    <div key={p.id} className="bg-gray-50 rounded-2xl p-4 border border-gray-100 relative">
+                                        {liquidatePayments.length > 1 && (
+                                            <button
+                                                aria-label="Eliminar pago"
+                                                onClick={() => setLiquidatePayments(ps => ps.filter(pay => pay.id !== p.id))}
+                                                className="absolute -top-2 -right-2 bg-white border border-gray-200 text-red-500 p-1.5 rounded-full shadow-sm hover:bg-red-50 transition-colors"
+                                            >
+                                                <X className="w-3 h-3" />
+                                            </button>
+                                        )}
+
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div>
+                                                <label htmlFor={`liq-method-${idx}`} className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1 block">Medio</label>
+                                                <select
+                                                    id={`liq-method-${idx}`}
+                                                    value={p.method}
+                                                    onChange={e => {
+                                                        const method = e.target.value as EgresoFormPayment['method'];
+                                                        setLiquidatePayments(ps => ps.map((pay, i) => i !== idx ? pay : {
+                                                            ...pay,
+                                                            method,
+                                                            bankAccount: method === 'cash' ? null : pay.bankAccount,
+                                                        }));
+                                                    }}
+                                                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#34baab] bg-white"
+                                                >
+                                                    {Object.entries(PAYMENT_LABELS).map(([val, label]) => (
+                                                        <option key={val} value={val}>{label}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label htmlFor={`liq-amount-${idx}`} className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1 block">Monto</label>
+                                                <input
+                                                    id={`liq-amount-${idx}`}
+                                                    type="number"
+                                                    min="0"
+                                                    value={p.amount}
+                                                    onChange={e => {
+                                                        const amount = e.target.value;
+                                                        setLiquidatePayments(ps => ps.map((pay, i) => i !== idx ? pay : { ...pay, amount }));
+                                                    }}
+                                                    placeholder="0"
+                                                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-[#34baab] bg-white"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        {p.method !== 'cash' && (
+                                            <div className="mt-3">
+                                                <label htmlFor={`liq-account-${idx}`} className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1 block">Cuenta</label>
+                                                <select
+                                                    id={`liq-account-${idx}`}
+                                                    value={p.bankAccount || 'cuenta1'}
+                                                    onChange={e => {
+                                                        const bankAccount = e.target.value as NonNullable<EgresoFormPayment['bankAccount']>;
+                                                        setLiquidatePayments(ps => ps.map((pay, i) => i !== idx ? pay : { ...pay, bankAccount }));
+                                                    }}
+                                                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#34baab] bg-white"
+                                                >
+                                                    <option value="cuenta1">Cuenta 1</option>
+                                                    <option value="cuenta2">Cuenta 2</option>
+                                                </select>
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="flex justify-between items-center px-1">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Total a Liquidar:</span>
+                            <span className="text-lg font-black text-[#34baab]">
+                                {formatCurrency(liquidatePayments.reduce((s, p) => s + (Number(p.amount) || 0), 0))}
+                            </span>
+                        </div>
+
+                        <div className="flex gap-3 pt-2">
+                            <button
+                                onClick={() => setLiquidateModalOpen(false)}
+                                className="flex-1 py-3 rounded-2xl border border-gray-200 font-bold text-gray-600 hover:bg-gray-50 transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={handleLiquidate}
+                                disabled={liquidating}
+                                className="flex-1 py-3 rounded-2xl bg-[#34baab] hover:bg-[#2da598] text-white font-bold transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
+                            >
+                                {liquidating ? 'Liquidando...' : 'Confirmar Pago'}
                             </button>
                         </div>
                     </div>

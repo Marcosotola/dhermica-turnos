@@ -143,6 +143,8 @@ export default function FinanzasPage() {
         } else if (m.referenceType === 'egreso') {
             setSelectedMovement(m);
             setShowEgresoDetail(true);
+        } else if (m.referenceType === 'commission') {
+            router.push('/egresos');
         }
     };
 
@@ -580,7 +582,7 @@ export default function FinanzasPage() {
                                             .map((m, idx) => (
                                             <tr
                                                 key={m.id + idx}
-                                                className={`transition-colors hover:bg-gray-50 ${(m.referenceType === 'appointment' || m.referenceType === 'egreso') ? 'cursor-pointer' : ''}`}
+                                                className={`transition-colors hover:bg-gray-50 ${(m.referenceType === 'appointment' || m.referenceType === 'egreso' || m.referenceType === 'commission') ? 'cursor-pointer' : ''}`}
                                                 onClick={() => handleMovementClick(m)}
                                             >
                                                 <td className="px-2 py-3">
