@@ -26,6 +26,7 @@ export interface FinanceMovement {
     balance?: number;
     referenceId?: string;
     referenceType?: 'appointment' | 'egreso' | 'sale' | 'rental' | 'commission' | 'gift_card';
+    isPending?: boolean;
 }
 
 export interface FinanceOverview {
@@ -494,11 +495,15 @@ export async function getFinanceOverview(startDate: string, endDate: string, tar
                 amount: virtualCommissionToPay,
                 referenceId: prof?.id,
                 referenceType: 'commission',
+                isPending: true,
             });
         }
     });
 
     // 7. Totales Finales
+    // Las comisiones pendientes (isPending) son proyecciones de lo que se le debe a cada
+    // profesional: todavía no salió plata de la caja, así que no deben sumar a los totales
+    // de egresos ni afectar el saldo hasta que se liquiden (createEgreso con isCommissionPayment).
     allMovements.forEach(m => {
         if (m.type === 'ingreso') {
             overview.totalIncome += m.amount;
@@ -511,23 +516,22 @@ export async function getFinanceOverview(startDate: string, endDate: string, tar
             if (m.method && overview.byMethod[m.method] !== undefined) overview.byMethod[m.method] += m.amount;
             const mKeyInc = resolveMethodKey(m.method, m.bankAccount);
             if (mKeyInc in overview.incomeByMethodDetailed) overview.incomeByMethodDetailed[mKeyInc] += m.amount;
-        } else {
-            if (!m.id.startsWith('comm_')) {
-                overview.totalEgresos += m.amount;
-                if (m.category) overview.egresosByCategory[m.category] = (overview.egresosByCategory[m.category] || 0) + m.amount;
-                const mKeyExp = resolveMethodKey(m.method, m.bankAccount);
-                if (mKeyExp in overview.egresosByMethod) overview.egresosByMethod[mKeyExp] += m.amount;
-            }
+        } else if (!m.isPending) {
+            overview.totalEgresos += m.amount;
+            if (m.category) overview.egresosByCategory[m.category] = (overview.egresosByCategory[m.category] || 0) + m.amount;
+            const mKeyExp = resolveMethodKey(m.method, m.bankAccount);
+            if (mKeyExp in overview.egresosByMethod) overview.egresosByMethod[mKeyExp] += m.amount;
             if (m.method && overview.byMethod[m.method] !== undefined) overview.byMethod[m.method] -= m.amount;
         }
     });
 
-    overview.totalEgresosGeneral = overview.totalEgresos + overview.totalProfCommissions;
+    overview.totalEgresosGeneral = overview.totalEgresos;
     overview.saldo = overview.totalIncome - overview.totalEgresosGeneral;
 
     allMovements.sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
     let runningBalance = 0;
     overview.movements = allMovements.map(m => {
+        if (m.isPending) return { ...m, balance: runningBalance };
         if (m.type === 'ingreso') runningBalance += m.amount;
         else runningBalance -= m.amount;
         return { ...m, balance: runningBalance };

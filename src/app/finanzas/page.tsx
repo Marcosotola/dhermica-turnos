@@ -263,6 +263,8 @@ export default function FinanzasPage() {
         }
     });
 
+    const ledgerMovements = (overview?.movements || []).filter(m => !m.isPending);
+
     const methodLabels: Record<string, string> = {
         cash: 'Efectivo',
         cuenta1: 'Cuenta 1',
@@ -445,9 +447,7 @@ export default function FinanzasPage() {
                                 </button>
                                 {expandedMetric === 'saldo' && (() => {
                                     const saldoByMethod = Object.keys(overview?.incomeByMethodDetailed || {}).reduce((acc, key) => {
-                                        // commissions are virtual egresos assigned to cash — subtract them from cash bucket so totals match
-                                        const commAdj = key === 'cash' ? (overview!.totalProfCommissions || 0) : 0;
-                                        const net = (overview!.incomeByMethodDetailed[key] || 0) - (overview!.egresosByMethod[key] || 0) - commAdj;
+                                        const net = (overview!.incomeByMethodDetailed[key] || 0) - (overview!.egresosByMethod[key] || 0);
                                         if (net !== 0) acc[key] = net;
                                         return acc;
                                     }, {} as Record<string, number>);
@@ -678,7 +678,7 @@ export default function FinanzasPage() {
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-50">
-                                        {overview?.movements
+                                        {ledgerMovements
                                             .filter(m => typeFilter === 'all' || m.type === typeFilter)
                                             .slice(0, visibleMovements)
                                             .map((m, idx) => (
@@ -731,7 +731,7 @@ export default function FinanzasPage() {
                                 </table>
                             </div>
 
-                            {overview && overview.movements.length > visibleMovements && (
+                            {ledgerMovements.length > visibleMovements && (
                                 <div className="mt-8 flex justify-center">
                                     <button
                                         type="button"
@@ -743,7 +743,7 @@ export default function FinanzasPage() {
                                 </div>
                             )}
 
-                            {overview?.movements.length === 0 && (
+                            {ledgerMovements.length === 0 && (
                                 <div className="py-8 text-center text-gray-400 italic text-xs">
                                     Sin movimientos en este periodo.
                                 </div>

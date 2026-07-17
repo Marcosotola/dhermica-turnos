@@ -100,7 +100,7 @@ export default function EgresosPage() {
     const [liquidating, setLiquidating] = useState(false);
 
     // Filtros
-    const [filterRange, setFilterRange] = useState<'day' | 'week' | 'month' | 'all'>('month');
+    const [filterRange, setFilterRange] = useState<'day' | 'week' | 'month' | 'all'>('day');
     const [currentDate, setCurrentDate] = useState(new Date());
 
     useEffect(() => {
@@ -308,7 +308,7 @@ export default function EgresosPage() {
         }
     }
 
-    const totalAmount = egresos.reduce((s, e) => s + (Number(e.amount) || 0), 0) + (financeOverview?.totalProfCommissions || 0);
+    const totalAmount = egresos.reduce((s, e) => s + (Number(e.amount) || 0), 0);
 
     if (authLoading || !(profile?.role === 'admin' || profile?.role === 'secretary')) {
         return (
