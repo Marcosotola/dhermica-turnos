@@ -34,7 +34,7 @@ import {
 import { toast, Toaster } from 'sonner';
 import { TopNavbar } from '@/components/navigation/TopNavbar';
 import { formatDate, getTodayDate, getDayWeekMonthRange } from '@/lib/utils/time';
-import { formatCurrencyWithSymbol as formatCurrency } from '@/lib/utils/currency';
+import { formatCurrencyWithSymbol as formatCurrency, sanitizeDecimalInput } from '@/lib/utils/currency';
 import { formatPaymentMethod } from '@/lib/utils/clientLedger';
 
 const PAYMENT_LABELS: Record<string, string> = {
@@ -269,11 +269,6 @@ export default function EgresosPage() {
 
         if (liquidatePayments.length === 0 || amount <= 0 || hasInvalidPayment) {
             toast.error('Completá el monto y el método de pago de cada pago');
-            return;
-        }
-
-        if (amount > liquidatingMovement.amount + 0.01) {
-            toast.error('El monto no puede superar la comisión pendiente');
             return;
         }
 
@@ -695,7 +690,7 @@ export default function EgresosPage() {
                         </div>
 
                         <p className="text-sm text-gray-500 font-medium">
-                            Registrá el pago para <span className="font-bold text-gray-700">{liquidatingMovement.description.replace('Comisión (Pendiente): ', '')}</span> por el período mostrado. Pendiente: <span className="font-bold text-gray-700">{formatCurrency(liquidatingMovement.amount)}</span>
+                            Registrá el pago para <span className="font-bold text-gray-700">{liquidatingMovement.description.replace('Comisión (Pendiente): ', '')}</span> por el período mostrado. Comisión calculada: <span className="font-bold text-gray-700">{formatCurrency(liquidatingMovement.amount)}</span>. Podés ajustar el monto final para sumar un incentivo o aplicar un descuento.
                         </p>
 
                         <div className="pt-2 max-h-[50vh] overflow-y-auto pr-1 -mr-1">
@@ -747,11 +742,11 @@ export default function EgresosPage() {
                                                 <label htmlFor={`liq-amount-${idx}`} className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1 block">Monto</label>
                                                 <input
                                                     id={`liq-amount-${idx}`}
-                                                    type="number"
-                                                    min="0"
+                                                    type="text"
+                                                    inputMode="decimal"
                                                     value={p.amount}
                                                     onChange={e => {
-                                                        const amount = e.target.value;
+                                                        const amount = sanitizeDecimalInput(e.target.value);
                                                         setLiquidatePayments(ps => ps.map((pay, i) => i !== idx ? pay : { ...pay, amount }));
                                                     }}
                                                     placeholder="0"

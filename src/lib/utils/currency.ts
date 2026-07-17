@@ -35,3 +35,22 @@ export function formatCurrencyWithSymbol(value: number | undefined | null): stri
     if (value === undefined || value === null) return '$0';
     return `$${formatArgentineCurrency(value)}`;
 }
+
+/**
+ * Sanitizes freeform amount typing for text inputs with inputMode="decimal".
+ * Some mobile keyboards insert "," and others "." as the decimal key regardless of
+ * app locale, and a native <input type="number"> silently reports an empty value
+ * (not an error) when it gets a character it doesn't expect - so plain type="number"
+ * inputs looked "filled in" to the user while actually holding an empty string.
+ * This treats whichever separator (. or ,) is typed first as the decimal point and
+ * strips any further separators, so typing works regardless of keyboard locale.
+ */
+export function sanitizeDecimalInput(raw: string): string {
+    const cleaned = raw.replace(/[^\d.,]/g, '');
+    const sepIndex = cleaned.search(/[.,]/);
+    if (sepIndex === -1) return cleaned;
+
+    const intPart = cleaned.slice(0, sepIndex).replace(/[.,]/g, '');
+    const fracPart = cleaned.slice(sepIndex + 1).replace(/[.,]/g, '');
+    return `${intPart}.${fracPart}`;
+}
