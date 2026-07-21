@@ -920,7 +920,7 @@ export function AppointmentModal({
                                     <span className="text-xs font-black text-gray-900 uppercase tracking-tighter">{p.label}</span>
                                     <span className="text-[10px] text-gray-500">
                                         {p.method === 'cash' ? 'EFECTIVO' : p.method === 'transfer' ? 'TRANSFERENCIA' : p.method === 'debit' ? 'DÉBITO' : p.method === 'credit' ? 'CRÉDITO' : p.method === 'gift_card' ? 'GIFT CARD' : p.method === 'client_credit' ? 'SALDO A FAVOR' : p.method.toUpperCase()}
-                                        {p.bankAccount && ` (${p.bankAccount === 'cuenta1' ? 'CTA 1' : 'CTA 2'})`} • {(() => {
+                                        {p.bankAccount && ` (${p.bankAccount === 'cuenta1' ? 'BRUBANK' : 'REBA'})`} • {(() => {
                                             const parts = p.date.split('-');
                                             return parts.length === 3 ? `${parts[2]}-${parts[1]}-${parts[0]}` : p.date;
                                         })()}
@@ -1058,8 +1058,8 @@ export function AppointmentModal({
                                                 value={newPayment.bankAccount}
                                                 onChange={(e) => setNewPayment({ ...newPayment, bankAccount: e.target.value as any })}
                                                 options={[
-                                                    { value: 'cuenta1', label: 'Cuenta 1' },
-                                                    { value: 'cuenta2', label: 'Cuenta 2' },
+                                                    { value: 'cuenta1', label: 'Cuenta Brubank' },
+                                                    { value: 'cuenta2', label: 'Cuenta Reba' },
                                                 ]}
                                             />
                                         ) : (

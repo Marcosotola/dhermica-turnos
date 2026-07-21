@@ -267,8 +267,8 @@ export default function FinanzasPage() {
 
     const methodLabels: Record<string, string> = {
         cash: 'Efectivo',
-        cuenta1: 'Cuenta 1',
-        cuenta2: 'Cuenta 2',
+        cuenta1: 'Cuenta Brubank',
+        cuenta2: 'Cuenta Reba',
         debit: 'Débito',
         credit: 'Crédito',
         qr: 'QR / Digital',
@@ -712,7 +712,7 @@ export default function FinanzasPage() {
                                                         </span>
                                                         {m.bankAccount && (
                                                             <span className="text-[10px] font-black text-[#34baab] uppercase">
-                                                                {m.bankAccount === 'cuenta1' ? 'Cta 1' : 'Cta 2'}
+                                                                {m.bankAccount === 'cuenta1' ? 'Brubank' : 'Reba'}
                                                             </span>
                                                         )}
                                                     </div>
@@ -911,8 +911,8 @@ export default function FinanzasPage() {
                                                 }}
                                                 className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#34baab] bg-white"
                                             >
-                                                <option value="cuenta1">Cuenta 1</option>
-                                                <option value="cuenta2">Cuenta 2</option>
+                                                <option value="cuenta1">Cuenta Brubank</option>
+                                                <option value="cuenta2">Cuenta Reba</option>
                                             </select>
                                         </div>
                                     )}

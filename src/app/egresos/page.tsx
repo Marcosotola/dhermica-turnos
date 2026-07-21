@@ -458,12 +458,12 @@ export default function EgresosPage() {
                                         {e.payments && e.payments.length > 0 ? (
                                             e.payments.map((p, idx) => (
                                                 <p key={idx} className="text-xs text-gray-400 font-medium">
-                                                    {formatPaymentMethod(p.method)} {p.bankAccount && `(${p.bankAccount === 'cuenta1' ? 'Cta 1' : 'Cta 2'})`}: {formatCurrency(p.amount)}
+                                                    {formatPaymentMethod(p.method)} {p.bankAccount && `(${p.bankAccount === 'cuenta1' ? 'Brubank' : 'Reba'})`}: {formatCurrency(p.amount)}
                                                 </p>
                                             ))
                                         ) : (
                                             <p className="text-xs text-gray-400 font-medium">
-                                                {formatPaymentMethod(e.paymentMethod)} {e.bankAccount && `(${e.bankAccount === 'cuenta1' ? 'Cta 1' : 'Cta 2'})`}
+                                                {formatPaymentMethod(e.paymentMethod)} {e.bankAccount && `(${e.bankAccount === 'cuenta1' ? 'Brubank' : 'Reba'})`}
                                             </p>
                                         )}
                                     </div>
@@ -631,8 +631,8 @@ export default function EgresosPage() {
                                                         }}
                                                         className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#34baab] bg-white"
                                                     >
-                                                        <option value="cuenta1">Cuenta 1</option>
-                                                        <option value="cuenta2">Cuenta 2</option>
+                                                        <option value="cuenta1">Cuenta Brubank</option>
+                                                        <option value="cuenta2">Cuenta Reba</option>
                                                     </select>
                                                 </div>
                                             )}
@@ -767,8 +767,8 @@ export default function EgresosPage() {
                                                     }}
                                                     className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#34baab] bg-white"
                                                 >
-                                                    <option value="cuenta1">Cuenta 1</option>
-                                                    <option value="cuenta2">Cuenta 2</option>
+                                                    <option value="cuenta1">Cuenta Brubank</option>
+                                                    <option value="cuenta2">Cuenta Reba</option>
                                                 </select>
                                             </div>
                                         )}

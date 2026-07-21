@@ -679,8 +679,8 @@ export default function AparatosPage() {
                                                         }}
                                                         className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white"
                                                     >
-                                                        <option value="cuenta1">Cuenta 1</option>
-                                                        <option value="cuenta2">Cuenta 2</option>
+                                                        <option value="cuenta1">Cuenta Brubank</option>
+                                                        <option value="cuenta2">Cuenta Reba</option>
                                                     </select>
                                                 </div>
                                             )}
@@ -820,8 +820,8 @@ export default function AparatosPage() {
                                                     }}
                                                     className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#34baab] bg-white"
                                                 >
-                                                    <option value="cuenta1">Cuenta 1</option>
-                                                    <option value="cuenta2">Cuenta 2</option>
+                                                    <option value="cuenta1">Cuenta Brubank</option>
+                                                    <option value="cuenta2">Cuenta Reba</option>
                                                 </select>
                                             </div>
                                         )}
@@ -903,7 +903,7 @@ export default function AparatosPage() {
                                                     <div key={p.id || idx} className="flex items-center justify-between">
                                                         <span className="text-xs font-bold text-gray-600 uppercase tracking-widest">
                                                             {formatPaymentMethod(p.method)}
-                                                            {p.bankAccount && ` (${p.bankAccount === 'cuenta1' ? 'Cta 1' : 'Cta 2'})`}
+                                                            {p.bankAccount && ` (${p.bankAccount === 'cuenta1' ? 'Brubank' : 'Reba'})`}
                                                         </span>
                                                         <span className="text-xs font-bold text-gray-600">{formatCurrency(p.amount)}</span>
                                                     </div>
@@ -921,7 +921,7 @@ export default function AparatosPage() {
                                                     <div className="flex items-center justify-between">
                                                         <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Cuenta</span>
                                                         <span className="text-xs font-bold text-gray-600 italic">
-                                                            {selectedSession.bankAccount === 'cuenta1' ? 'Cuenta 1' : 'Cuenta 2'}
+                                                            {selectedSession.bankAccount === 'cuenta1' ? 'Cuenta Brubank' : 'Cuenta Reba'}
                                                         </span>
                                                     </div>
                                                 )}

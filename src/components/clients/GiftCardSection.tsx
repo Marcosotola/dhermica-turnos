@@ -289,7 +289,7 @@ export function GiftCardSection({
                                                 : 'bg-white border border-gray-200 text-gray-500 hover:border-teal-300'
                                         }`}
                                     >
-                                        {acc === 'cuenta1' ? 'Cuenta 1' : 'Cuenta 2'}
+                                        {acc === 'cuenta1' ? 'Cuenta Brubank' : 'Cuenta Reba'}
                                     </button>
                                 ))}
                             </div>
@@ -404,7 +404,7 @@ export function GiftCardSection({
                                     {(['cuenta1', 'cuenta2'] as const).map(acc => (
                                         <button key={acc} type="button" onClick={() => setEditForm(f => ({ ...f, bankAccount: acc }))}
                                             className={`px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-wide transition-colors ${editForm.bankAccount === acc ? 'bg-teal-500 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
-                                            {acc === 'cuenta1' ? 'Cuenta 1' : 'Cuenta 2'}
+                                            {acc === 'cuenta1' ? 'Cuenta Brubank' : 'Cuenta Reba'}
                                         </button>
                                     ))}
                                 </div>

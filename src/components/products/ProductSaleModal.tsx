@@ -250,7 +250,7 @@ export function ProductSaleModal({
                                     <div className="flex flex-col">
                                         <span className="text-xs font-black text-gray-900 uppercase">{p.label}</span>
                                         <span className="text-[9px] text-gray-500">
-                                            {p.method.toUpperCase()} {p.bankAccount && `(${p.bankAccount === 'cuenta1' ? 'CTA 1' : 'CTA 2'})`} • {p.date.split('-').reverse().join('/')}
+                                            {p.method.toUpperCase()} {p.bankAccount && `(${p.bankAccount === 'cuenta1' ? 'BRUBANK' : 'REBA'})`} • {p.date.split('-').reverse().join('/')}
                                         </span>
                                     </div>
                                     <div className="flex items-center gap-3">
@@ -297,8 +297,8 @@ export function ProductSaleModal({
                                         value={newPayment.bankAccount}
                                         onChange={(e) => setNewPayment({ ...newPayment, bankAccount: e.target.value as any })}
                                         options={[
-                                            { value: 'cuenta1', label: 'Cuenta 1' },
-                                            { value: 'cuenta2', label: 'Cuenta 2' },
+                                            { value: 'cuenta1', label: 'Cuenta Brubank' },
+                                            { value: 'cuenta2', label: 'Cuenta Reba' },
                                         ]}
                                     />
                                 ) : (
