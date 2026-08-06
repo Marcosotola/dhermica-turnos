@@ -463,20 +463,31 @@ export async function getFinanceOverview(startDate: string, endDate: string, tar
     // el período, el monto pactado queda fijo y no debe generar saldo pendiente ni a favor,
     // sin importar si se pagó de más o de menos respecto del cálculo).
     const liquidatedPeriods = new Set<string>();
+    const liquidatedAmountByPeriod: Record<string, number> = {};
     commissionPayments.forEach(e => {
         if (!e.professionalId || !e.commissionPeriodStart || !e.commissionPeriodEnd) return;
-        liquidatedPeriods.add(`${e.professionalId}|${e.commissionPeriodStart}|${e.commissionPeriodEnd}`);
+        const key = `${e.professionalId}|${e.commissionPeriodStart}|${e.commissionPeriodEnd}`;
+        liquidatedPeriods.add(key);
+        liquidatedAmountByPeriod[key] = (liquidatedAmountByPeriod[key] || 0) + e.amount;
     });
 
     Object.values(overview.byProfessional).forEach((data) => {
         const alreadyPaid = registeredAparatoFees[data.name] || 0;
         const pendingAparatoFee = Math.max(0, data.aparatoFee - alreadyPaid);
 
-        // totalCommission = total ganado (para mostrar en el desglose de comisiones, es siempre la referencia calculada)
+        // totalCommission = total ganado (referencia calculada), salvo que el período ya
+        // se haya liquidado: en ese caso se muestra el monto realmente pagado (puede haber
+        // sido editado a mano al liquidar), para que el resumen y el panel del profesional
+        // coincidan con lo efectivamente pagado.
         data.totalCommission = data.serviceCommission + data.productCommission + data.rentalCommission + data.aparatoFee;
 
         const prof = nameToProfessional[data.name];
-        const isLiquidated = prof ? liquidatedPeriods.has(`${prof.id}|${startDate}|${endDate}`) : false;
+        const periodKey = prof ? `${prof.id}|${startDate}|${endDate}` : '';
+        const isLiquidated = prof ? liquidatedPeriods.has(periodKey) : false;
+
+        if (isLiquidated && periodKey in liquidatedAmountByPeriod) {
+            data.totalCommission = liquidatedAmountByPeriod[periodKey];
+        }
 
         // Si ya se liquidó este período, el monto pactado queda fijo: no queda pendiente.
         const virtualCommissionToPay = isLiquidated
