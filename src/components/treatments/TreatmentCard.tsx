@@ -1,8 +1,7 @@
 'use client';
 
 import { Treatment } from "@/lib/types/treatment";
-import { Sparkles, ChevronRight, Edit2, Trash2 } from "lucide-react";
-import { formatCurrencyWithSymbol } from "@/lib/utils/currency";
+import { Sparkles, ChevronRight, Edit2, Trash2, Tag } from "lucide-react";
 
 interface TreatmentCardProps {
     treatment: Treatment;
@@ -13,10 +12,6 @@ interface TreatmentCardProps {
 }
 
 export function TreatmentCard({ treatment, isAdmin, onEdit, onDelete, onClick }: TreatmentCardProps) {
-    const minPrice = treatment.prices.length > 0
-        ? Math.min(...treatment.prices.map(p => p.price))
-        : 0;
-
     return (
         <div
             onClick={() => onClick?.(treatment)}
@@ -63,13 +58,12 @@ export function TreatmentCard({ treatment, isAdmin, onEdit, onDelete, onClick }:
                     {treatment.shortDescription}
                 </p>
 
-                <div className="flex items-center justify-between border-t border-gray-50 pt-2 md:pt-4">
-                    <div className="flex flex-col">
-                        <span className="text-[8px] md:text-[9px] font-black uppercase tracking-wider text-gray-400">Desde</span>
-                        <span className="text-sm md:text-lg font-black text-gray-900">{formatCurrencyWithSymbol(minPrice)}</span>
-                    </div>
-                    <div className="w-8 h-8 md:w-10 md:h-10 rounded-lg md:rounded-xl bg-gray-50 flex items-center justify-center group-hover:bg-[#34baab] group-hover:text-white transition-all text-gray-400">
-                        <ChevronRight className="w-4 h-4 md:w-5 md:h-5" />
+                <div className="border-t border-gray-50 pt-2 md:pt-4">
+                    <div className="flex items-center justify-between gap-2 px-3 md:px-4 py-2 md:py-2.5 rounded-xl md:rounded-2xl bg-teal-50 group-hover:bg-[#34baab] transition-all">
+                        <span className="flex items-center gap-1.5 text-[10px] md:text-xs font-black uppercase tracking-wider text-[#34baab] group-hover:text-white transition-colors">
+                            <Tag className="w-3.5 h-3.5 md:w-4 md:h-4" /> Ver precios
+                        </span>
+                        <ChevronRight className="w-4 h-4 md:w-5 md:h-5 text-[#34baab] group-hover:text-white transition-colors" />
                     </div>
                 </div>
             </div>

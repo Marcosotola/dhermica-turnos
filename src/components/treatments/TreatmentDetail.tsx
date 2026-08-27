@@ -32,6 +32,48 @@ export function TreatmentDetail({ isOpen, onClose, treatment }: TreatmentDetailP
                     </div>
                 </div>
 
+                {/* Prices */}
+                <div className="space-y-4">
+                    <h4 className="font-black text-gray-900 uppercase tracking-widest text-xs ml-1">Precios y Versiones</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {treatment.prices.map((p, i) => (
+                            <div key={i} className="flex items-center justify-between p-4 bg-white border border-gray-100 rounded-2xl shadow-sm">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-xl bg-teal-50 flex items-center justify-center">
+                                        <Users className="w-5 h-5 text-[#34baab]" />
+                                    </div>
+                                    <div>
+                                        <p className="font-bold text-gray-900 capitalize">{p.zone}</p>
+                                        <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+                                            {p.gender === 'female' ? 'Femenino' : p.gender === 'male' ? 'Masculino' : 'Unisex'}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-xl font-black text-[#34baab]">{formatCurrencyWithSymbol(p.price)}</p>
+                                    {p.duration && (
+                                        <p className="text-[10px] font-bold text-gray-400 flex items-center justify-end gap-1">
+                                            <Clock className="w-3 h-3" /> {p.duration} min
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                    {/* Deposit / Seña */}
+                    {treatment.depositAmount != null && treatment.depositAmount > 0 && (
+                        <div className="flex items-center gap-3 p-4 bg-amber-50 border border-amber-100 rounded-2xl">
+                            <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0">
+                                <DollarSign className="w-5 h-5 text-amber-600" />
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-black uppercase tracking-widest text-amber-500">Seña para reserva online</p>
+                                <p className="text-lg font-black text-amber-700">{formatCurrencyWithSymbol(treatment.depositAmount)}</p>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
                 {/* Description */}
                 {treatment.fullDescription && (
                     <div className="bg-gray-50 p-6 rounded-3xl border border-gray-100">
@@ -44,52 +86,9 @@ export function TreatmentDetail({ isOpen, onClose, treatment }: TreatmentDetailP
                     </div>
                 )}
 
-                {/* Grid for prices and more */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    {/* Prices */}
-                    <div className="space-y-4">
-                        <h4 className="font-black text-gray-900 uppercase tracking-widest text-xs ml-1">Precios y Versiones</h4>
-                        <div className="space-y-3">
-                            {treatment.prices.map((p, i) => (
-                                <div key={i} className="flex items-center justify-between p-4 bg-white border border-gray-100 rounded-2xl shadow-sm">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-xl bg-teal-50 flex items-center justify-center">
-                                            <Users className="w-5 h-5 text-[#34baab]" />
-                                        </div>
-                                        <div>
-                                            <p className="font-bold text-gray-900 capitalize">{p.zone}</p>
-                                            <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">
-                                                {p.gender === 'female' ? 'Femenino' : p.gender === 'male' ? 'Masculino' : 'Unisex'}
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <div className="text-right">
-                                        <p className="text-xl font-black text-[#34baab]">{formatCurrencyWithSymbol(p.price)}</p>
-                                        {p.duration && (
-                                            <p className="text-[10px] font-bold text-gray-400 flex items-center justify-end gap-1">
-                                                <Clock className="w-3 h-3" /> {p.duration} min
-                                            </p>
-                                        )}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* Benefits & Deposit */}
-                    <div className="space-y-4">
-                        {/* Deposit / Seña */}
-                        {treatment.depositAmount != null && treatment.depositAmount > 0 && (
-                            <div className="flex items-center gap-3 p-4 bg-amber-50 border border-amber-100 rounded-2xl">
-                                <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0">
-                                    <DollarSign className="w-5 h-5 text-amber-600" />
-                                </div>
-                                <div>
-                                    <p className="text-[10px] font-black uppercase tracking-widest text-amber-500">Seña para reserva online</p>
-                                    <p className="text-lg font-black text-amber-700">{formatCurrencyWithSymbol(treatment.depositAmount)}</p>
-                                </div>
-                            </div>
-                        )}
+                {/* Benefits & Contraindications */}
+                {((treatment.benefits && treatment.benefits.length > 0) || (treatment.contraindications && treatment.contraindications.length > 0)) && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {treatment.benefits && treatment.benefits.length > 0 && (
                             <div className="bg-teal-50/50 p-6 rounded-3xl border border-teal-100">
                                 <h4 className="font-black text-teal-900 uppercase tracking-widest text-xs mb-4 flex items-center gap-2">
@@ -121,7 +120,7 @@ export function TreatmentDetail({ isOpen, onClose, treatment }: TreatmentDetailP
                             </div>
                         )}
                     </div>
-                </div>
+                )}
 
                 {/* Pre/Post Care */}
                 {(treatment.preCare?.length || treatment.postCare?.length) && (
