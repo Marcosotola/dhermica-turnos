@@ -7,7 +7,7 @@ import { Input } from '../ui/Input';
 import { CurrencyInput } from '../ui/CurrencyInput';
 import { Select } from '../ui/Select';
 import { Button } from '../ui/Button';
-import { Appointment, DURATION_OPTIONS, AppointmentStatus, Payment, SelectedTreatment } from '@/lib/types/appointment';
+import { Appointment, DURATION_OPTIONS, AppointmentStatus, Payment, SelectedTreatment, WORKING_HOURS } from '@/lib/types/appointment';
 import { TreatmentSelectorSheet } from './TreatmentSelectorSheet';
 import {
     Plus, Trash2, CreditCard, CheckCircle2, Clock, XCircle, ChevronDown, Save,
@@ -166,8 +166,9 @@ export function AppointmentModal({
 
     useEffect(() => {
         const totalMinutes = selectedTreatments.reduce((sum, t) => sum + t.duration, 0);
+        const intervalMinutes = WORKING_HOURS.interval * 60;
         const totalHours = selectedTreatments.length > 0
-            ? Math.max(0.5, Math.round(totalMinutes / 30) * 0.5)
+            ? Math.max(WORKING_HOURS.interval, Math.round(totalMinutes / intervalMinutes) * WORKING_HOURS.interval)
             : 1;
         const totalPrice = selectedTreatments.reduce((sum, t) => sum + t.price, 0);
         const treatmentLabel = selectedTreatments
@@ -812,7 +813,7 @@ export function AppointmentModal({
                         onChange={(e) => setFormData({ ...formData, time: e.target.value })}
                         min="07:30"
                         max="19:30"
-                        step="1800"
+                        step="900"
                         required
                     />
 

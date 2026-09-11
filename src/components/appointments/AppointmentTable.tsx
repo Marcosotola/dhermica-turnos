@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Pencil, Trash2, Plus, MoreVertical, X, DollarSign, CheckCircle2, Clock, XCircle, Ban, AlertCircle, Coffee, ShieldAlert, User } from 'lucide-react';
 import Link from 'next/link';
-import { Appointment } from '@/lib/types/appointment';
+import { Appointment, WORKING_HOURS } from '@/lib/types/appointment';
 import { Professional } from '@/lib/types/professional';
 import { generateTimeSlots, timeToDecimal } from '@/lib/utils/time';
 import { isTimeSlotOccupied, checkAppointmentConflict } from '@/lib/utils/validation';
@@ -67,7 +67,7 @@ export function AppointmentTable({
 
     // Calcular rowspan según duración
     const getRowSpan = (appointment: Appointment) => {
-        return Math.ceil(appointment.duration / 0.5);
+        return Math.ceil(appointment.duration / WORKING_HOURS.interval);
     };
 
     // Calcular qué profesionales tienen turnos para ajustar el ancho de las columnas
@@ -125,7 +125,7 @@ export function AppointmentTable({
                                     const { isOrphan, type, note, reason } = checkAppointmentConflict({
                                         date: selectedDate,
                                         time: time,
-                                        duration: 0.5
+                                        duration: WORKING_HOURS.interval
                                     }, prof);
 
                                     const isAbsence = isOrphan && type === 'absence';

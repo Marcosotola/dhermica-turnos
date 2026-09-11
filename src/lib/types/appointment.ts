@@ -65,18 +65,26 @@ export interface TimeSlot {
 }
 
 export const DURATION_OPTIONS = [
+    { value: 0.25, label: '15 minutos' },
     { value: 0.5, label: '30 minutos' },
+    { value: 0.75, label: '45 minutos' },
     { value: 1, label: '1 hora' },
+    { value: 1.25, label: '1 hora y 15 minutos' },
     { value: 1.5, label: '1 hora y 30 minutos' },
+    { value: 1.75, label: '1 hora y 45 minutos' },
     { value: 2, label: '2 horas' },
+    { value: 2.25, label: '2 horas y 15 minutos' },
     { value: 2.5, label: '2 horas y 30 minutos' },
+    { value: 2.75, label: '2 horas y 45 minutos' },
     { value: 3, label: '3 horas' },
+    { value: 3.25, label: '3 horas y 15 minutos' },
     { value: 3.5, label: '3 horas y 30 minutos' },
+    { value: 3.75, label: '3 horas y 45 minutos' },
     { value: 4, label: '4 horas' },
 ];
 
 export const WORKING_HOURS = {
     start: 7.5, // 7:30
     end: 19.5, // 19:30
-    interval: 0.5, // 30 minutos
+    interval: 0.25, // 15 minutos
 };

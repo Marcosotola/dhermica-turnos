@@ -1,5 +1,6 @@
 import { adminDb } from '../firebase/admin';
 import { Professional } from '../types/professional';
+import { WORKING_HOURS } from '../types/appointment';
 import { timeToDecimal, decimalToTime, getDayOfWeek, formatDate } from './time';
 
 const MAX_SEARCH_DAYS = 90;
@@ -121,7 +122,7 @@ async function getAvailableStartTimes(
 
     const available: string[] = [];
 
-    for (let t = windowStart; t + durationDecimal <= windowEnd; t += 0.5) {
+    for (let t = windowStart; t + durationDecimal <= windowEnd; t += WORKING_HOURS.interval) {
         const end = t + durationDecimal;
 
         // No pasar por el almuerzo
