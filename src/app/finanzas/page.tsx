@@ -890,11 +890,13 @@ export default function FinanzasPage() {
                         <div className="w-10 h-10 bg-[#34baab]/20 rounded-full flex items-center justify-center">
                             <CheckCircle2 className="w-6 h-6 text-[#34baab]" />
                         </div>
-                        <h2 className="text-2xl font-black text-gray-900">Liquidar Comisión</h2>
+                        <h2 className="text-2xl font-black text-gray-900">
+                            {liquidatingMovement.description.startsWith('Sueldo (Pendiente): ') ? 'Liquidar Sueldo' : 'Liquidar Comisión'}
+                        </h2>
                     </div>
 
                     <p className="text-sm text-gray-500 font-medium">
-                        Registrá el pago para <span className="font-bold text-gray-700">{liquidatingMovement.description.replace('Comisión (Pendiente): ', '')}</span> por el período mostrado. Comisión calculada: <span className="font-bold text-gray-700">{formatCurrency(liquidatingMovement.amount)}</span>. Podés ajustar el monto final para sumar un incentivo o aplicar un descuento.
+                        Registrá el pago para <span className="font-bold text-gray-700">{liquidatingMovement.description.replace(/^(Comisión|Sueldo) \(Pendiente\): /, '')}</span> por el período mostrado. Comisión calculada: <span className="font-bold text-gray-700">{formatCurrency(liquidatingMovement.amount)}</span>. Podés ajustar el monto final para sumar un incentivo o aplicar un descuento.
                     </p>
 
                     <div className="pt-2 max-h-[50vh] overflow-y-auto pr-1 -mr-1">

@@ -543,7 +543,11 @@ export async function getFinanceOverview(startDate: string, endDate: string, tar
             ? 0
             : Math.max(0, data.serviceCommission + data.productCommission + data.rentalCommission + pendingAparatoFee + data.attendanceWage);
 
-        if (virtualCommissionToPay > 0) {
+        // Mostrar el botón "Liquidar" también para un profesional en $0: puede no haber
+        // facturado nada este período y aun así la dueña quiera pagarle algo (un adelanto,
+        // un bono). No aplica si el período ya se liquidó (quedaría un botón fantasma para
+        // volver a "liquidar" un período ya cerrado).
+        if (virtualCommissionToPay > 0 || (data.isProfessionalRecord && !isLiquidated)) {
             const isStaff = data.type === 'apoyo';
             if (isStaff) overview.totalStaffWages += virtualCommissionToPay;
             else overview.totalProfCommissions += virtualCommissionToPay;
