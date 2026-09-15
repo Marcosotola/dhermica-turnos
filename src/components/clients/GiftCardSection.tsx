@@ -9,6 +9,7 @@ import { Button } from '../ui/Button';
 import { toast } from 'sonner';
 import { GiftCardDownloadButton } from './GiftCardDownloadButton';
 import { ClientNameAutocomplete } from '../ui/ClientNameAutocomplete';
+import { BANK_ACCOUNTS, BankAccount } from '@/lib/types/bankAccount';
 
 interface GiftCardSectionProps {
     purchaserClientId: string;
@@ -41,7 +42,7 @@ const PAYMENT_METHOD_LABELS: Record<string, string> = {
 interface CreateFormState {
     amount: string;
     purchaseMethod: 'cash' | 'transfer' | 'debit' | 'credit' | 'qr';
-    bankAccount: 'cuenta1' | 'cuenta2';
+    bankAccount: BankAccount;
     recipientName: string;
     message: string;
     expiryDate: string;
@@ -139,7 +140,7 @@ export function GiftCardSection({
         setEditForm({
             amount: String(card.originalAmount),
             purchaseMethod: (card.purchaseMethod as CreateFormState['purchaseMethod']) || 'cash',
-            bankAccount: (card.bankAccount as 'cuenta1' | 'cuenta2') || 'cuenta1',
+            bankAccount: (card.bankAccount as BankAccount) || 'cuenta1',
             recipientName: card.recipientName || '',
             message: card.message || '',
             expiryDate: card.expiryDate || '',
@@ -278,18 +279,18 @@ export function GiftCardSection({
                         </div>
                         {form.purchaseMethod === 'transfer' && (
                             <div className="flex gap-1.5 mt-2">
-                                {(['cuenta1', 'cuenta2'] as const).map(acc => (
+                                {BANK_ACCOUNTS.map(acc => (
                                     <button
-                                        key={acc}
+                                        key={acc.value}
                                         type="button"
-                                        onClick={() => setForm(f => ({ ...f, bankAccount: acc }))}
+                                        onClick={() => setForm(f => ({ ...f, bankAccount: acc.value }))}
                                         className={`px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-wide transition-colors ${
-                                            form.bankAccount === acc
+                                            form.bankAccount === acc.value
                                                 ? 'bg-teal-500 text-white'
                                                 : 'bg-white border border-gray-200 text-gray-500 hover:border-teal-300'
                                         }`}
                                     >
-                                        {acc === 'cuenta1' ? 'Cuenta Brubank' : 'Cuenta Reba'}
+                                        {acc.label}
                                     </button>
                                 ))}
                             </div>
@@ -401,10 +402,10 @@ export function GiftCardSection({
                             </div>
                             {editForm.purchaseMethod === 'transfer' && (
                                 <div className="flex gap-1.5 mt-2">
-                                    {(['cuenta1', 'cuenta2'] as const).map(acc => (
-                                        <button key={acc} type="button" onClick={() => setEditForm(f => ({ ...f, bankAccount: acc }))}
-                                            className={`px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-wide transition-colors ${editForm.bankAccount === acc ? 'bg-teal-500 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
-                                            {acc === 'cuenta1' ? 'Cuenta Brubank' : 'Cuenta Reba'}
+                                    {BANK_ACCOUNTS.map(acc => (
+                                        <button key={acc.value} type="button" onClick={() => setEditForm(f => ({ ...f, bankAccount: acc.value }))}
+                                            className={`px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-wide transition-colors ${editForm.bankAccount === acc.value ? 'bg-teal-500 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
+                                            {acc.label}
                                         </button>
                                     ))}
                                 </div>

@@ -1,4 +1,5 @@
 import { Timestamp } from 'firebase/firestore';
+import { BankAccount } from './bankAccount';
 
 export interface SalePayment {
     id: string;
@@ -6,7 +7,7 @@ export interface SalePayment {
     method: 'cash' | 'transfer' | 'debit' | 'credit' | 'qr';
     date: string; // YYYY-MM-DD
     label: string;
-    bankAccount?: 'cuenta1' | 'cuenta2' | null;
+    bankAccount?: BankAccount | null;
     createdAt: Date;
 }
 
@@ -21,7 +22,7 @@ export interface Sale {
     soldByName: string;
     commission?: number; // Manual commission amount set at time of sale
     paymentMethod: 'cash' | 'transfer' | 'debit' | 'credit' | 'qr'; // Legacy/Primary
-    bankAccount?: 'cuenta1' | 'cuenta2' | null; // Legacy/Primary
+    bankAccount?: BankAccount | null; // Legacy/Primary
     payments?: SalePayment[]; // Multi-payment support
     date: string; // YYYY-MM-DD for easier querying
     createdAt: Date | Timestamp;

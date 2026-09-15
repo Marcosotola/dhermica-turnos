@@ -10,6 +10,7 @@ import { formatCurrencyWithSymbol } from '@/lib/utils/currency';
 import { Product } from '@/lib/types/product';
 import { Professional } from '@/lib/types/professional';
 import { Sale, SalePayment } from '@/lib/types/sale';
+import { BANK_ACCOUNTS, BankAccount, formatBankAccount } from '@/lib/types/bankAccount';
 import { createSale } from '@/lib/firebase/sales';
 import { toast } from 'sonner';
 import { ShoppingCart, User, CreditCard, Plus, Trash2, Save } from 'lucide-react';
@@ -43,7 +44,7 @@ export function ProductSaleModal({
         amount: 0,
         method: 'cash' as SalePayment['method'],
         label: 'Pago',
-        bankAccount: 'cuenta1' as 'cuenta1' | 'cuenta2',
+        bankAccount: 'cuenta1' as BankAccount,
         date: getTodayDate()
     });
 
@@ -250,7 +251,7 @@ export function ProductSaleModal({
                                     <div className="flex flex-col">
                                         <span className="text-xs font-black text-gray-900 uppercase">{p.label}</span>
                                         <span className="text-[9px] text-gray-500">
-                                            {p.method.toUpperCase()} {p.bankAccount && `(${p.bankAccount === 'cuenta1' ? 'BRUBANK' : 'REBA'})`} • {p.date.split('-').reverse().join('/')}
+                                            {p.method.toUpperCase()} {p.bankAccount && `(${formatBankAccount(p.bankAccount).toUpperCase()})`} • {p.date.split('-').reverse().join('/')}
                                         </span>
                                     </div>
                                     <div className="flex items-center gap-3">
@@ -296,10 +297,7 @@ export function ProductSaleModal({
                                         label="Cuenta"
                                         value={newPayment.bankAccount}
                                         onChange={(e) => setNewPayment({ ...newPayment, bankAccount: e.target.value as any })}
-                                        options={[
-                                            { value: 'cuenta1', label: 'Cuenta Brubank' },
-                                            { value: 'cuenta2', label: 'Cuenta Reba' },
-                                        ]}
+                                        options={BANK_ACCOUNTS}
                                     />
                                 ) : (
                                     <div />

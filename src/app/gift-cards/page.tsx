@@ -8,6 +8,7 @@ import {
 import { GiftCardDownloadButton } from '@/components/clients/GiftCardDownloadButton';
 import { ClientNameAutocomplete } from '@/components/ui/ClientNameAutocomplete';
 import { GiftCard, GiftCardStatus } from '@/lib/types/giftCard';
+import { BANK_ACCOUNTS, BankAccount } from '@/lib/types/bankAccount';
 import {
     getAllGiftCards, createGiftCard, updateGiftCard, deleteGiftCard,
     updateGiftCardStatus, generateGiftCardCode, defaultExpiryDate
@@ -43,7 +44,7 @@ interface CreateFormState {
     message: string;
     amount: string;
     purchaseMethod: 'cash' | 'transfer' | 'debit' | 'credit' | 'qr';
-    bankAccount: 'cuenta1' | 'cuenta2';
+    bankAccount: BankAccount;
     expiryDate: string;
     notes: string;
 }
@@ -170,7 +171,7 @@ export default function GiftCardsPage() {
             message: card.message || '',
             amount: String(card.originalAmount),
             purchaseMethod: card.purchaseMethod || 'cash',
-            bankAccount: (card.bankAccount as 'cuenta1' | 'cuenta2') || 'cuenta1',
+            bankAccount: (card.bankAccount as BankAccount) || 'cuenta1',
             expiryDate: card.expiryDate || '',
             notes: card.notes || '',
         });
@@ -334,10 +335,10 @@ export default function GiftCardsPage() {
                             </div>
                             {form.purchaseMethod === 'transfer' && (
                                 <div className="flex gap-1.5 mt-2">
-                                    {(['cuenta1', 'cuenta2'] as const).map(acc => (
-                                        <button key={acc} type="button" onClick={() => setForm(f => ({ ...f, bankAccount: acc }))}
-                                            className={`px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-wide transition-colors ${form.bankAccount === acc ? 'bg-teal-500 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
-                                            {acc === 'cuenta1' ? 'Cuenta Brubank' : 'Cuenta Reba'}
+                                    {BANK_ACCOUNTS.map(acc => (
+                                        <button key={acc.value} type="button" onClick={() => setForm(f => ({ ...f, bankAccount: acc.value }))}
+                                            className={`px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-wide transition-colors ${form.bankAccount === acc.value ? 'bg-teal-500 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
+                                            {acc.label}
                                         </button>
                                     ))}
                                 </div>
@@ -463,10 +464,10 @@ export default function GiftCardsPage() {
                             </div>
                             {editForm.purchaseMethod === 'transfer' && (
                                 <div className="flex gap-1.5 mt-2">
-                                    {(['cuenta1', 'cuenta2'] as const).map(acc => (
-                                        <button key={acc} type="button" onClick={() => setEditForm(f => ({ ...f, bankAccount: acc }))}
-                                            className={`px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-wide transition-colors ${editForm.bankAccount === acc ? 'bg-teal-500 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
-                                            {acc === 'cuenta1' ? 'Cuenta Brubank' : 'Cuenta Reba'}
+                                    {BANK_ACCOUNTS.map(acc => (
+                                        <button key={acc.value} type="button" onClick={() => setEditForm(f => ({ ...f, bankAccount: acc.value }))}
+                                            className={`px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-wide transition-colors ${editForm.bankAccount === acc.value ? 'bg-teal-500 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
+                                            {acc.label}
                                         </button>
                                     ))}
                                 </div>

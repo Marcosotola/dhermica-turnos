@@ -18,6 +18,7 @@ import {
     EGRESO_CATEGORY_LABEL,
     EGRESO_CATEGORY_COLOR,
 } from '@/lib/types/egreso';
+import { BANK_ACCOUNTS, BankAccount, formatBankAccount } from '@/lib/types/bankAccount';
 import {
     TrendingDown,
     Plus,
@@ -59,7 +60,7 @@ interface EgresoFormPayment {
     id: string;
     method: 'cash' | 'transfer' | 'debit' | 'credit' | 'qr';
     amount: string;
-    bankAccount?: 'cuenta1' | 'cuenta2' | null;
+    bankAccount?: BankAccount | null;
 }
 
 interface EgresoForm {
@@ -458,12 +459,12 @@ export default function EgresosPage() {
                                         {e.payments && e.payments.length > 0 ? (
                                             e.payments.map((p, idx) => (
                                                 <p key={idx} className="text-xs text-gray-400 font-medium">
-                                                    {formatPaymentMethod(p.method)} {p.bankAccount && `(${p.bankAccount === 'cuenta1' ? 'Brubank' : 'Reba'})`}: {formatCurrency(p.amount)}
+                                                    {formatPaymentMethod(p.method)} {p.bankAccount && `(${formatBankAccount(p.bankAccount)})`}: {formatCurrency(p.amount)}
                                                 </p>
                                             ))
                                         ) : (
                                             <p className="text-xs text-gray-400 font-medium">
-                                                {formatPaymentMethod(e.paymentMethod)} {e.bankAccount && `(${e.bankAccount === 'cuenta1' ? 'Brubank' : 'Reba'})`}
+                                                {formatPaymentMethod(e.paymentMethod)} {e.bankAccount && `(${formatBankAccount(e.bankAccount)})`}
                                             </p>
                                         )}
                                     </div>
@@ -631,8 +632,9 @@ export default function EgresosPage() {
                                                         }}
                                                         className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#34baab] bg-white"
                                                     >
-                                                        <option value="cuenta1">Cuenta Brubank</option>
-                                                        <option value="cuenta2">Cuenta Reba</option>
+                                                        {BANK_ACCOUNTS.map(acc => (
+                                                            <option key={acc.value} value={acc.value}>{acc.label}</option>
+                                                        ))}
                                                     </select>
                                                 </div>
                                             )}
@@ -767,8 +769,9 @@ export default function EgresosPage() {
                                                     }}
                                                     className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#34baab] bg-white"
                                                 >
-                                                    <option value="cuenta1">Cuenta Brubank</option>
-                                                    <option value="cuenta2">Cuenta Reba</option>
+                                                    {BANK_ACCOUNTS.map(acc => (
+                                                        <option key={acc.value} value={acc.value}>{acc.label}</option>
+                                                    ))}
                                                 </select>
                                             </div>
                                         )}

@@ -8,6 +8,7 @@ import { CurrencyInput } from '../ui/CurrencyInput';
 import { Select } from '../ui/Select';
 import { Button } from '../ui/Button';
 import { Appointment, DURATION_OPTIONS, AppointmentStatus, Payment, SelectedTreatment, WORKING_HOURS } from '@/lib/types/appointment';
+import { BANK_ACCOUNTS, BankAccount, formatBankAccount } from '@/lib/types/bankAccount';
 import { TreatmentSelectorSheet } from './TreatmentSelectorSheet';
 import {
     Plus, Trash2, CreditCard, CheckCircle2, Clock, XCircle, ChevronDown, Save,
@@ -75,7 +76,7 @@ export function AppointmentModal({
         amount: 0,
         method: 'cash' as Payment['method'],
         label: 'Pago Total',
-        bankAccount: 'cuenta1' as 'cuenta1' | 'cuenta2',
+        bankAccount: 'cuenta1' as BankAccount,
         date: new Date().toLocaleDateString('en-CA') // Default to today
     });
     const [showPaymentForm, setShowPaymentForm] = useState(false);
@@ -921,7 +922,7 @@ export function AppointmentModal({
                                     <span className="text-xs font-black text-gray-900 uppercase tracking-tighter">{p.label}</span>
                                     <span className="text-[10px] text-gray-500">
                                         {p.method === 'cash' ? 'EFECTIVO' : p.method === 'transfer' ? 'TRANSFERENCIA' : p.method === 'debit' ? 'DÉBITO' : p.method === 'credit' ? 'CRÉDITO' : p.method === 'gift_card' ? 'GIFT CARD' : p.method === 'client_credit' ? 'SALDO A FAVOR' : p.method.toUpperCase()}
-                                        {p.bankAccount && ` (${p.bankAccount === 'cuenta1' ? 'BRUBANK' : 'REBA'})`} • {(() => {
+                                        {p.bankAccount && ` (${formatBankAccount(p.bankAccount).toUpperCase()})`} • {(() => {
                                             const parts = p.date.split('-');
                                             return parts.length === 3 ? `${parts[2]}-${parts[1]}-${parts[0]}` : p.date;
                                         })()}
@@ -1058,10 +1059,7 @@ export function AppointmentModal({
                                                 label="Cuenta de Destino"
                                                 value={newPayment.bankAccount}
                                                 onChange={(e) => setNewPayment({ ...newPayment, bankAccount: e.target.value as any })}
-                                                options={[
-                                                    { value: 'cuenta1', label: 'Cuenta Brubank' },
-                                                    { value: 'cuenta2', label: 'Cuenta Reba' },
-                                                ]}
+                                                options={BANK_ACCOUNTS}
                                             />
                                         ) : (
                                             <div className="space-y-1">

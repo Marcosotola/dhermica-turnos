@@ -6,6 +6,7 @@ import { Button } from '../ui/Button';
 import { CurrencyInput } from '../ui/CurrencyInput';
 import { Select } from '../ui/Select';
 import { Appointment, AppointmentStatus, Payment } from '@/lib/types/appointment';
+import { BANK_ACCOUNTS, BankAccount, formatBankAccount } from '@/lib/types/bankAccount';
 import { updateAppointment } from '@/lib/firebase/appointments';
 import { usePaymentEntry } from '@/lib/hooks/usePaymentEntry';
 import { formatArgentineCurrency } from '@/lib/utils/currency';
@@ -64,7 +65,7 @@ export function QuickPaymentModal({
         amount: 0,
         method: 'cash' as Payment['method'],
         label: 'Pago Total',
-        bankAccount: 'cuenta1' as 'cuenta1' | 'cuenta2',
+        bankAccount: 'cuenta1' as BankAccount,
         date: new Date().toLocaleDateString('en-CA')
     });
 
@@ -303,7 +304,7 @@ export function QuickPaymentModal({
                                     <div className="flex flex-col">
                                         <span className="text-xs font-black text-gray-900 uppercase">{p.label}</span>
                                         <span className="text-[9px] text-gray-500">
-                                            {p.method.toUpperCase()} {p.bankAccount && `(${p.bankAccount === 'cuenta1' ? 'BRUBANK' : 'REBA'})`} • {p.date.split('-').reverse().join('/')}
+                                            {p.method.toUpperCase()} {p.bankAccount && `(${formatBankAccount(p.bankAccount).toUpperCase()})`} • {p.date.split('-').reverse().join('/')}
                                         </span>
                                     </div>
                                     <div className="flex items-center gap-3">
@@ -542,10 +543,7 @@ export function QuickPaymentModal({
                                         label="Cuenta"
                                         value={newPayment.bankAccount}
                                         onChange={(e) => setNewPayment({ ...newPayment, bankAccount: e.target.value as any })}
-                                        options={[
-                                            { value: 'cuenta1', label: 'Cuenta Brubank' },
-                                            { value: 'cuenta2', label: 'Cuenta Reba' },
-                                        ]}
+                                        options={BANK_ACCOUNTS}
                                     />
                                 ) : (
                                     <Select

@@ -1,3 +1,5 @@
+import { BankAccount } from './bankAccount';
+
 export type GiftCardStatus = 'active' | 'partially_used' | 'redeemed' | 'cancelled' | 'expired';
 
 export interface GiftCardRedemption {
@@ -30,7 +32,7 @@ export interface GiftCard {
 
     // Pago de la gift card
     purchaseMethod?: 'cash' | 'transfer' | 'debit' | 'credit' | 'qr';
-    bankAccount?: 'cuenta1' | 'cuenta2' | null;
+    bankAccount?: BankAccount | null;
 
     status: GiftCardStatus;
     expiryDate?: string; // YYYY-MM-DD — default: purchaseDate + 60 días

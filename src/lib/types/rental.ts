@@ -1,10 +1,12 @@
+import { BankAccount } from './bankAccount';
+
 export interface RentalPayment {
     id: string;
     amount: number;
     method: 'cash' | 'transfer' | 'debit' | 'credit' | 'qr';
     date: string; // YYYY-MM-DD
     label: string;
-    bankAccount?: 'cuenta1' | 'cuenta2' | null;
+    bankAccount?: BankAccount | null;
     createdAt: Date;
 }
 
@@ -18,7 +20,7 @@ export interface Rental {
     sellerName: string;
     commission?: number; // Puede faltar en alquileres legacy sin comisión cargada
     paymentMethod: 'cash' | 'transfer' | 'debit' | 'credit' | 'qr'; // Legacy/Primary
-    bankAccount?: 'cuenta1' | 'cuenta2' | null; // Legacy/Primary
+    bankAccount?: BankAccount | null; // Legacy/Primary
     payments?: RentalPayment[]; // Multi-payment support
     createdAt: Date;
     updatedAt: Date;

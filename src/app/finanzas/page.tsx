@@ -39,6 +39,7 @@ import { Toaster, toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { EGRESO_CATEGORY_LABEL, EgresoCategory } from '@/lib/types/egreso';
+import { BANK_ACCOUNTS, BankAccount, formatBankAccount } from '@/lib/types/bankAccount';
 
 const PAYMENT_LABELS: Record<string, string> = {
     cash: 'Efectivo',
@@ -52,7 +53,7 @@ interface LiquidatePayment {
     id: string;
     method: 'cash' | 'transfer' | 'debit' | 'credit' | 'qr';
     amount: string;
-    bankAccount?: 'cuenta1' | 'cuenta2' | null;
+    bankAccount?: BankAccount | null;
 }
 
 export default function FinanzasPage() {
@@ -269,6 +270,8 @@ export default function FinanzasPage() {
         cash: 'Efectivo',
         cuenta1: 'Cuenta Brubank',
         cuenta2: 'Cuenta Reba',
+        mercadopago: 'Mercado Pago',
+        prex: 'Prex',
         debit: 'Débito',
         credit: 'Crédito',
         qr: 'QR / Digital',
@@ -712,7 +715,7 @@ export default function FinanzasPage() {
                                                         </span>
                                                         {m.bankAccount && (
                                                             <span className="text-[10px] font-black text-[#34baab] uppercase">
-                                                                {m.bankAccount === 'cuenta1' ? 'Brubank' : 'Reba'}
+                                                                {formatBankAccount(m.bankAccount)}
                                                             </span>
                                                         )}
                                                     </div>
@@ -911,8 +914,9 @@ export default function FinanzasPage() {
                                                 }}
                                                 className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#34baab] bg-white"
                                             >
-                                                <option value="cuenta1">Cuenta Brubank</option>
-                                                <option value="cuenta2">Cuenta Reba</option>
+                                                {BANK_ACCOUNTS.map(acc => (
+                                                    <option key={acc.value} value={acc.value}>{acc.label}</option>
+                                                ))}
                                             </select>
                                         </div>
                                     )}

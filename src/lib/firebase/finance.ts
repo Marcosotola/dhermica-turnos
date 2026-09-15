@@ -67,8 +67,12 @@ export interface FinanceOverview {
     movements: FinanceMovement[];
 }
 
+const TRANSFER_ACCOUNT_KEYS = ['cuenta1', 'cuenta2', 'mercadopago', 'prex'];
+
 function resolveMethodKey(method: string, bankAccount?: string | null): string {
-    if (method === 'transfer') return bankAccount === 'cuenta2' ? 'cuenta2' : 'cuenta1';
+    if (method === 'transfer') {
+        return bankAccount && TRANSFER_ACCOUNT_KEYS.includes(bankAccount) ? bankAccount : 'cuenta1';
+    }
     return method || 'cash';
 }
 
@@ -81,27 +85,38 @@ function addDays(dateStr: string, days: number): string {
     return `${y}-${m}-${day}`;
 }
 
-// Fetches appointments in range PLUS upcoming ones (up to 60 days ahead) so that
-// pre-payments (señas paid before the appointment date) appear in the correct cash period.
+const FINANCE_LOOKAROUND_DAYS = 120;
+
+// Fetches appointments in range PLUS a 120-day window on both sides, so that a payment
+// registered in this period shows up here even if its appointment falls outside the queried
+// dates — a seña paid today for a turno in unos meses (look-forward), o un saldo pagado hoy
+// para un turno de hace meses (look-back, ej. pagos atrasados/en cuotas).
 async function fetchAppointmentsForFinance(
     startDate: string,
     endDate: string,
     targetProfessionalId?: string
 ): Promise<Appointment[]> {
-    const lookForwardEnd = addDays(endDate, 60);
+    const lookForwardEnd = addDays(endDate, FINANCE_LOOKAROUND_DAYS);
+    const lookBackStart = addDays(startDate, -FINANCE_LOOKAROUND_DAYS);
 
     if (targetProfessionalId) {
         const all = await getAppointmentsByProfessionalId(targetProfessionalId);
-        return all.filter(a => a.date >= startDate && a.date <= lookForwardEnd);
+        return all.filter(a => a.date >= lookBackStart && a.date <= lookForwardEnd);
     }
 
-    const [base, future] = await Promise.all([
+    const [base, future, past] = await Promise.all([
         getAppointmentsByDateRange(startDate, endDate),
         getAppointmentsByDateRange(addDays(endDate, 1), lookForwardEnd),
+        getAppointmentsByDateRange(lookBackStart, addDays(startDate, -1)),
     ]);
 
     const seenIds = new Set(base.map(a => a.id));
-    return [...base, ...future.filter(a => !seenIds.has(a.id))];
+    const extra = [...future, ...past].filter(a => {
+        if (seenIds.has(a.id)) return false;
+        seenIds.add(a.id);
+        return true;
+    });
+    return [...base, ...extra];
 }
 
 export async function getFinanceOverview(startDate: string, endDate: string, targetProfessionalId?: string): Promise<FinanceOverview> {
@@ -134,8 +149,8 @@ export async function getFinanceOverview(startDate: string, endDate: string, tar
         saldo: 0,
         egresosByCategory: {},
         byMethod: { cash: 0, transfer: 0, debit: 0, credit: 0, qr: 0 },
-        incomeByMethodDetailed: { cash: 0, cuenta1: 0, cuenta2: 0, debit: 0, credit: 0, qr: 0 },
-        egresosByMethod: { cash: 0, cuenta1: 0, cuenta2: 0, debit: 0, credit: 0, qr: 0 },
+        incomeByMethodDetailed: { cash: 0, cuenta1: 0, cuenta2: 0, mercadopago: 0, prex: 0, debit: 0, credit: 0, qr: 0 },
+        egresosByMethod: { cash: 0, cuenta1: 0, cuenta2: 0, mercadopago: 0, prex: 0, debit: 0, credit: 0, qr: 0 },
         byProfessional: {},
         byProduct: {},
         movements: []
@@ -215,13 +230,19 @@ export async function getFinanceOverview(startDate: string, endDate: string, tar
     appointments.forEach(apt => {
         const status = (apt.status || '').toLowerCase();
         const isCompleted = status === 'completed' || status === 'realizado';
+        const isCancelled = status === 'cancelled' || status === 'cancelado';
         const isAptInDateRange = apt.date >= startDate && apt.date <= endDate;
 
         const paymentsArray = (apt.payments || []);
         const totalPaid = paymentsArray.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
         const actualPrice = Number(apt.price) || totalPaid;
 
-        if (isCompleted && paymentsArray.length > 0) {
+        // El dinero de cada pago (seña, parcial, total) se contabiliza en la fecha real en que
+        // se cobró (p.date), sin importar el estado del turno: una seña cobrada hoy para un
+        // turno futuro (pending) o de un turno luego cancelado sigue siendo caja real de hoy.
+        // El estado del turno solo determina si genera comisión (ver más abajo), no si el
+        // cobro existió.
+        if (paymentsArray.length > 0) {
             paymentsArray.forEach(p => {
                 const pDate = (p.date || '').substring(0, 10);
                 if (!pDate || pDate < startDate || pDate > endDate) return;
@@ -229,14 +250,21 @@ export async function getFinanceOverview(startDate: string, endDate: string, tar
                 if (p.method === 'gift_card' || p.method === 'client_credit') return;
                 const isSeña = p.label === 'Seña';
                 const isParcial = p.label === 'Pago Parcial';
-                const isPreApt = pDate < apt.date;
+                const isDifferentDay = pDate !== apt.date;
                 const category = isSeña ? 'Seña' : isParcial ? 'Parcial' : 'Servicio';
+                // Aclarar a qué turno corresponde cuando el cobro no fue el mismo día: puede ser
+                // una seña adelantada (pDate < apt.date) o un pago atrasado/en cuotas de un
+                // turno ya pasado (pDate > apt.date) — en ambos casos ayuda a la secretaria a
+                // entender por qué este ingreso de hoy no coincide con ningún turno de hoy.
+                const suffix = isCancelled
+                    ? ' (turno cancelado)'
+                    : isDifferentDay ? ` (turno ${apt.date.split('-').reverse().join('/')})` : '';
                 allMovements.push({
                     id: `pay_${apt.id}_${p.id || pDate}`,
                     date: pDate,
                     type: 'ingreso',
                     category,
-                    description: `${apt.clientName} - ${apt.treatment}${isPreApt ? ` (turno ${apt.date.split('-').reverse().join('/')})` : ''}`,
+                    description: `${apt.clientName} - ${apt.treatment}${suffix}`,
                     amount: Number(p.amount) || 0,
                     method: p.method,
                     bankAccount: p.bankAccount,

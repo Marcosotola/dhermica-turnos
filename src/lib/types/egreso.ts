@@ -41,11 +41,13 @@ export const EGRESO_CATEGORY_COLOR: Record<EgresoCategory, string> = {
     otros: 'bg-gray-100 text-gray-700 border-gray-200',
 };
 
+import { BankAccount } from './bankAccount';
+
 export interface EgresoPayment {
     id: string;
     method: 'cash' | 'transfer' | 'debit' | 'credit' | 'qr';
     amount: number;
-    bankAccount?: 'cuenta1' | 'cuenta2' | null;
+    bankAccount?: BankAccount | null;
 }
 
 export interface Egreso {
@@ -56,7 +58,7 @@ export interface Egreso {
     description?: string;
     payments?: EgresoPayment[];
     paymentMethod: 'cash' | 'transfer' | 'debit' | 'credit' | 'qr';
-    bankAccount?: 'cuenta1' | 'cuenta2' | null;
+    bankAccount?: BankAccount | null;
     isCommissionPayment?: boolean;
     professionalId?: string;
     commissionPeriodStart?: string; // YYYY-MM-DD

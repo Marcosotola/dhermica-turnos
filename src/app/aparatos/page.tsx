@@ -19,6 +19,7 @@ import { toast, Toaster } from 'sonner';
 import { DeleteConfirmDialog } from '@/components/ui/DeleteConfirmDialog';
 import { formatCurrencyWithSymbol } from '@/lib/utils/currency';
 import { formatPaymentMethod } from '@/lib/utils/clientLedger';
+import { BANK_ACCOUNTS, BankAccount, formatBankAccount } from '@/lib/types/bankAccount';
 
 const PAYMENT_METHOD_LABELS: Record<string, string> = {
     cash: 'Efectivo',
@@ -38,7 +39,7 @@ interface AparatoFormPayment {
     id: string;
     method: 'cash' | 'transfer' | 'debit' | 'credit' | 'qr';
     amount: string;
-    bankAccount?: 'cuenta1' | 'cuenta2' | null;
+    bankAccount?: BankAccount | null;
 }
 
 interface SessionFormData {
@@ -48,7 +49,7 @@ interface SessionFormData {
     professionalName: string;
     fixedFee: string;
     paymentMethod: 'cash' | 'transfer' | 'debit' | 'credit' | 'qr';
-    bankAccount: 'cuenta1' | 'cuenta2' | '';
+    bankAccount: BankAccount | '';
     payments: AparatoFormPayment[];
     notes: string;
 }
@@ -679,8 +680,9 @@ export default function AparatosPage() {
                                                         }}
                                                         className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white"
                                                     >
-                                                        <option value="cuenta1">Cuenta Brubank</option>
-                                                        <option value="cuenta2">Cuenta Reba</option>
+                                                        {BANK_ACCOUNTS.map(acc => (
+                                                            <option key={acc.value} value={acc.value}>{acc.label}</option>
+                                                        ))}
                                                     </select>
                                                 </div>
                                             )}
@@ -820,8 +822,9 @@ export default function AparatosPage() {
                                                     }}
                                                     className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#34baab] bg-white"
                                                 >
-                                                    <option value="cuenta1">Cuenta Brubank</option>
-                                                    <option value="cuenta2">Cuenta Reba</option>
+                                                    {BANK_ACCOUNTS.map(acc => (
+                                                        <option key={acc.value} value={acc.value}>{acc.label}</option>
+                                                    ))}
                                                 </select>
                                             </div>
                                         )}
@@ -903,7 +906,7 @@ export default function AparatosPage() {
                                                     <div key={p.id || idx} className="flex items-center justify-between">
                                                         <span className="text-xs font-bold text-gray-600 uppercase tracking-widest">
                                                             {formatPaymentMethod(p.method)}
-                                                            {p.bankAccount && ` (${p.bankAccount === 'cuenta1' ? 'Brubank' : 'Reba'})`}
+                                                            {p.bankAccount && ` (${formatBankAccount(p.bankAccount)})`}
                                                         </span>
                                                         <span className="text-xs font-bold text-gray-600">{formatCurrency(p.amount)}</span>
                                                     </div>
@@ -921,7 +924,7 @@ export default function AparatosPage() {
                                                     <div className="flex items-center justify-between">
                                                         <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Cuenta</span>
                                                         <span className="text-xs font-bold text-gray-600 italic">
-                                                            {selectedSession.bankAccount === 'cuenta1' ? 'Cuenta Brubank' : 'Cuenta Reba'}
+                                                            {formatBankAccount(selectedSession.bankAccount)}
                                                         </span>
                                                     </div>
                                                 )}
