@@ -600,7 +600,8 @@ export default function FinanzasPage() {
                                 <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 animate-in slide-in-from-top-2 duration-200">
                                     <div className="max-h-[300px] overflow-y-auto pr-1 space-y-3 custom-scrollbar">
                                         {Object.entries(overview?.byProfessional || {}).map(([id, data]) => {
-                                            if (data.type === 'apoyo' || data.totalCommission <= 0) return null;
+                                            if (data.type === 'apoyo') return null;
+                                            if (!data.isProfessionalRecord && data.totalCommission <= 0) return null;
                                             const commId = `comm_${data.name.replace(/\s+/g, '_')}`;
                                             const pendingMovement = pendingCommissionByName[commId];
                                             return (
@@ -615,6 +616,7 @@ export default function FinanzasPage() {
                                                             {data.productCommission > 0 && <span className="text-xs text-gray-500">Prod: <span className="font-bold text-gray-700">{formatCurrency(data.productCommission)}</span></span>}
                                                             {data.rentalCommission > 0 && <span className="text-xs text-gray-500">Alq: <span className="font-bold text-gray-700">{formatCurrency(data.rentalCommission)}</span></span>}
                                                             {data.aparatoFee > 0 && <span className="text-xs text-gray-500">Ap: <span className="font-bold text-gray-700">{formatCurrency(data.aparatoFee)}</span></span>}
+                                                            {data.totalCommission <= 0 && <span className="text-xs text-gray-400 italic">Sin actividad en el período</span>}
                                                         </div>
                                                         {pendingMovement && (
                                                             <button
@@ -660,7 +662,7 @@ export default function FinanzasPage() {
                                     <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 animate-in slide-in-from-top-2 duration-200">
                                         <div className="max-h-[300px] overflow-y-auto pr-1 space-y-3 custom-scrollbar">
                                             {Object.entries(overview?.byProfessional || {}).map(([id, data]) => {
-                                                if (data.type !== 'apoyo' || data.totalCommission <= 0) return null;
+                                                if (data.type !== 'apoyo') return null;
                                                 const commId = `comm_${data.name.replace(/\s+/g, '_')}`;
                                                 const pendingMovement = pendingCommissionByName[commId];
                                                 return (

@@ -63,6 +63,7 @@ export interface FinanceOverview {
         name: string;
         userId?: string;
         type: 'tratamiento' | 'apoyo';
+        isProfessionalRecord: boolean;
     }>;
     byProduct: Record<string, {
         name: string;
@@ -177,7 +178,8 @@ export async function getFinanceOverview(startDate: string, endDate: string, tar
             overview.byProfessional[nameKey] = {
                 serviceIncome: 0, aparatoDayServiceIncome: 0, productIncome: 0, rentalIncome: 0, aparatoIncome: 0,
                 serviceCommission: 0, productCommission: 0, rentalCommission: 0, aparatoFee: 0, attendanceWage: 0,
-                totalCommission: 0, name: nameKey, userId: p.userId, type: p.type === 'apoyo' ? 'apoyo' : 'tratamiento'
+                totalCommission: 0, name: nameKey, userId: p.userId, type: p.type === 'apoyo' ? 'apoyo' : 'tratamiento',
+                isProfessionalRecord: true
             };
         }
     });
@@ -189,7 +191,8 @@ export async function getFinanceOverview(startDate: string, endDate: string, tar
             overview.byProfessional[nameKey] = {
                 serviceIncome: 0, aparatoDayServiceIncome: 0, productIncome: 0, rentalIncome: 0, aparatoIncome: 0,
                 serviceCommission: 0, productCommission: 0, rentalCommission: 0, aparatoFee: 0, attendanceWage: 0,
-                totalCommission: 0, name: nameKey, userId: u.uid, type: 'tratamiento'
+                totalCommission: 0, name: nameKey, userId: u.uid, type: 'tratamiento',
+                isProfessionalRecord: false
             };
         }
     });
@@ -204,7 +207,8 @@ export async function getFinanceOverview(startDate: string, endDate: string, tar
             overview.byProfessional[nameKey] = {
                 serviceIncome: 0, aparatoDayServiceIncome: 0, productIncome: 0, rentalIncome: 0, aparatoIncome: 0,
                 serviceCommission: 0, productCommission: 0, rentalCommission: 0, aparatoFee: 0, attendanceWage: 0,
-                totalCommission: 0, name: nameKey, userId: u.uid, type: 'tratamiento'
+                totalCommission: 0, name: nameKey, userId: u.uid, type: 'tratamiento',
+                isProfessionalRecord: false
             };
         }
     });
