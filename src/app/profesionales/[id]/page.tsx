@@ -22,6 +22,7 @@ import { ProfessionalFinance } from '@/components/professionals/ProfessionalFina
 import { ProfessionalAppointments } from '@/components/professionals/ProfessionalAppointments';
 import { ProfessionalSchedule } from '@/components/professionals/ProfessionalSchedule';
 import { ProfessionalConfig } from '@/components/professionals/ProfessionalConfig';
+import { ProfessionalAttendance } from '@/components/professionals/ProfessionalAttendance';
 import { getFinanceOverview } from '@/lib/firebase/finance';
 import { formatCurrencyWithSymbol } from '@/lib/utils/currency';
 import { ChevronDown, ChevronUp } from 'lucide-react';
@@ -32,7 +33,7 @@ export default function ProfessionalDetailPage() {
     const { profile } = useAuth();
     const [professional, setProfessional] = useState<Professional | null>(null);
     const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState<'overview' | 'finance' | 'appointments' | 'schedule' | 'config'>('finance');
+    const [activeTab, setActiveTab] = useState<'overview' | 'finance' | 'appointments' | 'schedule' | 'attendance' | 'config'>('finance');
 
     // UI Expandable States
     const [isTreatmentsExpanded, setIsTreatmentsExpanded] = useState(false);
@@ -159,18 +160,29 @@ export default function ProfessionalDetailPage() {
                     >
                         <DollarSign className="w-4 h-4" /> Finanzas
                     </button>
-                    <button
-                        onClick={() => setActiveTab('appointments')}
-                        className={`flex-1 min-w-[140px] flex items-center justify-center gap-3 py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all ${activeTab === 'appointments' ? 'bg-[#484450] text-white shadow-lg' : 'text-gray-400 hover:bg-gray-50'}`}
-                    >
-                        <Calendar className="w-4 h-4" /> Historial Turnos
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('schedule')}
-                        className={`flex-1 min-w-[140px] flex items-center justify-center gap-3 py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all ${activeTab === 'schedule' ? 'bg-[#484450] text-white shadow-lg' : 'text-gray-400 hover:bg-gray-50'}`}
-                    >
-                        <Clock className="w-4 h-4" /> Agenda & Horarios
-                    </button>
+                    {professional.type === 'apoyo' ? (
+                        <button
+                            onClick={() => setActiveTab('attendance')}
+                            className={`flex-1 min-w-[140px] flex items-center justify-center gap-3 py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all ${activeTab === 'attendance' ? 'bg-[#484450] text-white shadow-lg' : 'text-gray-400 hover:bg-gray-50'}`}
+                        >
+                            <Calendar className="w-4 h-4" /> Asistencia
+                        </button>
+                    ) : (
+                        <>
+                            <button
+                                onClick={() => setActiveTab('appointments')}
+                                className={`flex-1 min-w-[140px] flex items-center justify-center gap-3 py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all ${activeTab === 'appointments' ? 'bg-[#484450] text-white shadow-lg' : 'text-gray-400 hover:bg-gray-50'}`}
+                            >
+                                <Calendar className="w-4 h-4" /> Historial Turnos
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('schedule')}
+                                className={`flex-1 min-w-[140px] flex items-center justify-center gap-3 py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all ${activeTab === 'schedule' ? 'bg-[#484450] text-white shadow-lg' : 'text-gray-400 hover:bg-gray-50'}`}
+                            >
+                                <Clock className="w-4 h-4" /> Agenda & Horarios
+                            </button>
+                        </>
+                    )}
                     <button
                         onClick={() => setActiveTab('overview')}
                         className={`flex-1 min-w-[140px] flex items-center justify-center gap-3 py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all ${activeTab === 'overview' ? 'bg-[#484450] text-white shadow-lg' : 'text-gray-400 hover:bg-gray-50'}`}
@@ -194,6 +206,19 @@ export default function ProfessionalDetailPage() {
                 {activeTab === 'overview' && (
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8 items-start">
                         <div className="lg:col-span-2 space-y-6 md:space-y-8 h-fit">
+                            {professional.type === 'apoyo' ? (
+                                <div className="bg-white rounded-[32px] md:rounded-[40px] shadow-sm border border-gray-100 p-6 md:p-10">
+                                    <div className="flex items-center gap-4 mb-4">
+                                        <div className="w-10 h-10 bg-violet-500/10 rounded-xl flex items-center justify-center">
+                                            <DollarSign className="w-6 h-6 text-violet-500" />
+                                        </div>
+                                        <h3 className="text-lg md:text-2xl font-black text-gray-900 uppercase">Tarifa Diaria</h3>
+                                    </div>
+                                    <p className="text-3xl font-black text-violet-500">{formatCurrencyWithSymbol(professional.dailyRate || 0)}</p>
+                                    <p className="text-[11px] text-gray-400 font-medium mt-2">Personal de apoyo — no realiza tratamientos. Cargá los días trabajados desde la pestaña Asistencia.</p>
+                                </div>
+                            ) : (
+                            <>
                             {/* Treatments Card */}
                             <div className="bg-white rounded-[32px] md:rounded-[40px] shadow-sm border border-gray-100 overflow-hidden h-fit flex flex-col">
                                 <button
@@ -280,6 +305,8 @@ export default function ProfessionalDetailPage() {
                                     </div>
                                 )}
                             </div>
+                            </>
+                            )}
                         </div>
 
                         <div className="space-y-6 md:space-y-8 h-fit">
@@ -319,6 +346,10 @@ export default function ProfessionalDetailPage() {
 
                 {activeTab === 'appointments' && (
                     <ProfessionalAppointments professional={professional} />
+                )}
+
+                {activeTab === 'attendance' && (
+                    <ProfessionalAttendance professional={professional} />
                 )}
 
                 {activeTab === 'config' && (profile?.role === 'admin' || profile?.role === 'secretary') && (

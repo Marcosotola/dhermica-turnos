@@ -24,6 +24,8 @@ export function ProfessionalConfig({ professional, onUpdate }: ProfessionalConfi
     const [color, setColor] = useState(professional.color);
     const [order, setOrder] = useState(professional.order);
     const [legacyCollectionName, setLegacyCollectionName] = useState(professional.legacyCollectionName || '');
+    const isStaff = professional.type === 'apoyo';
+    const [dailyRate, setDailyRate] = useState(professional.dailyRate || 0);
     const [serviceCommissionMode, setServiceCommissionMode] = useState<'percentage' | 'fixed'>(professional.serviceCommissionMode || 'percentage');
     const [serviceCommissionPercentage, setServiceCommissionPercentage] = useState(professional.serviceCommissionPercentage || 0);
     const [productCommissionPercentage, setProductCommissionPercentage] = useState(professional.productCommissionPercentage || 0);
@@ -75,16 +77,18 @@ export function ProfessionalConfig({ professional, onUpdate }: ProfessionalConfi
         e.preventDefault();
         setSaving(true);
         try {
-            await updateProfessional(professional.id, {
-                name,
-                color,
-                order,
-                legacyCollectionName,
-                serviceCommissionMode,
-                serviceCommissionPercentage,
-                productCommissionPercentage,
-                professionalPrices: serviceCommissionMode === 'fixed' ? professionalPrices : [],
-            });
+            await updateProfessional(professional.id, isStaff
+                ? { name, color, order, legacyCollectionName, dailyRate }
+                : {
+                    name,
+                    color,
+                    order,
+                    legacyCollectionName,
+                    serviceCommissionMode,
+                    serviceCommissionPercentage,
+                    productCommissionPercentage,
+                    professionalPrices: serviceCommissionMode === 'fixed' ? professionalPrices : [],
+                });
             toast.success('Configuración guardada');
             onUpdate();
         } catch {
@@ -174,6 +178,21 @@ export function ProfessionalConfig({ professional, onUpdate }: ProfessionalConfi
                         <p className="text-[10px] text-gray-400 font-bold mt-1">Nombre de la colección Firebase para datos históricos.</p>
                     </div>
 
+                    {isStaff ? (
+                        <div className="pt-4 border-t border-gray-100">
+                            <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mb-4">Tarifa</p>
+                            <label className="text-[10px] text-gray-400 font-black uppercase tracking-widest">Tarifa diaria ($)</label>
+                            <Input
+                                type="number"
+                                value={dailyRate || ''}
+                                onChange={(e) => setDailyRate(e.target.value === '' ? 0 : parseFloat(e.target.value))}
+                                min={0}
+                                placeholder="Ej: 15000"
+                                className="mt-1 font-bold"
+                            />
+                            <p className="text-[10px] text-gray-400 font-bold mt-1">Monto que cobra por cada día trabajado.</p>
+                        </div>
+                    ) : (
                     <div className="pt-4 border-t border-gray-100">
                         <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mb-4">Comisiones</p>
 
@@ -307,6 +326,7 @@ export function ProfessionalConfig({ professional, onUpdate }: ProfessionalConfi
                             </div>
                         )}
                     </div>
+                    )}
 
                     <div className="flex justify-end pt-4 border-t border-gray-100">
                         <Button

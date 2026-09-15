@@ -67,6 +67,7 @@ export function ProfessionalFinance({ professional, isAdmin }: ProfessionalFinan
     }, [dateRange, currentDate, customRange, professional.id, professional.userId]);
 
     const formatCurrency = formatCurrencyWithSymbol;
+    const isStaff = professional.type === 'apoyo';
 
     const cleanName = professional.name.trim().toLowerCase();
     const profData = overview?.byProfessional[professional.name.trim()] || 
@@ -146,7 +147,7 @@ export function ProfessionalFinance({ professional, isAdmin }: ProfessionalFinan
                 <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
                     <DollarSign className="w-16 h-16" />
                 </div>
-                <p className="text-[10px] font-black uppercase tracking-widest opacity-60">Total Comisión</p>
+                <p className="text-[10px] font-black uppercase tracking-widest opacity-60">{isStaff ? 'Total Sueldo' : 'Total Comisión'}</p>
                 <h4 className="text-3xl font-black mt-1">{formatCurrency(profData?.totalCommission || 0)}</h4>
                 <div className="mt-4 flex items-center gap-2 text-[10px] font-bold bg-white/10 w-fit px-2 py-1 rounded-lg">
                     <TrendingUp className="w-3 h-3 text-green-400" />
@@ -154,6 +155,7 @@ export function ProfessionalFinance({ professional, isAdmin }: ProfessionalFinan
                 </div>
             </div>
 
+            {!isStaff && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 {/* Service Income */}
                 <div className="bg-white p-6 rounded-[32px] border border-gray-100 shadow-sm">
@@ -212,6 +214,7 @@ export function ProfessionalFinance({ professional, isAdmin }: ProfessionalFinan
                     </div>
                 </div>
             </div>
+            )}
 
             {!profData && (
                 <div className="bg-white p-12 rounded-[40px] border border-dashed border-gray-200 text-center">

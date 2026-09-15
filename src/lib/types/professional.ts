@@ -24,6 +24,10 @@ export interface Professional {
     createdAt: Date;
     order: number; // Para ordenar las columnas
     legacyCollectionName?: string; // Nombre de la colección antigua (ej: turnosLuciana)
+    // Tipo de personal: 'tratamiento' (default, hace turnos y cobra comisión) o 'apoyo'
+    // (secretaria, limpieza: no hace turnos, cobra por día trabajado vía `dailyRate`)
+    type?: 'tratamiento' | 'apoyo';
+    dailyRate?: number; // Tarifa por día trabajado, solo aplica si type === 'apoyo'
     serviceCommissionMode?: 'percentage' | 'fixed';
     serviceCommissionPercentage?: number;
     productCommissionPercentage?: number;

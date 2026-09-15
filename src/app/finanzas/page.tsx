@@ -210,7 +210,8 @@ export default function FinanzasPage() {
 
         setLiquidating(true);
         try {
-            const professionalName = liquidatingMovement.description.replace('Comisión (Pendiente): ', '');
+            const isStaffWage = liquidatingMovement.description.startsWith('Sueldo (Pendiente): ');
+            const professionalName = liquidatingMovement.description.replace(/^(Comisión|Sueldo) \(Pendiente\): /, '');
             const payments = liquidatePayments.map(p => ({
                 id: p.id,
                 method: p.method,
@@ -222,7 +223,7 @@ export default function FinanzasPage() {
                 date: getTodayDate(),
                 category: 'sueldos',
                 amount,
-                description: `Liquidación comisión: ${professionalName}`,
+                description: `Liquidación ${isStaffWage ? 'sueldo' : 'comisión'}: ${professionalName}`,
                 payments,
                 paymentMethod: payments[0].method,
                 bankAccount: payments[0].bankAccount,
@@ -585,11 +586,11 @@ export default function FinanzasPage() {
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <h3 className={`font-black uppercase tracking-widest text-[8px] md:text-[9px] mb-0.5 truncate ${canSeeAdminMetrics ? 'text-gray-400' : 'text-white/70'}`}>
-                                        {canSeeAdminMetrics ? 'Comisiones' : 'Mi Ganancia'}
+                                        {canSeeAdminMetrics ? 'Comisiones Profesionales' : (personalData?.type === 'apoyo' ? 'Mi Sueldo' : 'Mi Ganancia')}
                                     </h3>
                                     <p className={`text-base md:text-xl font-black truncate ${canSeeAdminMetrics ? 'text-gray-900' : 'text-white'}`}>
                                         {formatCurrency(canSeeAdminMetrics
-                                            ? Object.values(overview?.byProfessional || {}).reduce((s, d) => s + (d.totalCommission || 0), 0)
+                                            ? Object.values(overview?.byProfessional || {}).filter(d => d.type !== 'apoyo').reduce((s, d) => s + (d.totalCommission || 0), 0)
                                             : (personalData?.totalCommission || 0))}
                                     </p>
                                 </div>
@@ -599,7 +600,7 @@ export default function FinanzasPage() {
                                 <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 animate-in slide-in-from-top-2 duration-200">
                                     <div className="max-h-[300px] overflow-y-auto pr-1 space-y-3 custom-scrollbar">
                                         {Object.entries(overview?.byProfessional || {}).map(([id, data]) => {
-                                            if (data.totalCommission <= 0) return null;
+                                            if (data.type === 'apoyo' || data.totalCommission <= 0) return null;
                                             const commId = `comm_${data.name.replace(/\s+/g, '_')}`;
                                             const pendingMovement = pendingCommissionByName[commId];
                                             return (
@@ -633,6 +634,62 @@ export default function FinanzasPage() {
                                 </div>
                             )}
                         </div>
+
+                        {/* Sueldo Personal de Apoyo (secretaria, limpieza — no hacen tratamientos) */}
+                        {canSeeAdminMetrics && (
+                            <div className="space-y-2">
+                                <button
+                                    type="button"
+                                    onClick={() => toggleMetric('sueldos-apoyo')}
+                                    className={`w-full rounded-2xl md:rounded-3xl p-3 md:p-5 shadow-sm border transition-all flex items-center gap-3 md:gap-4 text-left ${expandedMetric === 'sueldos-apoyo' ? 'bg-white border-violet-500 ring-1 ring-violet-500/20' : 'bg-white border-gray-100 hover:shadow-md'}`}
+                                >
+                                    <div className="p-2 md:p-3 rounded-xl md:rounded-2xl bg-violet-50 text-violet-500">
+                                        <Users className="w-5 h-5 md:w-6 md:h-6" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <h3 className="font-black uppercase tracking-widest text-[8px] md:text-[9px] mb-0.5 truncate text-gray-400">
+                                            Sueldo Personal de Apoyo
+                                        </h3>
+                                        <p className="text-base md:text-xl font-black truncate text-gray-900">
+                                            {formatCurrency(Object.values(overview?.byProfessional || {}).filter(d => d.type === 'apoyo').reduce((s, d) => s + (d.totalCommission || 0), 0))}
+                                        </p>
+                                    </div>
+                                    <ArrowUpDown className={`w-3 h-3 text-gray-300 transition-transform flex-shrink-0 ${expandedMetric === 'sueldos-apoyo' ? 'rotate-180' : ''}`} />
+                                </button>
+                                {expandedMetric === 'sueldos-apoyo' && (
+                                    <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 animate-in slide-in-from-top-2 duration-200">
+                                        <div className="max-h-[300px] overflow-y-auto pr-1 space-y-3 custom-scrollbar">
+                                            {Object.entries(overview?.byProfessional || {}).map(([id, data]) => {
+                                                if (data.type !== 'apoyo' || data.totalCommission <= 0) return null;
+                                                const commId = `comm_${data.name.replace(/\s+/g, '_')}`;
+                                                const pendingMovement = pendingCommissionByName[commId];
+                                                return (
+                                                    <div key={id} className="pb-3 border-b border-gray-100 last:border-0">
+                                                        <div className="flex justify-between items-center mb-1">
+                                                            <span className="text-sm font-bold text-gray-800">{data.name}</span>
+                                                            <span className="text-sm font-black text-violet-600">{formatCurrency(data.totalCommission)}</span>
+                                                        </div>
+                                                        <div className="flex items-center justify-between gap-2">
+                                                            <span className="text-xs text-gray-500">Asistencia: <span className="font-bold text-gray-700">{formatCurrency(data.attendanceWage)}</span></span>
+                                                            {pendingMovement && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => openLiquidate(pendingMovement)}
+                                                                    className="inline-flex items-center gap-1 bg-violet-500 hover:bg-violet-600 text-white px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-sm shrink-0"
+                                                                >
+                                                                    <DollarSign className="w-2.5 h-2.5" />
+                                                                    Liquidar
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
 
 

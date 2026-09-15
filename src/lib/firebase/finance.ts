@@ -5,6 +5,7 @@ import { getAparatoSessionsByDateRange } from './aparatos';
 import { getEgresosByDateRange, getCommissionPaymentEgresos } from './egresos';
 import { getProfessionals } from './professionals';
 import { getGiftCardsByDateRange } from './giftCards';
+import { getAttendancesByDateRange } from './attendances';
 import { Appointment } from '../types/appointment';
 import { Sale } from '../types/sale';
 import { Rental } from '../types/rental';
@@ -12,6 +13,7 @@ import { AparatoSession } from '../types/aparato';
 import { Egreso } from '../types/egreso';
 import { Professional } from '../types/professional';
 import { GiftCard } from '../types/giftCard';
+import { Attendance } from '../types/attendance';
 import { getUsersByRole } from './users';
 
 export interface FinanceMovement {
@@ -39,6 +41,7 @@ export interface FinanceOverview {
     totalGiftCardIncome: number;
     totalEgresos: number;
     totalProfCommissions: number;
+    totalStaffWages: number;
     totalEgresosGeneral: number;
     saldo: number;
     egresosByCategory: Record<string, number>;
@@ -55,9 +58,11 @@ export interface FinanceOverview {
         productCommission: number;
         rentalCommission: number;
         aparatoFee: number;
+        attendanceWage: number;
         totalCommission: number;
         name: string;
         userId?: string;
+        type: 'tratamiento' | 'apoyo';
     }>;
     byProduct: Record<string, {
         name: string;
@@ -120,7 +125,7 @@ async function fetchAppointmentsForFinance(
 }
 
 export async function getFinanceOverview(startDate: string, endDate: string, targetProfessionalId?: string): Promise<FinanceOverview> {
-    const [appointments, sales, rentals, aparatos, egresos, commissionPayments, giftCards, allProfessionals, admins, secretaries, promotors, profUsers] = await Promise.all([
+    const [appointments, sales, rentals, aparatos, egresos, commissionPayments, giftCards, attendances, allProfessionals, admins, secretaries, promotors, profUsers] = await Promise.all([
         fetchAppointmentsForFinance(startDate, endDate, targetProfessionalId).catch(() => [] as Appointment[]),
         getSalesByDateRange(startDate, endDate).catch(() => [] as Sale[]),
         getRentalsByDateRange(startDate, endDate).catch(() => [] as Rental[]),
@@ -128,6 +133,7 @@ export async function getFinanceOverview(startDate: string, endDate: string, tar
         getEgresosByDateRange(startDate, endDate).catch(() => [] as Egreso[]),
         getCommissionPaymentEgresos().catch(() => [] as Egreso[]),
         getGiftCardsByDateRange(startDate, endDate).catch(() => [] as GiftCard[]),
+        getAttendancesByDateRange(startDate, endDate).catch(() => [] as Attendance[]),
         getProfessionals().catch(() => [] as Professional[]),
         getUsersByRole('admin').catch(() => []),
         getUsersByRole('secretary').catch(() => []),
@@ -145,6 +151,7 @@ export async function getFinanceOverview(startDate: string, endDate: string, tar
         totalGiftCardIncome: 0,
         totalEgresos: 0,
         totalProfCommissions: 0,
+        totalStaffWages: 0,
         totalEgresosGeneral: 0,
         saldo: 0,
         egresosByCategory: {},
@@ -169,8 +176,8 @@ export async function getFinanceOverview(startDate: string, endDate: string, tar
         if (!overview.byProfessional[nameKey]) {
             overview.byProfessional[nameKey] = {
                 serviceIncome: 0, aparatoDayServiceIncome: 0, productIncome: 0, rentalIncome: 0, aparatoIncome: 0,
-                serviceCommission: 0, productCommission: 0, rentalCommission: 0, aparatoFee: 0,
-                totalCommission: 0, name: nameKey, userId: p.userId
+                serviceCommission: 0, productCommission: 0, rentalCommission: 0, aparatoFee: 0, attendanceWage: 0,
+                totalCommission: 0, name: nameKey, userId: p.userId, type: p.type === 'apoyo' ? 'apoyo' : 'tratamiento'
             };
         }
     });
@@ -181,8 +188,8 @@ export async function getFinanceOverview(startDate: string, endDate: string, tar
         if (!overview.byProfessional[nameKey]) {
             overview.byProfessional[nameKey] = {
                 serviceIncome: 0, aparatoDayServiceIncome: 0, productIncome: 0, rentalIncome: 0, aparatoIncome: 0,
-                serviceCommission: 0, productCommission: 0, rentalCommission: 0, aparatoFee: 0,
-                totalCommission: 0, name: nameKey, userId: u.uid
+                serviceCommission: 0, productCommission: 0, rentalCommission: 0, aparatoFee: 0, attendanceWage: 0,
+                totalCommission: 0, name: nameKey, userId: u.uid, type: 'tratamiento'
             };
         }
     });
@@ -196,8 +203,8 @@ export async function getFinanceOverview(startDate: string, endDate: string, tar
         if (!overview.byProfessional[nameKey]) {
             overview.byProfessional[nameKey] = {
                 serviceIncome: 0, aparatoDayServiceIncome: 0, productIncome: 0, rentalIncome: 0, aparatoIncome: 0,
-                serviceCommission: 0, productCommission: 0, rentalCommission: 0, aparatoFee: 0,
-                totalCommission: 0, name: nameKey, userId: u.uid
+                serviceCommission: 0, productCommission: 0, rentalCommission: 0, aparatoFee: 0, attendanceWage: 0,
+                totalCommission: 0, name: nameKey, userId: u.uid, type: 'tratamiento'
             };
         }
     });
@@ -448,6 +455,16 @@ export async function getFinanceOverview(startDate: string, endDate: string, tar
         });
     });
 
+    // 5b. Asistencias del personal de apoyo (sueldo por día trabajado, no es un ingreso —
+    // se acumula para calcular cuánto se le debe a esa persona, igual que la comisión de
+    // un profesional de tratamiento).
+    attendances.forEach(a => {
+        const profName = idToName[a.professionalId] || a.professionalId;
+        if (overview.byProfessional[profName]) {
+            overview.byProfessional[profName].attendanceWage += Number(a.amount) || 0;
+        }
+    });
+
     // 6. Egresos Manuales
     egresos.forEach(e => {
         const amount = Number(e.amount) || 0;
@@ -466,7 +483,8 @@ export async function getFinanceOverview(startDate: string, endDate: string, tar
 
     // 6. Consolidar Comisiones
     overview.totalProfCommissions = 0;
-    
+    overview.totalStaffWages = 0;
+
     // Calcular cuánto de los fees de aparatos ya está en 'egresos' (manuales)
     // Usar MAX por profesional+día (igual que aparatoFeesByDay) para evitar sobre-deducción
     const registeredAparatoFeesByDay: Record<string, number> = {};
@@ -506,7 +524,7 @@ export async function getFinanceOverview(startDate: string, endDate: string, tar
         // se haya liquidado: en ese caso se muestra el monto realmente pagado (puede haber
         // sido editado a mano al liquidar), para que el resumen y el panel del profesional
         // coincidan con lo efectivamente pagado.
-        data.totalCommission = data.serviceCommission + data.productCommission + data.rentalCommission + data.aparatoFee;
+        data.totalCommission = data.serviceCommission + data.productCommission + data.rentalCommission + data.aparatoFee + data.attendanceWage;
 
         const prof = nameToProfessional[data.name];
         const periodKey = prof ? `${prof.id}|${startDate}|${endDate}` : '';
@@ -519,16 +537,18 @@ export async function getFinanceOverview(startDate: string, endDate: string, tar
         // Si ya se liquidó este período, el monto pactado queda fijo: no queda pendiente.
         const virtualCommissionToPay = isLiquidated
             ? 0
-            : Math.max(0, data.serviceCommission + data.productCommission + data.rentalCommission + pendingAparatoFee);
+            : Math.max(0, data.serviceCommission + data.productCommission + data.rentalCommission + pendingAparatoFee + data.attendanceWage);
 
         if (virtualCommissionToPay > 0) {
-            overview.totalProfCommissions += virtualCommissionToPay;
+            const isStaff = data.type === 'apoyo';
+            if (isStaff) overview.totalStaffWages += virtualCommissionToPay;
+            else overview.totalProfCommissions += virtualCommissionToPay;
             allMovements.push({
                 id: `comm_${data.name.replace(/\s+/g, '_')}`,
                 date: endDate,
                 type: 'egreso',
                 category: 'sueldos',
-                description: `Comisión (Pendiente): ${data.name}`,
+                description: `${isStaff ? 'Sueldo' : 'Comisión'} (Pendiente): ${data.name}`,
                 method: 'cash',
                 amount: virtualCommissionToPay,
                 referenceId: prof?.id,

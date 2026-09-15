@@ -26,6 +26,8 @@ export default function ProfesionalesPage() {
     const [color, setColor] = useState('#6366f1');
     const [order, setOrder] = useState(0);
     const [legacyCollectionName, setLegacyCollectionName] = useState('');
+    const [staffType, setStaffType] = useState<'tratamiento' | 'apoyo'>('tratamiento');
+    const [dailyRate, setDailyRate] = useState(0);
     const [serviceCommissionMode, setServiceCommissionMode] = useState<'percentage' | 'fixed'>('percentage');
     const [serviceCommissionPercentage, setServiceCommissionPercentage] = useState(0);
     const [productCommissionPercentage, setProductCommissionPercentage] = useState(0);
@@ -54,6 +56,8 @@ export default function ProfesionalesPage() {
         setColor('#6366f1');
         setOrder(professionals.length);
         setLegacyCollectionName('');
+        setStaffType('tratamiento');
+        setDailyRate(0);
         setServiceCommissionMode('percentage');
         setServiceCommissionPercentage(0);
         setProductCommissionPercentage(0);
@@ -88,18 +92,21 @@ export default function ProfesionalesPage() {
         }
         setSubmitting(true);
         try {
-            await createProfessional({
+            const basePayload = {
                 name: selectedUser.fullName || selectedUser.email,
                 userId: selectedUser.uid,
                 color,
                 order,
                 active: true,
                 legacyCollectionName,
-                serviceCommissionMode,
-                serviceCommissionPercentage,
-                productCommissionPercentage,
-            });
-            toast.success('Profesional creado');
+                type: staffType,
+            };
+            await createProfessional(
+                staffType === 'apoyo'
+                    ? { ...basePayload, dailyRate }
+                    : { ...basePayload, serviceCommissionMode, serviceCommissionPercentage, productCommissionPercentage }
+            );
+            toast.success(staffType === 'apoyo' ? 'Personal de apoyo creado' : 'Profesional creado');
             setModalOpen(false);
             loadProfessionals();
         } catch (error) {
@@ -188,6 +195,11 @@ export default function ProfesionalesPage() {
                                                 <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest ${prof.active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                                                     {prof.active ? 'Activo' : 'Inactivo'}
                                                 </span>
+                                                {prof.type === 'apoyo' && (
+                                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest bg-violet-100 text-violet-700">
+                                                        Apoyo
+                                                    </span>
+                                                )}
                                                 <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">
                                                     Pos. #{prof.order}
                                                 </span>
@@ -195,7 +207,12 @@ export default function ProfesionalesPage() {
                                         </div>
                                     </div>
 
-                                    {(prof.serviceCommissionPercentage || prof.productCommissionPercentage) ? (
+                                    {prof.type === 'apoyo' ? (
+                                        <div className="mb-5 px-3 py-2 bg-violet-50 rounded-xl border border-violet-100">
+                                            <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">Tarifa diaria</p>
+                                            <p className="text-xl font-black text-violet-500">${(prof.dailyRate ?? 0).toLocaleString('es-AR')}</p>
+                                        </div>
+                                    ) : (prof.serviceCommissionPercentage || prof.productCommissionPercentage) ? (
                                         <div className="grid grid-cols-2 gap-3 mb-5">
                                             <div className="bg-violet-50 rounded-2xl p-3">
                                                 <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">Servicios</p>
@@ -293,6 +310,30 @@ export default function ProfesionalesPage() {
                             </div>
                         )}
                     </div>
+                    <div>
+                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Tipo de personal</label>
+                        <div className="bg-gray-100 p-0.5 rounded-lg flex w-fit">
+                            <button
+                                type="button"
+                                onClick={() => setStaffType('tratamiento')}
+                                className={`px-3 py-1.5 rounded text-[10px] font-bold uppercase tracking-wider transition-all ${staffType === 'tratamiento' ? 'bg-white text-violet-600 shadow-sm' : 'text-gray-400'}`}
+                            >
+                                Tratamiento
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setStaffType('apoyo')}
+                                className={`px-3 py-1.5 rounded text-[10px] font-bold uppercase tracking-wider transition-all ${staffType === 'apoyo' ? 'bg-white text-violet-600 shadow-sm' : 'text-gray-400'}`}
+                            >
+                                Apoyo (secretaria, limpieza)
+                            </button>
+                        </div>
+                        <p className="text-[11px] text-gray-400 mt-1.5">
+                            {staffType === 'apoyo'
+                                ? 'No hace tratamientos ni aparece en la agenda — cobra una tarifa fija por día trabajado.'
+                                : 'Hace tratamientos, aparece en la agenda y cobra comisión sobre lo que factura.'}
+                        </p>
+                    </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Color Identificador</label>
@@ -330,60 +371,75 @@ export default function ProfesionalesPage() {
                             placeholder="Ej: turnosLuciana"
                         />
                     </div>
-                    <div className="pt-2">
-                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Modo comisión servicios</label>
-                        <div className="bg-gray-100 p-0.5 rounded-lg flex w-fit mb-3">
-                            <button
-                                type="button"
-                                onClick={() => setServiceCommissionMode('percentage')}
-                                className={`px-3 py-1.5 rounded text-[10px] font-bold uppercase tracking-wider transition-all ${serviceCommissionMode === 'percentage' ? 'bg-white text-violet-600 shadow-sm' : 'text-gray-400'}`}
-                            >
-                                Porcentaje
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setServiceCommissionMode('fixed')}
-                                className={`px-3 py-1.5 rounded text-[10px] font-bold uppercase tracking-wider transition-all ${serviceCommissionMode === 'fixed' ? 'bg-white text-violet-600 shadow-sm' : 'text-gray-400'}`}
-                            >
-                                Precio fijo
-                            </button>
+                    {staffType === 'apoyo' ? (
+                        <div className="pt-2">
+                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Tarifa diaria ($)</label>
+                            <Input
+                                type="number"
+                                value={dailyRate || ''}
+                                onChange={(e) => setDailyRate(e.target.value === '' ? 0 : parseFloat(e.target.value))}
+                                min={0}
+                                placeholder="Ej: 15000"
+                                className="font-bold"
+                            />
+                            <p className="text-[11px] text-gray-400 mt-1.5">Monto que cobra por cada día trabajado. Se puede ajustar puntualmente al cargar una asistencia.</p>
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            {serviceCommissionMode === 'percentage' && (
+                    ) : (
+                        <div className="pt-2">
+                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Modo comisión servicios</label>
+                            <div className="bg-gray-100 p-0.5 rounded-lg flex w-fit mb-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setServiceCommissionMode('percentage')}
+                                    className={`px-3 py-1.5 rounded text-[10px] font-bold uppercase tracking-wider transition-all ${serviceCommissionMode === 'percentage' ? 'bg-white text-violet-600 shadow-sm' : 'text-gray-400'}`}
+                                >
+                                    Porcentaje
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setServiceCommissionMode('fixed')}
+                                    className={`px-3 py-1.5 rounded text-[10px] font-bold uppercase tracking-wider transition-all ${serviceCommissionMode === 'fixed' ? 'bg-white text-violet-600 shadow-sm' : 'text-gray-400'}`}
+                                >
+                                    Precio fijo
+                                </button>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                {serviceCommissionMode === 'percentage' && (
+                                    <div>
+                                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Comisión Servicios (%)</label>
+                                        <div className="relative">
+                                            <Input
+                                                type="number"
+                                                value={serviceCommissionPercentage || ''}
+                                                onChange={(e) => setServiceCommissionPercentage(e.target.value === '' ? 0 : parseFloat(e.target.value))}
+                                                min={0} max={100} step={0.5}
+                                                placeholder="Ej: 50"
+                                                className="pl-9 font-bold"
+                                            />
+                                            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-violet-500 font-black">%</div>
+                                        </div>
+                                    </div>
+                                )}
                                 <div>
-                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Comisión Servicios (%)</label>
+                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Comisión Productos (%)</label>
                                     <div className="relative">
                                         <Input
                                             type="number"
-                                            value={serviceCommissionPercentage || ''}
-                                            onChange={(e) => setServiceCommissionPercentage(e.target.value === '' ? 0 : parseFloat(e.target.value))}
+                                            value={productCommissionPercentage || ''}
+                                            onChange={(e) => setProductCommissionPercentage(e.target.value === '' ? 0 : parseFloat(e.target.value))}
                                             min={0} max={100} step={0.5}
-                                            placeholder="Ej: 50"
+                                            placeholder="Ej: 10"
                                             className="pl-9 font-bold"
                                         />
-                                        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-violet-500 font-black">%</div>
+                                        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-500 font-black">%</div>
                                     </div>
                                 </div>
-                            )}
-                            <div>
-                                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Comisión Productos (%)</label>
-                                <div className="relative">
-                                    <Input
-                                        type="number"
-                                        value={productCommissionPercentage || ''}
-                                        onChange={(e) => setProductCommissionPercentage(e.target.value === '' ? 0 : parseFloat(e.target.value))}
-                                        min={0} max={100} step={0.5}
-                                        placeholder="Ej: 10"
-                                        className="pl-9 font-bold"
-                                    />
-                                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-500 font-black">%</div>
-                                </div>
                             </div>
+                            {serviceCommissionMode === 'fixed' && (
+                                <p className="text-[11px] text-gray-400 mt-2">Los precios por servicio se configuran después de crear el profesional, desde su página de configuración.</p>
+                            )}
                         </div>
-                        {serviceCommissionMode === 'fixed' && (
-                            <p className="text-[11px] text-gray-400 mt-2">Los precios por servicio se configuran después de crear el profesional, desde su página de configuración.</p>
-                        )}
-                    </div>
+                    )}
                     <div className="flex justify-end gap-3 pt-4 border-t">
                         <Button type="button" variant="ghost" onClick={() => setModalOpen(false)}>
                             Cancelar

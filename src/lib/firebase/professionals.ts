@@ -93,7 +93,9 @@ export async function getProfessionals(): Promise<Professional[]> {
 }
 
 /**
- * Obtiene solo los profesionales activos
+ * Obtiene solo los profesionales activos que hacen tratamientos (excluye personal de
+ * apoyo como secretaria/limpieza, que no debe aparecer en agenda/turnos ni en los
+ * selectores de asignación de citas).
  */
 export async function getActiveProfessionals(): Promise<Professional[]> {
     const q = query(
@@ -103,14 +105,16 @@ export async function getActiveProfessionals(): Promise<Professional[]> {
     );
 
     const snapshot = await getDocs(q);
-    return snapshot.docs.map((doc) => {
-        const data = doc.data();
-        return {
-            id: doc.id,
-            ...data,
-            createdAt: data.createdAt?.toDate() || new Date(),
-        } as Professional;
-    });
+    return snapshot.docs
+        .map((doc) => {
+            const data = doc.data();
+            return {
+                id: doc.id,
+                ...data,
+                createdAt: data.createdAt?.toDate() || new Date(),
+            } as Professional;
+        })
+        .filter((p) => p.type !== 'apoyo');
 }
 
 /**
