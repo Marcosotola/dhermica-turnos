@@ -15,6 +15,7 @@ import {
 } from 'firebase/firestore';
 import { db } from './config';
 import { GiftCard, GiftCardRedemption, GiftCardStatus } from '../types/giftCard';
+import { formatDate } from '../utils/time';
 
 const COLLECTION = 'giftCards';
 
@@ -22,6 +23,10 @@ function mapGiftCard(id: string, data: any): GiftCard {
     // Backward compat: datos legacy usan `amount` sin `originalAmount`/`remainingBalance`
     const originalAmount = data.originalAmount ?? data.amount ?? 0;
     const remainingBalance = data.remainingBalance ?? originalAmount;
+    const createdAtDate: Date = data.createdAt?.toDate?.() || new Date();
+    // Backward compat: gift cards creadas antes de que `date` existiera no lo tienen —
+    // se usa la fecha local de creación como mejor aproximación.
+    const date = data.date || formatDate(createdAtDate);
 
     return {
         id,
@@ -35,11 +40,12 @@ function mapGiftCard(id: string, data: any): GiftCard {
         message: data.message,
         purchaseMethod: data.purchaseMethod,
         bankAccount: data.bankAccount ?? null,
+        date,
         status: data.status || 'active',
         expiryDate: data.expiryDate,
         redemptions: data.redemptions ?? [],
         notes: data.notes,
-        createdAt: data.createdAt?.toDate?.() || new Date(),
+        createdAt: createdAtDate,
         updatedAt: data.updatedAt?.toDate?.() || new Date(),
         createdBy: data.createdBy,
     };
@@ -166,20 +172,16 @@ export async function getAllGiftCards(): Promise<GiftCard[]> {
     return snap.docs.map(d => mapGiftCard(d.id, d.data()));
 }
 
+// Filtra por `date` (fecha de venta editable) en JS en vez de una query por `createdAt`:
+// las gift cards viejas no tienen el campo `date` en Firestore (una query `where` las
+// excluiría), y una gift card editada para tener una fecha de venta pasada/futura debe
+// aparecer en Finanzas para ESA fecha, no para la fecha en que se creó el documento.
 export async function getGiftCardsByDateRange(
     startDate: string,
     endDate: string
 ): Promise<GiftCard[]> {
-    const startTs = Timestamp.fromDate(new Date(startDate + 'T00:00:00'));
-    const endTs = Timestamp.fromDate(new Date(endDate + 'T23:59:59'));
-    const q = query(
-        collection(db, COLLECTION),
-        where('createdAt', '>=', startTs),
-        where('createdAt', '<=', endTs),
-        orderBy('createdAt', 'asc')
-    );
-    const snap = await getDocs(q);
-    return snap.docs.map(d => mapGiftCard(d.id, d.data()));
+    const all = await getAllGiftCards();
+    return all.filter(gc => gc.date >= startDate && gc.date <= endDate);
 }
 
 // Redención parcial o total. Descuenta el monto del saldo, agrega al historial.
@@ -250,7 +252,7 @@ export async function updateGiftCard(
     data: Partial<Pick<
         GiftCard,
         'originalAmount' | 'remainingBalance' | 'purchaseMethod' | 'bankAccount' |
-        'expiryDate' | 'notes' | 'purchaserName' | 'purchaserClientId' |
+        'date' | 'expiryDate' | 'notes' | 'purchaserName' | 'purchaserClientId' |
         'recipientName' | 'message'
     >>
 ): Promise<void> {

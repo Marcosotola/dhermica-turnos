@@ -33,6 +33,7 @@ export interface GiftCard {
     // Pago de la gift card
     purchaseMethod?: 'cash' | 'transfer' | 'debit' | 'credit' | 'qr';
     bankAccount?: BankAccount | null;
+    date: string; // YYYY-MM-DD — fecha de venta (editable, usada por Finanzas)
 
     status: GiftCardStatus;
     expiryDate?: string; // YYYY-MM-DD — default: purchaseDate + 60 días

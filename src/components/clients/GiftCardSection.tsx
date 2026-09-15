@@ -45,6 +45,7 @@ interface CreateFormState {
     bankAccount: BankAccount;
     recipientName: string;
     message: string;
+    date: string;
     expiryDate: string;
     notes: string;
     // override del comprador (cuando se crea desde la ficha de un cliente ya registrado,
@@ -58,6 +59,7 @@ function getEmptyForm(): CreateFormState {
         bankAccount: 'cuenta1',
         recipientName: '',
         message: '',
+        date: todayString(),
         expiryDate: defaultExpiryDate(),
         notes: '',
     };
@@ -105,6 +107,7 @@ export function GiftCardSection({
                 message: form.message || undefined,
                 purchaseMethod: form.purchaseMethod,
                 bankAccount: form.purchaseMethod === 'transfer' ? form.bankAccount : null,
+                date: form.date || today,
                 status: 'active',
                 expiryDate: form.expiryDate || undefined,
                 notes: form.notes || undefined,
@@ -143,6 +146,7 @@ export function GiftCardSection({
             bankAccount: (card.bankAccount as BankAccount) || 'cuenta1',
             recipientName: card.recipientName || '',
             message: card.message || '',
+            date: card.date || today,
             expiryDate: card.expiryDate || '',
             notes: card.notes || '',
         });
@@ -153,6 +157,7 @@ export function GiftCardSection({
         if (!editingCard) return;
         const amount = parseFloat(editForm.amount);
         if (!amount || amount <= 0) { toast.error('Monto inválido'); return; }
+        if (!editForm.date) { toast.error('Ingresá la fecha de venta'); return; }
         setSaving(true);
         try {
             await updateGiftCard(editingCard.id, {
@@ -161,6 +166,7 @@ export function GiftCardSection({
                 bankAccount: editForm.purchaseMethod === 'transfer' ? editForm.bankAccount : null,
                 recipientName: editForm.recipientName || undefined,
                 message: editForm.message || undefined,
+                date: editForm.date,
                 expiryDate: editForm.expiryDate || undefined,
                 notes: editForm.notes || undefined,
             });
@@ -225,14 +231,25 @@ export function GiftCardSection({
                             />
                         </div>
                         <div>
-                            <label className="block text-xs font-medium text-gray-600 mb-1">Vence</label>
+                            <label className="block text-xs font-medium text-gray-600 mb-1">Fecha de venta</label>
                             <input
                                 type="date"
-                                value={form.expiryDate}
-                                onChange={e => setForm(f => ({ ...f, expiryDate: e.target.value }))}
+                                value={form.date}
+                                onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
+                                required
                                 className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 bg-white focus:outline-none focus:border-teal-400 text-gray-700"
                             />
                         </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Vence</label>
+                        <input
+                            type="date"
+                            value={form.expiryDate}
+                            onChange={e => setForm(f => ({ ...f, expiryDate: e.target.value }))}
+                            className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 bg-white focus:outline-none focus:border-teal-400 text-gray-700"
+                        />
                     </div>
 
                     <div>
@@ -381,6 +398,10 @@ export function GiftCardSection({
                                 <label className="block text-xs font-medium text-gray-600 mb-1">Vence</label>
                                 <input type="date" value={editForm.expiryDate} onChange={e => setEditForm(f => ({ ...f, expiryDate: e.target.value }))} title="Fecha de vencimiento" className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:border-teal-400 text-gray-700" />
                             </div>
+                        </div>
+                        <div>
+                            <label className="block text-xs font-medium text-gray-600 mb-1">Fecha de venta</label>
+                            <input type="date" value={editForm.date} onChange={e => setEditForm(f => ({ ...f, date: e.target.value }))} required title="Fecha de venta" className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:border-teal-400 text-gray-700" />
                         </div>
                         <div>
                             <label className="block text-xs font-medium text-gray-600 mb-1">Para (destinatario)</label>

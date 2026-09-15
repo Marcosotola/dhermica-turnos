@@ -431,13 +431,12 @@ export async function getFinanceOverview(startDate: string, endDate: string, tar
         }
     });
 
-    // 5. Gift Cards vendidas (compra = ingreso real en la fecha de venta)
+    // 5. Gift Cards vendidas (compra = ingreso real en la fecha de venta, editable por la secretaria)
     giftCards.forEach(gc => {
-        const gcDate = gc.createdAt.toISOString().substring(0, 10);
-        if (gcDate < startDate || gcDate > endDate) return;
+        if (gc.date < startDate || gc.date > endDate) return;
         allMovements.push({
             id: `gc_${gc.id}`,
-            date: gcDate,
+            date: gc.date,
             type: 'ingreso',
             category: 'Gift Card',
             description: `Gift Card ${gc.code}${gc.purchaserName ? ` — ${gc.purchaserName}` : ''}`,

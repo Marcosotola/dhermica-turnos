@@ -45,6 +45,7 @@ interface CreateFormState {
     amount: string;
     purchaseMethod: 'cash' | 'transfer' | 'debit' | 'credit' | 'qr';
     bankAccount: BankAccount;
+    date: string;
     expiryDate: string;
     notes: string;
 }
@@ -58,6 +59,7 @@ function getEmptyForm(): CreateFormState {
         amount: '',
         purchaseMethod: 'cash',
         bankAccount: 'cuenta1',
+        date: todayString(),
         expiryDate: defaultExpiryDate(),
         notes: '',
     };
@@ -145,6 +147,7 @@ export default function GiftCardsPage() {
                 message: form.message || undefined,
                 purchaseMethod: form.purchaseMethod,
                 bankAccount: form.purchaseMethod === 'transfer' ? form.bankAccount : null,
+                date: form.date || today,
                 status: 'active',
                 expiryDate: form.expiryDate || undefined,
                 notes: form.notes || undefined,
@@ -172,6 +175,7 @@ export default function GiftCardsPage() {
             amount: String(card.originalAmount),
             purchaseMethod: card.purchaseMethod || 'cash',
             bankAccount: (card.bankAccount as BankAccount) || 'cuenta1',
+            date: card.date || today,
             expiryDate: card.expiryDate || '',
             notes: card.notes || '',
         });
@@ -182,6 +186,7 @@ export default function GiftCardsPage() {
         if (!editingCard) return;
         const amount = parseFloat(editForm.amount);
         if (!amount || amount <= 0) { toast.error('Monto inválido'); return; }
+        if (!editForm.date) { toast.error('Ingresá la fecha de venta'); return; }
         setSaving(true);
         try {
             await updateGiftCard(editingCard.id, {
@@ -190,6 +195,7 @@ export default function GiftCardsPage() {
                 message: editForm.message || undefined,
                 purchaseMethod: editForm.purchaseMethod,
                 bankAccount: editForm.purchaseMethod === 'transfer' ? editForm.bankAccount : null,
+                date: editForm.date,
                 expiryDate: editForm.expiryDate || undefined,
                 notes: editForm.notes || undefined,
             });
@@ -294,9 +300,14 @@ export default function GiftCardsPage() {
                                 <input id="gc-amount" type="number" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} placeholder="0" min={1} required className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 bg-white focus:outline-none focus:border-teal-400 text-gray-900" />
                             </div>
                             <div>
-                                <label htmlFor="gc-expiry" className="block text-xs font-medium text-gray-600 mb-1">Vence (60 días por defecto)</label>
-                                <input id="gc-expiry" type="date" value={form.expiryDate} onChange={e => setForm(f => ({ ...f, expiryDate: e.target.value }))} title="Fecha de vencimiento" className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 bg-white focus:outline-none focus:border-teal-400 text-gray-700" />
+                                <label htmlFor="gc-date" className="block text-xs font-medium text-gray-600 mb-1">Fecha de venta *</label>
+                                <input id="gc-date" type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} title="Fecha de venta" required className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 bg-white focus:outline-none focus:border-teal-400 text-gray-700" />
                             </div>
+                        </div>
+
+                        <div>
+                            <label htmlFor="gc-expiry" className="block text-xs font-medium text-gray-600 mb-1">Vence (60 días por defecto)</label>
+                            <input id="gc-expiry" type="date" value={form.expiryDate} onChange={e => setForm(f => ({ ...f, expiryDate: e.target.value }))} title="Fecha de vencimiento" className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 bg-white focus:outline-none focus:border-teal-400 text-gray-700" />
                         </div>
 
                         <div>
@@ -447,9 +458,15 @@ export default function GiftCardsPage() {
                             <input id="edit-message" type="text" value={editForm.message} onChange={e => setEditForm(f => ({ ...f, message: e.target.value }))} placeholder="Mensaje personalizado" className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:border-teal-400 text-gray-900" />
                         </div>
 
-                        <div>
-                            <label htmlFor="edit-expiry" className="block text-xs font-medium text-gray-600 mb-1">Vence</label>
-                            <input id="edit-expiry" type="date" value={editForm.expiryDate} onChange={e => setEditForm(f => ({ ...f, expiryDate: e.target.value }))} title="Fecha de vencimiento" className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:border-teal-400 text-gray-700" />
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label htmlFor="edit-date" className="block text-xs font-medium text-gray-600 mb-1">Fecha de venta *</label>
+                                <input id="edit-date" type="date" value={editForm.date} onChange={e => setEditForm(f => ({ ...f, date: e.target.value }))} title="Fecha de venta" required className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:border-teal-400 text-gray-700" />
+                            </div>
+                            <div>
+                                <label htmlFor="edit-expiry" className="block text-xs font-medium text-gray-600 mb-1">Vence</label>
+                                <input id="edit-expiry" type="date" value={editForm.expiryDate} onChange={e => setEditForm(f => ({ ...f, expiryDate: e.target.value }))} title="Fecha de vencimiento" className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:border-teal-400 text-gray-700" />
+                            </div>
                         </div>
 
                         <div>
@@ -563,10 +580,10 @@ function GiftCardListItem({ card, canManage, cancellingId, onEdit, onCancel, onD
                                     <span className="text-gray-400"> de $ {formatArgentineCurrency(card.originalAmount)}</span>
                                 )}
                             </span>
-                            {card.createdAt && (
+                            {card.date && (
                                 <span className="text-xs text-gray-400 flex items-center gap-1">
                                     <Calendar className="w-3 h-3" />
-                                    Creada {card.createdAt.toLocaleDateString('es-AR')}
+                                    Vendida {formatDate(card.date)}
                                 </span>
                             )}
                             {card.expiryDate && (
