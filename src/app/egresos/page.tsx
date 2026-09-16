@@ -200,6 +200,10 @@ export default function EgresosPage() {
             toast.error('Completá fecha, categoría y monto');
             return;
         }
+        if (!form.description.trim()) {
+            toast.error('Completá la descripción del gasto');
+            return;
+        }
 
         const totalPaymentsAmount = form.payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
         if (Math.abs(totalPaymentsAmount - Number(form.amount)) > 0.01) {
@@ -510,6 +514,19 @@ export default function EgresosPage() {
                                 />
                             </div>
 
+                            {/* Descripción */}
+                            <div>
+                                <label htmlFor="egreso-description" className="text-xs font-black uppercase tracking-widest text-gray-500 mb-1 block">Descripción *</label>
+                                <textarea
+                                    id="egreso-description"
+                                    rows={2}
+                                    placeholder="¿En qué se gastó? Ej: Alquiler máquina de depilación láser"
+                                    value={form.description}
+                                    onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+                                    className="w-full border border-gray-200 rounded-2xl px-4 py-3 text-gray-900 font-medium focus:outline-none focus:ring-2 focus:ring-[#34baab] bg-gray-50 placeholder:text-gray-400 resize-none"
+                                />
+                            </div>
+
                             {/* Categoría */}
                             <div>
                                 <label htmlFor="egreso-category" className="text-xs font-black uppercase tracking-widest text-gray-500 mb-1 block">Categoría *</label>
@@ -642,19 +659,6 @@ export default function EgresosPage() {
                                     ))}
                                 </div>
                                 
-                            </div>
-
-                            {/* Descripción */}
-                            <div>
-                                <label htmlFor="egreso-description" className="text-xs font-black uppercase tracking-widest text-gray-500 mb-1 block">Descripción (opcional)</label>
-                                <textarea
-                                    id="egreso-description"
-                                    rows={2}
-                                    placeholder="Detalle del gasto..."
-                                    value={form.description}
-                                    onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-                                    className="w-full border border-gray-200 rounded-2xl px-4 py-3 text-gray-900 font-medium focus:outline-none focus:ring-2 focus:ring-[#34baab] bg-gray-50 placeholder:text-gray-400 resize-none"
-                                />
                             </div>
 
                         </div>
