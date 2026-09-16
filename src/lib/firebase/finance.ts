@@ -1,7 +1,6 @@
 import { getSalesByDateRange } from './sales';
 import { getAppointmentsByDateRange, getAppointmentsByProfessionalId } from './appointments';
 import { getRentalsByDateRange } from './rentals';
-import { getAparatoSessionsByDateRange } from './aparatos';
 import { getEgresosByDateRange, getCommissionPaymentEgresos } from './egresos';
 import { getProfessionals } from './professionals';
 import { getGiftCardsByDateRange } from './giftCards';
@@ -9,7 +8,6 @@ import { getAttendancesByDateRange } from './attendances';
 import { Appointment } from '../types/appointment';
 import { Sale } from '../types/sale';
 import { Rental } from '../types/rental';
-import { AparatoSession } from '../types/aparato';
 import { Egreso } from '../types/egreso';
 import { Professional } from '../types/professional';
 import { GiftCard } from '../types/giftCard';
@@ -36,7 +34,6 @@ export interface FinanceOverview {
     totalServiceIncome: number;
     totalProductIncome: number;
     totalRentalIncome: number;
-    totalAparatoIncome: number;
     totalPartialIncome: number;
     totalGiftCardIncome: number;
     totalEgresos: number;
@@ -50,14 +47,11 @@ export interface FinanceOverview {
     egresosByMethod: Record<string, number>;
     byProfessional: Record<string, {
         serviceIncome: number;
-        aparatoDayServiceIncome: number;
         productIncome: number;
         rentalIncome: number;
-        aparatoIncome: number;
         serviceCommission: number;
         productCommission: number;
         rentalCommission: number;
-        aparatoFee: number;
         attendanceWage: number;
         totalCommission: number;
         name: string;
@@ -126,11 +120,10 @@ async function fetchAppointmentsForFinance(
 }
 
 export async function getFinanceOverview(startDate: string, endDate: string, targetProfessionalId?: string): Promise<FinanceOverview> {
-    const [appointments, sales, rentals, aparatos, egresos, commissionPayments, giftCards, attendances, allProfessionals, admins, secretaries, promotors, profUsers] = await Promise.all([
+    const [appointments, sales, rentals, egresos, commissionPayments, giftCards, attendances, allProfessionals, admins, secretaries, promotors, profUsers] = await Promise.all([
         fetchAppointmentsForFinance(startDate, endDate, targetProfessionalId).catch(() => [] as Appointment[]),
         getSalesByDateRange(startDate, endDate).catch(() => [] as Sale[]),
         getRentalsByDateRange(startDate, endDate).catch(() => [] as Rental[]),
-        getAparatoSessionsByDateRange(startDate, endDate).catch(() => [] as AparatoSession[]),
         getEgresosByDateRange(startDate, endDate).catch(() => [] as Egreso[]),
         getCommissionPaymentEgresos().catch(() => [] as Egreso[]),
         getGiftCardsByDateRange(startDate, endDate).catch(() => [] as GiftCard[]),
@@ -147,7 +140,6 @@ export async function getFinanceOverview(startDate: string, endDate: string, tar
         totalServiceIncome: 0,
         totalProductIncome: 0,
         totalRentalIncome: 0,
-        totalAparatoIncome: 0,
         totalPartialIncome: 0,
         totalGiftCardIncome: 0,
         totalEgresos: 0,
@@ -176,8 +168,8 @@ export async function getFinanceOverview(startDate: string, endDate: string, tar
         
         if (!overview.byProfessional[nameKey]) {
             overview.byProfessional[nameKey] = {
-                serviceIncome: 0, aparatoDayServiceIncome: 0, productIncome: 0, rentalIncome: 0, aparatoIncome: 0,
-                serviceCommission: 0, productCommission: 0, rentalCommission: 0, aparatoFee: 0, attendanceWage: 0,
+                serviceIncome: 0, productIncome: 0, rentalIncome: 0,
+                serviceCommission: 0, productCommission: 0, rentalCommission: 0, attendanceWage: 0,
                 totalCommission: 0, name: nameKey, userId: p.userId, type: p.type === 'apoyo' ? 'apoyo' : 'tratamiento',
                 isProfessionalRecord: true
             };
@@ -189,8 +181,8 @@ export async function getFinanceOverview(startDate: string, endDate: string, tar
         if (u.uid) idToName[u.uid] = nameKey;
         if (!overview.byProfessional[nameKey]) {
             overview.byProfessional[nameKey] = {
-                serviceIncome: 0, aparatoDayServiceIncome: 0, productIncome: 0, rentalIncome: 0, aparatoIncome: 0,
-                serviceCommission: 0, productCommission: 0, rentalCommission: 0, aparatoFee: 0, attendanceWage: 0,
+                serviceIncome: 0, productIncome: 0, rentalIncome: 0,
+                serviceCommission: 0, productCommission: 0, rentalCommission: 0, attendanceWage: 0,
                 totalCommission: 0, name: nameKey, userId: u.uid, type: 'tratamiento',
                 isProfessionalRecord: false
             };
@@ -205,33 +197,11 @@ export async function getFinanceOverview(startDate: string, endDate: string, tar
         idToName[u.uid] = nameKey;
         if (!overview.byProfessional[nameKey]) {
             overview.byProfessional[nameKey] = {
-                serviceIncome: 0, aparatoDayServiceIncome: 0, productIncome: 0, rentalIncome: 0, aparatoIncome: 0,
-                serviceCommission: 0, productCommission: 0, rentalCommission: 0, aparatoFee: 0, attendanceWage: 0,
+                serviceIncome: 0, productIncome: 0, rentalIncome: 0,
+                serviceCommission: 0, productCommission: 0, rentalCommission: 0, attendanceWage: 0,
                 totalCommission: 0, name: nameKey, userId: u.uid, type: 'tratamiento',
                 isProfessionalRecord: false
             };
-        }
-    });
-
-    const aparatoFeesByDay: Record<string, number> = {};
-    const aparatoDays = new Set<string>();
-
-    aparatos.forEach((session: AparatoSession) => {
-        const profName = idToName[session.professionalId] || session.professionalId;
-        const key = `${profName}|${session.date}`;
-        const fee = Number(session.fixedFee) || 0;
-        
-        if (fee > (aparatoFeesByDay[key] || 0)) {
-            aparatoFeesByDay[key] = fee;
-            aparatoDays.add(key);
-        }
-    });
-
-    Object.entries(aparatoFeesByDay).forEach(([key, fee]) => {
-        const [profName] = key.split('|');
-        if (overview.byProfessional[profName]) {
-            overview.byProfessional[profName].aparatoIncome += fee;
-            overview.byProfessional[profName].aparatoFee += fee;
         }
     });
 
@@ -311,47 +281,34 @@ export async function getFinanceOverview(startDate: string, endDate: string, tar
 
                 profData.serviceIncome += actualPrice;
 
-                const hasAparato = aparatoDays.has(`${profName}|${apt.date}`);
-
-                if (hasAparato) {
-                    profData.aparatoDayServiceIncome += actualPrice;
-                }
-
-                // En días de aparato, solo se suma commissionFixedOverride si se fijó al cerrar el turno
-                if (hasAparato) {
-                    if (apt.commissionFixedOverride !== undefined && apt.commissionFixedOverride !== null && apt.commissionFixedOverride > 0) {
-                        profData.serviceCommission += apt.commissionFixedOverride;
+                // Prioridad: monto fijo override > modo fixed del profesional > porcentaje override > porcentaje del profesional
+                if (apt.commissionFixedOverride !== undefined && apt.commissionFixedOverride !== null && apt.commissionFixedOverride > 0) {
+                    profData.serviceCommission += apt.commissionFixedOverride;
+                } else if (prof?.serviceCommissionMode === 'fixed' && prof.professionalPrices?.length && apt.treatments?.length) {
+                    let fixedTotal = 0;
+                    for (const t of apt.treatments) {
+                        const match = prof.professionalPrices.find(
+                            pp => pp.treatmentId === t.treatmentId
+                                && (pp.zone || '') === (t.zone || '')
+                                && (pp.gender || 'both') === (t.gender || 'both')
+                        );
+                        if (match) fixedTotal += match.price;
                     }
-                } else {
-                    // Prioridad: monto fijo override > modo fixed del profesional > porcentaje override > porcentaje del profesional
-                    if (apt.commissionFixedOverride !== undefined && apt.commissionFixedOverride !== null && apt.commissionFixedOverride > 0) {
-                        profData.serviceCommission += apt.commissionFixedOverride;
-                    } else if (prof?.serviceCommissionMode === 'fixed' && prof.professionalPrices?.length && apt.treatments?.length) {
-                        let fixedTotal = 0;
-                        for (const t of apt.treatments) {
-                            const match = prof.professionalPrices.find(
-                                pp => pp.treatmentId === t.treatmentId
-                                    && (pp.zone || '') === (t.zone || '')
-                                    && (pp.gender || 'both') === (t.gender || 'both')
-                            );
-                            if (match) fixedTotal += match.price;
-                        }
-                        if (fixedTotal > 0) {
-                            profData.serviceCommission += fixedTotal;
-                        } else {
-                            const pct = apt.commissionPercentageOverride !== undefined && apt.commissionPercentageOverride !== null
-                                ? apt.commissionPercentageOverride
-                                : (prof?.serviceCommissionPercentage ?? (prof as any)?.commissionPercentage ?? 0);
-                            if (pct > 0) profData.serviceCommission += (actualPrice * pct) / 100;
-                        }
+                    if (fixedTotal > 0) {
+                        profData.serviceCommission += fixedTotal;
                     } else {
-                        const commissionPct = apt.commissionPercentageOverride !== undefined && apt.commissionPercentageOverride !== null
+                        const pct = apt.commissionPercentageOverride !== undefined && apt.commissionPercentageOverride !== null
                             ? apt.commissionPercentageOverride
                             : (prof?.serviceCommissionPercentage ?? (prof as any)?.commissionPercentage ?? 0);
+                        if (pct > 0) profData.serviceCommission += (actualPrice * pct) / 100;
+                    }
+                } else {
+                    const commissionPct = apt.commissionPercentageOverride !== undefined && apt.commissionPercentageOverride !== null
+                        ? apt.commissionPercentageOverride
+                        : (prof?.serviceCommissionPercentage ?? (prof as any)?.commissionPercentage ?? 0);
 
-                        if (commissionPct > 0) {
-                            profData.serviceCommission += (actualPrice * commissionPct) / 100;
-                        }
+                    if (commissionPct > 0) {
+                        profData.serviceCommission += (actualPrice * commissionPct) / 100;
                     }
                 }
             }
@@ -489,25 +446,6 @@ export async function getFinanceOverview(startDate: string, endDate: string, tar
     overview.totalProfCommissions = 0;
     overview.totalStaffWages = 0;
 
-    // Calcular cuánto de los fees de aparatos ya está en 'egresos' (manuales)
-    // Usar MAX por profesional+día (igual que aparatoFeesByDay) para evitar sobre-deducción
-    const registeredAparatoFeesByDay: Record<string, number> = {};
-    aparatos.forEach(s => {
-        if (s.expenseId && s.fixedFee) {
-            const profName = idToName[s.professionalId] || s.professionalId;
-            const key = `${profName}|${s.date}`;
-            const fee = Number(s.fixedFee);
-            if (fee > (registeredAparatoFeesByDay[key] || 0)) {
-                registeredAparatoFeesByDay[key] = fee;
-            }
-        }
-    });
-    const registeredAparatoFees: Record<string, number> = {};
-    Object.entries(registeredAparatoFeesByDay).forEach(([key, fee]) => {
-        const [profName] = key.split('|');
-        registeredAparatoFees[profName] = (registeredAparatoFees[profName] || 0) + fee;
-    });
-
     // Períodos ya liquidados para cada profesional (el % es solo referencia: una vez liquidado
     // el período, el monto pactado queda fijo y no debe generar saldo pendiente ni a favor,
     // sin importar si se pagó de más o de menos respecto del cálculo).
@@ -521,14 +459,11 @@ export async function getFinanceOverview(startDate: string, endDate: string, tar
     });
 
     Object.values(overview.byProfessional).forEach((data) => {
-        const alreadyPaid = registeredAparatoFees[data.name] || 0;
-        const pendingAparatoFee = Math.max(0, data.aparatoFee - alreadyPaid);
-
         // totalCommission = total ganado (referencia calculada), salvo que el período ya
         // se haya liquidado: en ese caso se muestra el monto realmente pagado (puede haber
         // sido editado a mano al liquidar), para que el resumen y el panel del profesional
         // coincidan con lo efectivamente pagado.
-        data.totalCommission = data.serviceCommission + data.productCommission + data.rentalCommission + data.aparatoFee + data.attendanceWage;
+        data.totalCommission = data.serviceCommission + data.productCommission + data.rentalCommission + data.attendanceWage;
 
         const prof = nameToProfessional[data.name];
         const periodKey = prof ? `${prof.id}|${startDate}|${endDate}` : '';
@@ -541,7 +476,7 @@ export async function getFinanceOverview(startDate: string, endDate: string, tar
         // Si ya se liquidó este período, el monto pactado queda fijo: no queda pendiente.
         const virtualCommissionToPay = isLiquidated
             ? 0
-            : Math.max(0, data.serviceCommission + data.productCommission + data.rentalCommission + pendingAparatoFee + data.attendanceWage);
+            : Math.max(0, data.serviceCommission + data.productCommission + data.rentalCommission + data.attendanceWage);
 
         // Mostrar el botón "Liquidar" también para un profesional en $0: puede no haber
         // facturado nada este período y aun así la dueña quiera pagarle algo (un adelanto,
@@ -577,7 +512,6 @@ export async function getFinanceOverview(startDate: string, endDate: string, tar
             else if (m.category === 'Seña' || m.category === 'Parcial') overview.totalPartialIncome += m.amount;
             else if (m.category === 'Productos') overview.totalProductIncome += m.amount;
             else if (m.category === 'Alquiler') overview.totalRentalIncome += m.amount;
-            else if (m.category === 'Aparato') overview.totalAparatoIncome += m.amount;
             else if (m.category === 'Gift Card') overview.totalGiftCardIncome += m.amount;
             if (m.method && overview.byMethod[m.method] !== undefined) overview.byMethod[m.method] += m.amount;
             const mKeyInc = resolveMethodKey(m.method, m.bankAccount);

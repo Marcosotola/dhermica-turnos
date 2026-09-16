@@ -1,15 +1,6 @@
-import { BankAccount } from './bankAccount';
-
 export type AparatoTreatment = 'Definitiva' | 'HiFu' | 'Liposonix';
 
 export const APARATO_TREATMENTS: AparatoTreatment[] = ['Definitiva', 'HiFu', 'Liposonix'];
-
-export interface AparatoPayment {
-    id: string;
-    method: 'cash' | 'transfer' | 'debit' | 'credit' | 'qr';
-    amount: number;
-    bankAccount?: BankAccount | null;
-}
 
 export interface AparatoSession {
     id: string;
@@ -17,12 +8,6 @@ export interface AparatoSession {
     treatment: AparatoTreatment;
     professionalId: string;
     professionalName: string;
-    status: 'pending' | 'completed';
-    fixedFee?: number; // Monto total que cobra el profesional ese día (suma de payments)
-    payments?: AparatoPayment[]; // Desglose de pagos por método
-    paymentMethod?: 'cash' | 'transfer' | 'debit' | 'credit' | 'qr'; // legacy/fallback (primer pago)
-    bankAccount?: BankAccount | null; // legacy/fallback
-    expenseId?: string;
     notes?: string;
     createdAt: Date;
     updatedAt: Date;

@@ -615,7 +615,6 @@ export default function FinanzasPage() {
                                                             {data.serviceCommission > 0 && <span className="text-xs text-gray-500">Serv: <span className="font-bold text-gray-700">{formatCurrency(data.serviceCommission)}</span></span>}
                                                             {data.productCommission > 0 && <span className="text-xs text-gray-500">Prod: <span className="font-bold text-gray-700">{formatCurrency(data.productCommission)}</span></span>}
                                                             {data.rentalCommission > 0 && <span className="text-xs text-gray-500">Alq: <span className="font-bold text-gray-700">{formatCurrency(data.rentalCommission)}</span></span>}
-                                                            {data.aparatoFee > 0 && <span className="text-xs text-gray-500">Ap: <span className="font-bold text-gray-700">{formatCurrency(data.aparatoFee)}</span></span>}
                                                             {data.totalCommission <= 0 && <span className="text-xs text-gray-400 italic">Sin actividad en el período</span>}
                                                         </div>
                                                         {pendingMovement && (

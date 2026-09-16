@@ -11,23 +11,11 @@ import {
     getAparatoSessionsByProfessional,
 } from '@/lib/firebase/aparatos';
 import { getActiveProfessionals } from '@/lib/firebase/professionals';
-import { createEgreso } from '@/lib/firebase/egresos';
-import { AparatoSession, AparatoPayment, AparatoTreatment, APARATO_TREATMENTS } from '@/lib/types/aparato';
+import { AparatoSession, AparatoTreatment, APARATO_TREATMENTS } from '@/lib/types/aparato';
 import { Professional } from '@/lib/types/professional';
-import { Zap, Plus, Pencil, Trash2, Loader2, CalendarDays, DollarSign, CheckCircle2, Eye, Search, Filter, X } from 'lucide-react';
+import { Zap, Plus, Pencil, Trash2, Loader2, CalendarDays, Eye, Search } from 'lucide-react';
 import { toast, Toaster } from 'sonner';
 import { DeleteConfirmDialog } from '@/components/ui/DeleteConfirmDialog';
-import { formatCurrencyWithSymbol } from '@/lib/utils/currency';
-import { formatPaymentMethod } from '@/lib/utils/clientLedger';
-import { BANK_ACCOUNTS, BankAccount, formatBankAccount } from '@/lib/types/bankAccount';
-
-const PAYMENT_METHOD_LABELS: Record<string, string> = {
-    cash: 'Efectivo',
-    transfer: 'Transferencia',
-    debit: 'T. Débito',
-    credit: 'T. Crédito',
-    qr: 'QR / Digital',
-};
 
 const TREATMENT_COLORS: Record<AparatoTreatment, string> = {
     Definitiva: 'bg-red-100 text-red-700 border-red-200',
@@ -35,41 +23,19 @@ const TREATMENT_COLORS: Record<AparatoTreatment, string> = {
     Liposonix: 'bg-cyan-100 text-cyan-700 border-cyan-200',
 };
 
-interface AparatoFormPayment {
-    id: string;
-    method: 'cash' | 'transfer' | 'debit' | 'credit' | 'qr';
-    amount: string;
-    bankAccount?: BankAccount | null;
-}
-
 interface SessionFormData {
     date: string;
     treatment: AparatoTreatment;
     professionalId: string;
     professionalName: string;
-    fixedFee: string;
-    paymentMethod: 'cash' | 'transfer' | 'debit' | 'credit' | 'qr';
-    bankAccount: BankAccount | '';
-    payments: AparatoFormPayment[];
     notes: string;
 }
-
-const emptyPayment = (): AparatoFormPayment => ({
-    id: Date.now().toString(),
-    method: 'cash',
-    amount: '',
-    bankAccount: null,
-});
 
 const emptyForm = (): SessionFormData => ({
     date: new Date().toISOString().split('T')[0],
     treatment: 'Definitiva',
     professionalId: '',
     professionalName: '',
-    fixedFee: '',
-    paymentMethod: 'cash',
-    bankAccount: '',
-    payments: [emptyPayment()],
     notes: '',
 });
 
@@ -82,11 +48,9 @@ export default function AparatosPage() {
     const [loading, setLoading] = useState(true);
     const [modalOpen, setModalOpen] = useState(false);
     const [viewModalOpen, setViewModalOpen] = useState(false);
-    const [closeModalOpen, setCloseModalOpen] = useState(false);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [selectedSession, setSelectedSession] = useState<AparatoSession | null>(null);
     const [saving, setSaving] = useState(false);
-    const [closing, setClosing] = useState(false);
     const [deleting, setDeleting] = useState(false);
     const [form, setForm] = useState<SessionFormData>(emptyForm());
 
@@ -103,7 +67,7 @@ export default function AparatosPage() {
 
     // Derived state for filtering and pagination
     const filteredSessions = sessions.filter(s => {
-        const matchesSearch = 
+        const matchesSearch =
             s.professionalName.toLowerCase().includes(searchTerm.toLowerCase()) ||
             (s.notes || '').toLowerCase().includes(searchTerm.toLowerCase());
         const matchesTreatment = filterTreatment === 'all' || s.treatment === filterTreatment;
@@ -157,23 +121,6 @@ export default function AparatosPage() {
         setViewModalOpen(true);
     };
 
-    const paymentsToForm = (session: AparatoSession): AparatoFormPayment[] =>
-        session.payments && session.payments.length > 0
-            ? session.payments.map(p => ({
-                id: p.id || Math.random().toString(),
-                method: p.method,
-                amount: String(p.amount),
-                bankAccount: p.bankAccount,
-            }))
-            : session.fixedFee
-                ? [{
-                    id: Date.now().toString(),
-                    method: session.paymentMethod || 'cash',
-                    amount: String(session.fixedFee),
-                    bankAccount: session.bankAccount,
-                }]
-                : [emptyPayment()];
-
     const openEdit = (session: AparatoSession) => {
         setSelectedSession(session);
         setForm({
@@ -181,29 +128,9 @@ export default function AparatosPage() {
             treatment: session.treatment,
             professionalId: session.professionalId,
             professionalName: session.professionalName,
-            fixedFee: String(session.fixedFee || ''),
-            paymentMethod: session.paymentMethod || 'cash',
-            bankAccount: session.bankAccount || '',
-            payments: paymentsToForm(session),
             notes: session.notes || '',
         });
         setModalOpen(true);
-    };
-
-    const openCloseModal = (session: AparatoSession) => {
-        setSelectedSession(session);
-        setForm({
-            date: session.date,
-            treatment: session.treatment,
-            professionalId: session.professionalId,
-            professionalName: session.professionalName,
-            fixedFee: String(session.fixedFee || ''),
-            paymentMethod: session.paymentMethod || 'cash',
-            bankAccount: session.bankAccount || '',
-            payments: paymentsToForm(session),
-            notes: session.notes || '',
-        });
-        setCloseModalOpen(true);
     };
 
     const handleProfessionalChange = (profId: string) => {
@@ -218,7 +145,7 @@ export default function AparatosPage() {
         }
         setSaving(true);
         try {
-            const payload: any = {
+            const payload = {
                 date: form.date,
                 treatment: form.treatment,
                 professionalId: form.professionalId,
@@ -226,30 +153,11 @@ export default function AparatosPage() {
                 notes: form.notes,
             };
 
-            // Solo incluimos campos de pago si estamos editando una sesión ya completada
-            if (selectedSession?.status === 'completed') {
-                const payments: AparatoPayment[] = form.payments
-                    .filter(p => Number(p.amount) > 0)
-                    .map(p => ({
-                        id: p.id,
-                        method: p.method,
-                        amount: Number(p.amount),
-                        bankAccount: p.method !== 'cash' ? (p.bankAccount || 'cuenta1') : null,
-                    }));
-                payload.fixedFee = payments.reduce((sum, p) => sum + p.amount, 0);
-                payload.payments = payments;
-                payload.paymentMethod = payments[0]?.method || 'cash';
-                payload.bankAccount = payments[0]?.bankAccount || null;
-            }
-
             if (selectedSession) {
                 await updateAparatoSession(selectedSession.id, payload);
                 toast.success('Sesión actualizada');
             } else {
-                await createAparatoSession({
-                    ...payload,
-                    status: 'pending'
-                });
+                await createAparatoSession(payload);
                 toast.success('Sesión registrada');
             }
             setModalOpen(false);
@@ -259,61 +167,6 @@ export default function AparatosPage() {
             toast.error('Error al guardar');
         } finally {
             setSaving(false);
-        }
-    };
-
-    const handleCloseSession = async () => {
-        if (!selectedSession) return;
-
-        const totalAmount = form.payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
-        const hasInvalidPayment = form.payments.some(p =>
-            !p.amount || Number(p.amount) <= 0 ||
-            ((p.method === 'transfer' || p.method === 'qr' || p.method === 'debit') && !p.bankAccount)
-        );
-
-        if (form.payments.length === 0 || totalAmount <= 0 || hasInvalidPayment) {
-            toast.error('Completá el monto y el método de pago de cada pago');
-            return;
-        }
-
-        setClosing(true);
-        try {
-            const payments: AparatoPayment[] = form.payments.map(p => ({
-                id: p.id,
-                method: p.method,
-                amount: Number(p.amount),
-                bankAccount: p.method !== 'cash' ? (p.bankAccount || 'cuenta1') : null,
-            }));
-
-            // 1. Crear el Egreso
-            const expenseId = await createEgreso({
-                date: form.date,
-                category: 'sueldos',
-                amount: totalAmount,
-                description: `Pago profesional: ${form.professionalName} - Sesión Aparato (${form.treatment})`,
-                payments,
-                paymentMethod: payments[0].method,
-                bankAccount: payments[0].bankAccount,
-            });
-
-            // 2. Actualizar la Sesión
-            await updateAparatoSession(selectedSession.id, {
-                status: 'completed',
-                fixedFee: totalAmount,
-                paymentMethod: payments[0].method,
-                bankAccount: payments[0].bankAccount,
-                payments,
-                expenseId: expenseId
-            });
-
-            toast.success('Sesión cerrada y gasto registrado');
-            setCloseModalOpen(false);
-            loadData();
-        } catch (err) {
-            console.error(err);
-            toast.error('Error al cerrar sesión');
-        } finally {
-            setClosing(false);
         }
     };
 
@@ -332,8 +185,6 @@ export default function AparatosPage() {
             setDeleting(false);
         }
     };
-
-    const formatCurrency = formatCurrencyWithSymbol;
 
     const formatDate = (dateStr: string) => {
         const [y, m, d] = dateStr.split('-');
@@ -364,7 +215,7 @@ export default function AparatosPage() {
                         <div>
                             <h1 className="text-3xl font-black tracking-tight">Aparatos</h1>
                             <p className="text-gray-300 font-medium">
-                                {canEdit ? 'Gestión de sesiones de aparatología' : 'Mis sesiones de aparatos'}
+                                {canEdit ? 'Registro de sesiones de aparatología' : 'Mis sesiones de aparatos'}
                             </p>
                         </div>
                     </div>
@@ -452,8 +303,7 @@ export default function AparatosPage() {
                                             <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Fecha</th>
                                             <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Tratamiento</th>
                                             <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Profesional</th>
-                                            <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">Estado</th>
-                                            <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400 text-right">Pago</th>
+                                            <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Notas</th>
                                             {canEdit && <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400 text-right">Acciones</th>}
                                         </tr>
                                     </thead>
@@ -477,37 +327,8 @@ export default function AparatosPage() {
                                                         <span className="text-sm font-medium text-gray-600">{session.professionalName}</span>
                                                     </div>
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-center">
-                                                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gray-50 border border-gray-100">
-                                                        <div className={`w-1.5 h-1.5 rounded-full ${session.status === 'completed' ? 'bg-green-500' : 'bg-amber-500 animate-pulse'}`} />
-                                                        <span className={`text-[10px] font-black uppercase tracking-widest ${session.status === 'completed' ? 'text-green-600' : 'text-amber-600'}`}>
-                                                            {session.status === 'completed' ? 'Completada' : 'Pendiente'}
-                                                        </span>
-                                                    </div>
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-right">
-                                                    {session.status === 'completed' ? (
-                                                        <div className="flex flex-col items-end">
-                                                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">
-                                                                {session.payments && session.payments.length > 1
-                                                                    ? `${session.payments.length} métodos`
-                                                                    : formatPaymentMethod(session.paymentMethod || 'cash')}
-                                                            </span>
-                                                            <span className="text-sm font-black text-gray-900">
-                                                                {formatCurrency(session.fixedFee || 0)}
-                                                            </span>
-                                                        </div>
-                                                    ) : (
-                                                        canEdit && (
-                                                            <button
-                                                                onClick={() => openCloseModal(session)}
-                                                                className="inline-flex items-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-white px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-sm border border-amber-600/20"
-                                                            >
-                                                                <DollarSign className="w-3 h-3" />
-                                                                Cobrar y Cerrar
-                                                            </button>
-                                                        )
-                                                    )}
+                                                <td className="px-6 py-4 max-w-xs truncate text-sm text-gray-500">
+                                                    {session.notes || '—'}
                                                 </td>
                                                 {canEdit && (
                                                     <td className="px-6 py-4 whitespace-nowrap text-right">
@@ -605,100 +426,6 @@ export default function AparatosPage() {
                             </select>
                         </div>
 
-                        {selectedSession?.status === 'completed' && (
-                            <div className="border-t border-gray-100 pt-4">
-                                <div className="flex items-center justify-between mb-3">
-                                    <label className="text-xs font-black uppercase tracking-widest text-gray-500">Desglose de Pagos</label>
-                                    <button
-                                        onClick={() => setForm(f => ({ ...f, payments: [...f.payments, emptyPayment()] }))}
-                                        className="text-[10px] font-black uppercase tracking-widest bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-xl transition-colors flex items-center gap-1.5 text-gray-600"
-                                    >
-                                        <Plus className="w-3 h-3" /> Agregar Pago
-                                    </button>
-                                </div>
-
-                                <div className="space-y-3">
-                                    {form.payments.map((p, idx) => (
-                                        <div key={p.id} className="bg-gray-50 rounded-2xl p-4 border border-gray-100 relative">
-                                            {form.payments.length > 1 && (
-                                                <button
-                                                    aria-label="Eliminar pago"
-                                                    onClick={() => setForm(f => ({ ...f, payments: f.payments.filter(pay => pay.id !== p.id) }))}
-                                                    className="absolute -top-2 -right-2 bg-white border border-gray-200 text-red-500 p-1.5 rounded-full shadow-sm hover:bg-red-50 transition-colors"
-                                                >
-                                                    <X className="w-3 h-3" />
-                                                </button>
-                                            )}
-
-                                            <div className="grid grid-cols-2 gap-3">
-                                                <div>
-                                                    <label htmlFor={`edit-method-${idx}`} className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1 block">Medio</label>
-                                                    <select
-                                                        id={`edit-method-${idx}`}
-                                                        value={p.method}
-                                                        onChange={e => {
-                                                            const newPayments = [...form.payments];
-                                                            newPayments[idx] = { ...newPayments[idx], method: e.target.value as any };
-                                                            if (e.target.value === 'cash') newPayments[idx].bankAccount = null;
-                                                            setForm(f => ({ ...f, payments: newPayments }));
-                                                        }}
-                                                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white"
-                                                    >
-                                                        {Object.entries(PAYMENT_METHOD_LABELS).map(([val, label]) => (
-                                                            <option key={val} value={val}>{label}</option>
-                                                        ))}
-                                                    </select>
-                                                </div>
-                                                <div>
-                                                    <label htmlFor={`edit-amount-${idx}`} className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1 block">Monto</label>
-                                                    <input
-                                                        id={`edit-amount-${idx}`}
-                                                        type="number"
-                                                        min="0"
-                                                        value={p.amount}
-                                                        onChange={e => {
-                                                            const newPayments = [...form.payments];
-                                                            newPayments[idx] = { ...newPayments[idx], amount: e.target.value };
-                                                            setForm(f => ({ ...f, payments: newPayments }));
-                                                        }}
-                                                        placeholder="0"
-                                                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white"
-                                                    />
-                                                </div>
-                                            </div>
-
-                                            {p.method !== 'cash' && (
-                                                <div className="mt-3">
-                                                    <label htmlFor={`edit-account-${idx}`} className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1 block">Cuenta</label>
-                                                    <select
-                                                        id={`edit-account-${idx}`}
-                                                        value={p.bankAccount || 'cuenta1'}
-                                                        onChange={e => {
-                                                            const newPayments = [...form.payments];
-                                                            newPayments[idx] = { ...newPayments[idx], bankAccount: e.target.value as any };
-                                                            setForm(f => ({ ...f, payments: newPayments }));
-                                                        }}
-                                                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white"
-                                                    >
-                                                        {BANK_ACCOUNTS.map(acc => (
-                                                            <option key={acc.value} value={acc.value}>{acc.label}</option>
-                                                        ))}
-                                                    </select>
-                                                </div>
-                                            )}
-                                        </div>
-                                    ))}
-                                </div>
-
-                                <div className="flex justify-between items-center px-1 mt-3">
-                                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Total:</span>
-                                    <span className="text-sm font-black text-amber-600">
-                                        {formatCurrency(form.payments.reduce((s, p) => s + (Number(p.amount) || 0), 0))}
-                                    </span>
-                                </div>
-                            </div>
-                        )}
-
                         <div>
                             <label htmlFor="aparato-notes" className="text-xs font-black uppercase tracking-widest text-gray-500 mb-1 block">Notas</label>
                             <textarea
@@ -731,135 +458,6 @@ export default function AparatosPage() {
                 </div>
             )}
 
-            {/* Close Session Modal */}
-            {closeModalOpen && canEdit && selectedSession && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-8 space-y-5">
-                        <div className="flex items-center gap-3 mb-2">
-                            <div className="w-10 h-10 bg-[#34baab]/20 rounded-full flex items-center justify-center">
-                                <CheckCircle2 className="w-6 h-6 text-[#34baab]" />
-                            </div>
-                            <h2 className="text-2xl font-black text-gray-900">
-                                Cerrar Sesión
-                            </h2>
-                        </div>
-
-                        <p className="text-sm text-gray-500 font-medium">
-                            Registrá el pago para <span className="font-bold text-gray-700">{selectedSession.professionalName}</span> por la sesión de <span className="font-bold text-gray-700">{selectedSession.treatment}</span> del {formatDate(selectedSession.date)}.
-                        </p>
-
-                        <div className="pt-2 max-h-[50vh] overflow-y-auto pr-1 -mr-1">
-                            <div className="flex items-center justify-between mb-3">
-                                <label className="text-xs font-black uppercase tracking-widest text-gray-500">Desglose de Pagos *</label>
-                                <button
-                                    onClick={() => setForm(f => ({ ...f, payments: [...f.payments, emptyPayment()] }))}
-                                    className="text-[10px] font-black uppercase tracking-widest bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-xl transition-colors flex items-center gap-1.5 text-gray-600"
-                                >
-                                    <Plus className="w-3 h-3" /> Agregar Pago
-                                </button>
-                            </div>
-
-                            <div className="space-y-3">
-                                {form.payments.map((p, idx) => (
-                                    <div key={p.id} className="bg-gray-50 rounded-2xl p-4 border border-gray-100 relative">
-                                        {form.payments.length > 1 && (
-                                            <button
-                                                aria-label="Eliminar pago"
-                                                onClick={() => setForm(f => ({ ...f, payments: f.payments.filter(pay => pay.id !== p.id) }))}
-                                                className="absolute -top-2 -right-2 bg-white border border-gray-200 text-red-500 p-1.5 rounded-full shadow-sm hover:bg-red-50 transition-colors"
-                                            >
-                                                <X className="w-3 h-3" />
-                                            </button>
-                                        )}
-
-                                        <div className="grid grid-cols-2 gap-3">
-                                            <div>
-                                                <label htmlFor={`close-method-${idx}`} className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1 block">Medio</label>
-                                                <select
-                                                    id={`close-method-${idx}`}
-                                                    value={p.method}
-                                                    onChange={e => {
-                                                        const newPayments = [...form.payments];
-                                                        newPayments[idx] = { ...newPayments[idx], method: e.target.value as any };
-                                                        if (e.target.value === 'cash') newPayments[idx].bankAccount = null;
-                                                        setForm(f => ({ ...f, payments: newPayments }));
-                                                    }}
-                                                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#34baab] bg-white"
-                                                >
-                                                    {Object.entries(PAYMENT_METHOD_LABELS).map(([val, label]) => (
-                                                        <option key={val} value={val}>{label}</option>
-                                                    ))}
-                                                </select>
-                                            </div>
-                                            <div>
-                                                <label htmlFor={`close-amount-${idx}`} className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1 block">Monto</label>
-                                                <input
-                                                    id={`close-amount-${idx}`}
-                                                    type="number"
-                                                    min="0"
-                                                    value={p.amount}
-                                                    onChange={e => {
-                                                        const newPayments = [...form.payments];
-                                                        newPayments[idx] = { ...newPayments[idx], amount: e.target.value };
-                                                        setForm(f => ({ ...f, payments: newPayments }));
-                                                    }}
-                                                    placeholder="0"
-                                                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-[#34baab] bg-white"
-                                                />
-                                            </div>
-                                        </div>
-
-                                        {p.method !== 'cash' && (
-                                            <div className="mt-3">
-                                                <label htmlFor={`close-account-${idx}`} className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1 block">Cuenta</label>
-                                                <select
-                                                    id={`close-account-${idx}`}
-                                                    value={p.bankAccount || 'cuenta1'}
-                                                    onChange={e => {
-                                                        const newPayments = [...form.payments];
-                                                        newPayments[idx] = { ...newPayments[idx], bankAccount: e.target.value as any };
-                                                        setForm(f => ({ ...f, payments: newPayments }));
-                                                    }}
-                                                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#34baab] bg-white"
-                                                >
-                                                    {BANK_ACCOUNTS.map(acc => (
-                                                        <option key={acc.value} value={acc.value}>{acc.label}</option>
-                                                    ))}
-                                                </select>
-                                            </div>
-                                        )}
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-
-                        <div className="flex justify-between items-center px-1">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Total a Pagar:</span>
-                            <span className="text-lg font-black text-[#34baab]">
-                                {formatCurrency(form.payments.reduce((s, p) => s + (Number(p.amount) || 0), 0))}
-                            </span>
-                        </div>
-
-                        <div className="flex gap-3 pt-2">
-                            <button
-                                onClick={() => setCloseModalOpen(false)}
-                                className="flex-1 py-3 rounded-2xl border border-gray-200 font-bold text-gray-600 hover:bg-gray-50 transition-colors"
-                            >
-                                Cancelar
-                            </button>
-                            <button
-                                onClick={handleCloseSession}
-                                disabled={closing}
-                                className="flex-1 py-3 rounded-2xl bg-[#34baab] hover:bg-[#2da598] text-white font-bold transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
-                            >
-                                {closing && <Loader2 className="w-4 h-4 animate-spin" />}
-                                Confirmar Pago
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
             {/* View Modal (Styled Card) */}
             {viewModalOpen && selectedSession && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -885,53 +483,6 @@ export default function AparatosPage() {
                                     <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Profesional</span>
                                     <span className="text-sm font-bold text-gray-700">{selectedSession.professionalName}</span>
                                 </div>
-                                <div className="flex items-center justify-between">
-                                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Estado</span>
-                                    <div className="flex items-center gap-1.5">
-                                        <div className={`w-1.5 h-1.5 rounded-full ${selectedSession.status === 'completed' ? 'bg-green-500' : 'bg-amber-500 animate-pulse'}`} />
-                                        <span className={`text-[10px] font-black uppercase tracking-widest ${selectedSession.status === 'completed' ? 'text-green-600' : 'text-amber-600'}`}>
-                                            {selectedSession.status === 'completed' ? 'Completada' : 'Pendiente'}
-                                        </span>
-                                    </div>
-                                </div>
-                                {selectedSession.status === 'completed' && (
-                                    <>
-                                        <div className="flex items-center justify-between border-t border-gray-100 pt-3">
-                                            <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Monto Abonado</span>
-                                            <span className="text-lg font-black text-gray-900">{formatCurrency(selectedSession.fixedFee || 0)}</span>
-                                        </div>
-                                        {selectedSession.payments && selectedSession.payments.length > 1 ? (
-                                            <div className="space-y-1.5">
-                                                {selectedSession.payments.map((p, idx) => (
-                                                    <div key={p.id || idx} className="flex items-center justify-between">
-                                                        <span className="text-xs font-bold text-gray-600 uppercase tracking-widest">
-                                                            {formatPaymentMethod(p.method)}
-                                                            {p.bankAccount && ` (${formatBankAccount(p.bankAccount)})`}
-                                                        </span>
-                                                        <span className="text-xs font-bold text-gray-600">{formatCurrency(p.amount)}</span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        ) : (
-                                            <>
-                                                <div className="flex items-center justify-between">
-                                                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Método</span>
-                                                    <span className="text-xs font-bold text-gray-600 uppercase tracking-widest">
-                                                        {formatPaymentMethod(selectedSession.paymentMethod || 'cash')}
-                                                    </span>
-                                                </div>
-                                                {selectedSession.bankAccount && (
-                                                    <div className="flex items-center justify-between">
-                                                        <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Cuenta</span>
-                                                        <span className="text-xs font-bold text-gray-600 italic">
-                                                            {formatBankAccount(selectedSession.bankAccount)}
-                                                        </span>
-                                                    </div>
-                                                )}
-                                            </>
-                                        )}
-                                    </>
-                                )}
                             </div>
 
                             {selectedSession.notes && (
