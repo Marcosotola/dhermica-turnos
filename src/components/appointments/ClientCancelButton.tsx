@@ -17,9 +17,13 @@ interface Props {
 const HOURS_THRESHOLD = 24;
 
 function hoursUntilAppointment(date: string, time: string): number {
+    // new Date('YYYY-MM-DD') se interpreta en UTC: en Argentina (UTC-3) cae el día anterior a
+    // las 21:00 y setHours() después movía la hora al día equivocado, restando 24 hs de más
+    // (un cliente que cancelaba con 43 hs figuraba con 19 hs y perdía la seña). Se arma la
+    // fecha en hora local, igual que CancelAppointmentDialog.
+    const [year, month, day] = date.split('-').map(Number);
     const [h, m] = time.split(':').map(Number);
-    const aptDate = new Date(date);
-    aptDate.setHours(h, m, 0, 0);
+    const aptDate = new Date(year, month - 1, day, h, m);
     return (aptDate.getTime() - Date.now()) / (1000 * 60 * 60);
 }
 

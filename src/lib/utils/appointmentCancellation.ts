@@ -19,22 +19,31 @@ export async function cancelAppointmentWithCredit(
 ): Promise<void> {
     const totalPaid = (appointment.payments || []).reduce((sum, p) => sum + p.amount, 0);
 
-    if (creditAction !== 'none' && totalPaid > 0) {
-        await createClientCredit({
-            clientId: appointment.clientId || `legacy-${appointment.clientName?.replace(/\s+/g, '-').toLowerCase()}`,
-            clientName: appointment.clientName,
-            amount: totalPaid,
-            reason: 'cancelled_appointment',
-            status: creditAction === 'retain' ? 'available' : 'forfeited',
-            sourceAppointmentId: appointment.id,
-            sourceAppointmentDate: appointment.date,
-            sourceTreatmentName: appointment.treatment,
-            notes,
-            createdBy,
-        });
-    }
-
+    // Primero se cancela el turno y recién después se registra el crédito. Al revés, si la
+    // cancelación fallaba quedaba un crédito creado para un turno que seguía vivo, y cada
+    // reintento del usuario creaba otro crédito más (la seña duplicada a favor del cliente).
     await cancelAppointment(appointment.id);
+
+    if (creditAction !== 'none' && totalPaid > 0) {
+        try {
+            await createClientCredit({
+                clientId: appointment.clientId || `legacy-${appointment.clientName?.replace(/\s+/g, '-').toLowerCase()}`,
+                clientName: appointment.clientName,
+                amount: totalPaid,
+                reason: 'cancelled_appointment',
+                status: creditAction === 'retain' ? 'available' : 'forfeited',
+                sourceAppointmentId: appointment.id,
+                sourceAppointmentDate: appointment.date,
+                sourceTreatmentName: appointment.treatment,
+                notes,
+                createdBy,
+            });
+        } catch (error) {
+            console.error('Error registrando el crédito de la seña:', error);
+            toast.error(`El turno se canceló, pero NO se pudo registrar la seña de $${totalPaid.toLocaleString('es-AR')}. Cargala a mano como crédito del cliente.`, { duration: 10000 });
+            return;
+        }
+    }
 
     if (creditAction === 'retain' && totalPaid > 0) {
         toast.success(`Turno cancelado. Crédito de $${totalPaid.toLocaleString('es-AR')} retenido a favor del cliente.`);

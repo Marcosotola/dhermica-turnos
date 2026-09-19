@@ -498,34 +498,70 @@ export async function cancelAppointment(id: string): Promise<void> {
     const docRef = doc(db, APPOINTMENTS_COLLECTION, id);
     const snap = await getDoc(docRef);
 
-    await updateDoc(docRef, {
-        status: 'cancelled',
-        updatedAt: Timestamp.now(),
-    });
+    let data: Record<string, any>;
 
     if (snap.exists()) {
-        const data = snap.data();
-
-        const appointmentDate = data.date || '';
-        const appointmentTime = data.time || '';
-        const treatment = data.treatment || data.servicio || 'Servicio';
-        let dateDisplay = '';
-        if (appointmentDate.includes('-')) {
-            const [year, month, day] = appointmentDate.split('-');
-            dateDisplay = ` del ${day}-${month}-${year}`;
+        await updateDoc(docRef, {
+            status: 'cancelled',
+            updatedAt: Timestamp.now(),
+        });
+        data = snap.data();
+    } else {
+        // Turno legacy: vive en la colección antigua de un profesional (ej: turnosLuciana),
+        // no en 'appointments'. Antes updateDoc sobre un documento inexistente fallaba y el
+        // turno no se podía cancelar (igual que hacen updateAppointment y deleteAppointment).
+        const legacy = await findLegacyAppointment(id);
+        if (!legacy) {
+            throw new Error(`No se encontró el turno ${id} en ninguna colección`);
         }
-
-        if (data.clientId) {
-            sendAutomatedNotification(
-                'Dhermica Estetica Unisex: Turno Cancelado ❌',
-                `Tu cita para ${treatment}${dateDisplay} a las ${appointmentTime} ha sido cancelada.`,
-                data.clientId,
-                '/mis-turnos'
-            );
-        }
-
-        notifyN8nAppointmentCancelled(id, data, 'appointment_cancelled');
+        await updateDoc(legacy.ref, {
+            status: 'cancelled',
+            updatedAt: Timestamp.now(),
+        });
+        data = { ...legacy.data, professionalId: legacy.data.professionalId || legacy.professionalId };
     }
+
+    const appointmentDate = data.date || data.fecha || '';
+    const appointmentTime = data.time || data.hora || '';
+    const treatment = data.treatment || data.servicio || 'Servicio';
+    let dateDisplay = '';
+    if (appointmentDate.includes('-')) {
+        const [year, month, day] = appointmentDate.split('-');
+        dateDisplay = ` del ${day}-${month}-${year}`;
+    }
+
+    if (data.clientId) {
+        sendAutomatedNotification(
+            'Dhermica Estetica Unisex: Turno Cancelado ❌',
+            `Tu cita para ${treatment}${dateDisplay} a las ${appointmentTime} ha sido cancelada.`,
+            data.clientId,
+            '/mis-turnos'
+        );
+    }
+
+    notifyN8nAppointmentCancelled(id, data, 'appointment_cancelled');
+}
+
+/**
+ * Busca un turno por ID en las colecciones legacy de todos los profesionales (activos o no).
+ */
+async function findLegacyAppointment(id: string) {
+    const professionals = await getProfessionals();
+    const legacyProfs = professionals.filter(p => p.legacyCollectionName);
+    const results = await Promise.all(
+        legacyProfs.map(async (prof) => {
+            try {
+                const ref = doc(db, prof.legacyCollectionName!, id);
+                const legacySnap = await getDoc(ref);
+                return legacySnap.exists()
+                    ? { ref, data: legacySnap.data() as Record<string, any>, professionalId: prof.id }
+                    : null;
+            } catch {
+                return null;
+            }
+        })
+    );
+    return results.find(r => r !== null) ?? null;
 }
 
 /**

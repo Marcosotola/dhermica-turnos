@@ -46,13 +46,20 @@ export function CancelAppointmentDialog({
     const [creditAction, setCreditAction] = useState<CreditAction>('retain');
 
     useEffect(() => {
+        // Los reinicios de policyLoading son necesarios: si el diálogo se cerraba mientras se
+        // cargaba la política de otro turno, `cancelled` impedía apagarlo y el botón
+        // "Confirmar Cancelación" quedaba deshabilitado para turnos sin tratamiento de catálogo.
         if (!isOpen || !appointment) {
             setPolicyStatus(null);
+            setPolicyLoading(false);
             return;
         }
 
         const treatmentId = appointment.treatments?.[0]?.treatmentId;
-        if (!treatmentId) return;
+        if (!treatmentId) {
+            setPolicyLoading(false);
+            return;
+        }
 
         let cancelled = false;
         setPolicyLoading(true);
@@ -71,7 +78,10 @@ export function CancelAppointmentDialog({
             if (!cancelled) setPolicyLoading(false);
         });
 
-        return () => { cancelled = true; };
+        return () => {
+            cancelled = true;
+            setPolicyLoading(false);
+        };
     }, [isOpen, appointment]);
 
     // Reset on close
