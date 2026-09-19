@@ -67,6 +67,11 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // --- Cash counts (arqueos / saldos iniciales — solo personal administrativo) ---
+    match /cash_counts/{countId} {
+      allow read, write: if isAdmin();
+    }
+
     // --- Default rules for all other collections ---
     match /{document=**} {
       allow read, write: if request.auth != null;

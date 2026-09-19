@@ -148,9 +148,21 @@ export function ProfessionalFinance({ professional }: ProfessionalFinanceProps) 
                 </div>
                 <p className="text-[10px] font-black uppercase tracking-widest opacity-60">{isStaff ? 'Total Sueldo' : 'Total Comisión'}</p>
                 <h4 className="text-3xl font-black mt-1">{formatCurrency(profData?.totalCommission || 0)}</h4>
-                <div className="mt-4 flex items-center gap-2 text-[10px] font-bold bg-white/10 w-fit px-2 py-1 rounded-lg">
-                    <TrendingUp className="w-3 h-3 text-green-400" />
-                    <span>Resumen del Periodo</span>
+                <div className="mt-4 flex flex-wrap items-center gap-2 text-[10px] font-bold">
+                    <div className="flex items-center gap-2 bg-white/10 w-fit px-2 py-1 rounded-lg">
+                        <TrendingUp className="w-3 h-3 text-green-400" />
+                        <span>Resumen del Periodo</span>
+                    </div>
+                    {(profData?.liquidatedAmount || 0) > 0 && (
+                        <span className="bg-emerald-500/20 text-emerald-200 px-2 py-1 rounded-lg">
+                            Pagado: {formatCurrency(profData?.liquidatedAmount || 0)}
+                        </span>
+                    )}
+                    {(profData?.pendingCommission || 0) > 0 && (
+                        <span className="bg-amber-500/20 text-amber-200 px-2 py-1 rounded-lg">
+                            Pendiente: {formatCurrency(profData?.pendingCommission || 0)}
+                        </span>
+                    )}
                 </div>
             </div>
 

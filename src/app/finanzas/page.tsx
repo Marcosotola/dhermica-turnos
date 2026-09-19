@@ -1,12 +1,17 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/lib/contexts/AuthContext';
-import { getFinanceOverview, FinanceOverview, FinanceMovement } from '@/lib/firebase/finance';
+import { getFinanceOverview, FinanceOverview, FinanceMovement, addDays } from '@/lib/firebase/finance';
+import { getAllCashCounts, createCashCount, deleteCashCount } from '@/lib/firebase/cashCounts';
+import { getBalancesAt } from '@/lib/firebase/cashBalance';
+import { PlaceBalances } from '@/lib/utils/cashBalance';
+import { CashCount, BALANCE_PLACES } from '@/lib/types/cashCount';
 import { getUnpaidAppointmentsFromDate, UnpaidAppointment, getAppointmentById } from '@/lib/firebase/appointments';
 import { Appointment } from '@/lib/types/appointment';
 import { deleteEgreso, createEgreso } from '@/lib/firebase/egresos';
 import { QuickPaymentModal } from '@/components/appointments/QuickPaymentModal';
+import { EgresoFormModal } from '@/components/egresos/EgresoFormModal';
 import { getTodayDate, formatDate, getDayWeekMonthRange } from '@/lib/utils/time';
 import { BALANCE_SINCE } from '@/lib/utils/clientLedger';
 import { formatCurrencyWithSymbol, sanitizeDecimalInput } from '@/lib/utils/currency';
@@ -34,6 +39,7 @@ import {
     X,
     Plus,
     CheckCircle2,
+    ClipboardCheck,
 } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 import { useRouter } from 'next/navigation';
@@ -72,6 +78,8 @@ export default function FinanzasPage() {
     const [typeFilter, setTypeFilter] = useState<'all' | 'ingreso' | 'egreso'>('all');
     const [unpaidAppointments, setUnpaidAppointments] = useState<UnpaidAppointment[]>([]);
     const [showUnpaid, setShowUnpaid] = useState(false);
+    const [showCommissionWarnings, setShowCommissionWarnings] = useState(false);
+    const [egresoModalOpen, setEgresoModalOpen] = useState(false);
     const [selectedMovement, setSelectedMovement] = useState<FinanceMovement | null>(null);
     const [detailApt, setDetailApt] = useState<Appointment | null>(null);
     const [detailLoading, setDetailLoading] = useState(false);
@@ -82,6 +90,20 @@ export default function FinanzasPage() {
     const [liquidatingMovement, setLiquidatingMovement] = useState<FinanceMovement | null>(null);
     const [liquidatePayments, setLiquidatePayments] = useState<LiquidatePayment[]>([]);
     const [liquidating, setLiquidating] = useState(false);
+
+    // Saldos acumulados por lugar (arqueo / saldo inicial)
+    const [cashCounts, setCashCounts] = useState<CashCount[]>([]);
+    const [placeBalances, setPlaceBalances] = useState<{ opening: PlaceBalances; closing: PlaceBalances } | null>(null);
+    const [countModalOpen, setCountModalOpen] = useState(false);
+    const [countDate, setCountDate] = useState('');
+    const [countValues, setCountValues] = useState<Record<string, string>>({});
+    const [withdrawValues, setWithdrawValues] = useState<Record<string, string>>({});
+    const [countNote, setCountNote] = useState('');
+    const [countExpected, setCountExpected] = useState<PlaceBalances | null>(null);
+    const [countExpectedLoading, setCountExpectedLoading] = useState(false);
+    const [savingCount, setSavingCount] = useState(false);
+    const balancesRequest = useRef(0);
+    const expectedRequest = useRef(0);
 
     const isAdmin = profile?.role === 'admin';
     const isSecretary = profile?.role === 'secretary';
@@ -122,11 +144,128 @@ export default function FinanzasPage() {
             setPeriodRange({ start, end });
             const data = await getFinanceOverview(start, end);
             setOverview(data);
+            if (canSeeAdminMetrics) void loadBalances(start, end);
         } catch (error) {
             console.error('Error loading finance data:', error);
             toast.error('Error al cargar datos financieros');
         } finally {
             setLoading(false);
+        }
+    };
+
+    // Saldo inicial y final de cada lugar para el período mostrado, a partir de los arqueos.
+    // Se carga aparte: si falla, el resto de Finanzas sigue funcionando.
+    const loadBalances = async (start: string, end: string) => {
+        const requestId = ++balancesRequest.current;
+        try {
+            const counts = await getAllCashCounts();
+            const dayBefore = addDays(start, -1);
+            const snapshots = await getBalancesAt([dayBefore, end], counts);
+            if (requestId !== balancesRequest.current) return;
+            setCashCounts(counts);
+            setPlaceBalances({ opening: snapshots[dayBefore], closing: snapshots[end] });
+        } catch (error) {
+            console.error('Error loading balances:', error);
+            if (requestId === balancesRequest.current) setPlaceBalances(null);
+        }
+    };
+
+    // Lo que el sistema calcula que debería haber en cada lugar al cierre de `date`,
+    // sin contar arqueos de ese mismo día (para poder compararlo contra lo que se cuenta).
+    const refreshCountExpected = async (date: string, counts: CashCount[]) => {
+        const requestId = ++expectedRequest.current;
+        setCountExpectedLoading(true);
+        try {
+            const snapshots = await getBalancesAt([date], counts.filter(c => c.date < date));
+            if (requestId === expectedRequest.current) setCountExpected(snapshots[date]);
+        } catch (error) {
+            console.error('Error calculando saldo esperado:', error);
+            if (requestId === expectedRequest.current) setCountExpected(null);
+        } finally {
+            if (requestId === expectedRequest.current) setCountExpectedLoading(false);
+        }
+    };
+
+    const openCountModal = () => {
+        const today = getTodayDate();
+        setCountDate(today);
+        setCountValues({});
+        setWithdrawValues({});
+        setCountNote('');
+        setCountExpected(null);
+        setCountModalOpen(true);
+        void refreshCountExpected(today, cashCounts);
+    };
+
+    const handleSaveCount = async () => {
+        if (!countDate) {
+            toast.error('Elegí la fecha del arqueo');
+            return;
+        }
+        if (countDate > getTodayDate()) {
+            toast.error('La fecha del arqueo no puede ser futura');
+            return;
+        }
+
+        // balances = lo que QUEDA después de retirar (arrastra al día siguiente);
+        // counted = lo contado antes de retirar (se compara contra lo que calcula el sistema)
+        const balances: Record<string, number> = {};
+        const counted: Record<string, number> = {};
+        const expected: Record<string, number> = {};
+        for (const { key, label } of BALANCE_PLACES) {
+            const raw = countValues[key];
+            if (raw === undefined || raw === '') continue;
+            const value = Number(raw);
+            if (!Number.isFinite(value)) continue;
+
+            const withdrawn = Number(withdrawValues[key]) || 0;
+            if (withdrawn > value) {
+                toast.error(`${label}: el retiro (${formatCurrency(withdrawn)}) no puede ser mayor a lo contado (${formatCurrency(value)})`);
+                return;
+            }
+
+            counted[key] = value;
+            balances[key] = Math.round((value - withdrawn) * 100) / 100;
+            const exp = countExpected?.[key];
+            if (exp !== null && exp !== undefined) expected[key] = exp;
+        }
+        if (Object.keys(balances).length === 0) {
+            toast.error('Cargá el monto de al menos un lugar');
+            return;
+        }
+
+        setSavingCount(true);
+        try {
+            await createCashCount({
+                date: countDate,
+                balances,
+                counted,
+                expected,
+                note: countNote.trim() || undefined,
+                createdBy: profile?.uid,
+            });
+            toast.success('Arqueo registrado');
+            setCountModalOpen(false);
+            loadData();
+        } catch (error) {
+            console.error('Error guardando arqueo:', error);
+            toast.error('Error al guardar el arqueo');
+        } finally {
+            setSavingCount(false);
+        }
+    };
+
+    const handleDeleteCount = async (count: CashCount) => {
+        const label = count.date.split('-').reverse().join('/');
+        if (!window.confirm(`¿Eliminar el arqueo del ${label}? Los saldos se van a recalcular desde el arqueo anterior.`)) return;
+        try {
+            await deleteCashCount(count.id);
+            toast.success('Arqueo eliminado');
+            setCountModalOpen(false);
+            loadData();
+        } catch (error) {
+            console.error('Error eliminando arqueo:', error);
+            toast.error('Error al eliminar el arqueo');
         }
     };
 
@@ -176,7 +315,8 @@ export default function FinanzasPage() {
         if (!selectedMovement) return;
         setDetailLoading(true);
         try {
-            await deleteEgreso(selectedMovement.id);
+            // Un gasto pagado con varios métodos genera varios movimientos: se elimina el gasto entero.
+            await deleteEgreso(selectedMovement.referenceId || selectedMovement.id);
             toast.success('Gasto eliminado');
             setShowEgresoDetail(false);
             setSelectedMovement(null);
@@ -266,6 +406,13 @@ export default function FinanzasPage() {
     });
 
     const ledgerMovements = (overview?.movements || []).filter(m => !m.isPending);
+
+    // Un gasto pagado con varios métodos aparece como varios movimientos: el detalle muestra
+    // el gasto completo con cada pago.
+    const egresoParts = selectedMovement?.referenceType === 'egreso'
+        ? (overview?.movements || []).filter(m => m.referenceType === 'egreso' && m.referenceId === selectedMovement.referenceId)
+        : [];
+    const egresoTotal = egresoParts.reduce((sum, m) => sum + m.amount, 0);
 
     const methodLabels: Record<string, string> = {
         cash: 'Efectivo',
@@ -427,9 +574,55 @@ export default function FinanzasPage() {
                     </div>
                 )}
 
+                {/* Turnos que no generaron comisión (realizados en $0 o cobrados pero pendientes): muestra el motivo para poder corregirlo */}
+                {(isAdmin || isSecretary) && (overview?.commissionWarnings.length ?? 0) > 0 && (
+                    <div className="mt-4">
+                        <button
+                            type="button"
+                            onClick={() => setShowCommissionWarnings(prev => !prev)}
+                            className={`w-full bg-white rounded-2xl p-4 shadow-sm border transition-all flex items-center gap-4 text-left ${showCommissionWarnings ? 'border-amber-400 ring-1 ring-amber-400/20' : 'border-amber-200 hover:shadow-md'}`}
+                        >
+                            <div className="p-2.5 rounded-xl bg-amber-50 text-amber-500">
+                                <AlertCircle className="w-5 h-5" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <h3 className="text-gray-400 font-black uppercase tracking-widest text-[9px] mb-0.5">Turnos sin comisión</h3>
+                                <p className="text-sm font-black text-amber-600">
+                                    {overview!.commissionWarnings.length} turno{overview!.commissionWarnings.length !== 1 ? 's' : ''} para revisar
+                                </p>
+                            </div>
+                            <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform shrink-0 ${showCommissionWarnings ? 'rotate-180' : ''}`} />
+                        </button>
+
+                        {showCommissionWarnings && (
+                            <div className="mt-2 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden animate-in slide-in-from-top-2 duration-200">
+                                <div className="divide-y divide-gray-50 max-h-[400px] overflow-y-auto">
+                                    {overview!.commissionWarnings.map(w => (
+                                        <div key={w.appointmentId} className="flex items-start gap-3 px-4 py-3 hover:bg-gray-50 transition-colors">
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-sm font-bold text-gray-800">{w.clientName} · {w.treatment}</p>
+                                                <p className="text-[10px] text-gray-400 mt-0.5">
+                                                    {w.date.split('-').reverse().join('/')} · Profesional: <span className="font-bold text-gray-600">{w.professionalName}</span>
+                                                </p>
+                                                <p className="text-xs text-amber-700 font-medium mt-1">{w.reason}</p>
+                                            </div>
+                                            <button
+                                                onClick={() => router.push('/turnos?date=' + w.date)}
+                                                className="text-[9px] font-bold text-[#34baab] hover:underline uppercase tracking-wide shrink-0 mt-0.5"
+                                            >
+                                                Ver turno
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
+
                 <div className="space-y-6 mt-8">
                     {/* 1. Top Metrics Bar - Interactive Tiles */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 items-start">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-4 gap-3 items-start">
                         {/* Saldo Neto */}
                         {canSeeAdminMetrics && (
                             <div className="space-y-2">
@@ -442,31 +635,99 @@ export default function FinanzasPage() {
                                         <Wallet className="w-5 h-5 md:w-6 md:h-6" />
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        <h3 className="text-gray-400 font-black uppercase tracking-widest text-[8px] md:text-[9px] mb-0.5 truncate">Saldo Neto</h3>
-                                        <p className={`text-base md:text-xl font-black truncate ${(overview?.saldo ?? 0) >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
+                                        <h3 className="text-gray-400 font-black uppercase tracking-widest text-[8px] md:text-[9px] mb-0.5 leading-tight">Saldo Neto</h3>
+                                        <p className={`text-base md:text-lg 2xl:text-xl font-black break-words leading-tight ${(overview?.saldo ?? 0) >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
                                             {formatCurrency(overview?.saldo || 0)}
                                         </p>
                                     </div>
                                     <ArrowUpDown className={`w-3 h-3 text-gray-300 transition-transform flex-shrink-0 ${expandedMetric === 'saldo' ? 'rotate-180' : ''}`} />
                                 </button>
                                 {expandedMetric === 'saldo' && (() => {
-                                    const saldoByMethod = Object.keys(overview?.incomeByMethodDetailed || {}).reduce((acc, key) => {
-                                        const net = (overview!.incomeByMethodDetailed[key] || 0) - (overview!.egresosByMethod[key] || 0);
-                                        if (net !== 0) acc[key] = net;
-                                        return acc;
-                                    }, {} as Record<string, number>);
+                                    // Movimiento del período por lugar (ingresos - egresos)
+                                    const rows = BALANCE_PLACES.map(({ key, label }) => ({
+                                        key,
+                                        label,
+                                        net: Math.round(((overview!.incomeByMethodDetailed[key] || 0) - (overview!.egresosByMethod[key] || 0)) * 100) / 100,
+                                        opening: placeBalances?.opening[key] ?? null,
+                                        closing: placeBalances?.closing[key] ?? null,
+                                    })).filter(r => r.net !== 0 || r.opening !== null || r.closing !== null);
+                                    const trackedRows = rows.filter(r => r.closing !== null);
+                                    const totalClosing = trackedRows.reduce((sum, r) => sum + (r.closing as number), 0);
+                                    const signed = (n: number) => `${n >= 0 ? '+' : '-'}${formatCurrency(Math.abs(n))}`;
+
+                                    // Arqueo más reciente dentro del período: muestra lo que faltó o sobró al contar
+                                    const countInPeriod = [...cashCounts].reverse().find(c => c.date >= periodRange.start && c.date <= periodRange.end);
+                                    const countDiffs = countInPeriod
+                                        ? BALANCE_PLACES.map(({ key, label }) => {
+                                            const left = countInPeriod.balances[key]; // lo que quedó después de retirar
+                                            if (left === undefined) return null;
+                                            const counted = countInPeriod.counted?.[key] ?? left; // arqueos viejos: sin retiro
+                                            const expected = countInPeriod.expected?.[key];
+                                            const withdrawn = Math.round((counted - left) * 100) / 100;
+                                            const diff = expected === undefined ? null : Math.round((counted - expected) * 100) / 100;
+                                            return { key, label, left, withdrawn, diff };
+                                        }).filter((d): d is { key: string; label: string; left: number; withdrawn: number; diff: number | null } => d !== null)
+                                        : [];
+
                                     return (
                                         <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 animate-in slide-in-from-top-2 duration-200 space-y-2.5">
-                                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest pb-1">Saldo disponible por lugar:</p>
-                                            {Object.entries(saldoByMethod).map(([key, val]) => (
-                                                <div key={key} className="flex justify-between items-center">
-                                                    <span className="text-xs font-medium text-gray-600">{methodLabels[key] || key}</span>
-                                                    <span className={`text-sm font-black ${val >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>{formatCurrency(val)}</span>
+                                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest pb-1">Saldo por lugar al cierre del período:</p>
+                                            {rows.map(r => (
+                                                <div key={r.key} className="pb-2 border-b border-gray-50 last:border-0">
+                                                    <div className="flex justify-between items-center">
+                                                        <span className="text-xs font-medium text-gray-600">{r.label}</span>
+                                                        {r.closing !== null ? (
+                                                            <span className={`text-sm font-black ${r.closing >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>{formatCurrency(r.closing)}</span>
+                                                        ) : (
+                                                            <span className={`text-sm font-black ${r.net >= 0 ? 'text-gray-500' : 'text-red-400'}`}>{signed(r.net)}</span>
+                                                        )}
+                                                    </div>
+                                                    <p className="text-[10px] text-gray-400 font-medium mt-0.5">
+                                                        {r.closing !== null
+                                                            ? `${r.opening !== null ? `Inicial ${formatCurrency(r.opening)}` : 'Sin saldo al inicio'} · Movimiento ${signed(r.net)}`
+                                                            : 'Sin saldo inicial cargado · solo movimiento del período'}
+                                                    </p>
                                                 </div>
                                             ))}
-                                            {Object.keys(saldoByMethod).length === 0 && (
+                                            {rows.length === 0 && (
                                                 <p className="text-xs text-gray-400 italic">Sin movimientos en este período</p>
                                             )}
+                                            {trackedRows.length > 0 && (
+                                                <div className="flex justify-between items-center pt-1">
+                                                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">Total con saldo cargado</span>
+                                                    <span className="text-sm font-black text-gray-800">{formatCurrency(totalClosing)}</span>
+                                                </div>
+                                            )}
+                                            {countInPeriod && countDiffs.length > 0 && (
+                                                <div className="pt-2 mt-1 border-t border-gray-100 space-y-1">
+                                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Arqueo del {countInPeriod.date.split('-').reverse().join('/')}:</p>
+                                                    {countDiffs.map(d => (
+                                                        <div key={d.key} className="flex justify-between items-start gap-2">
+                                                            <div className="min-w-0">
+                                                                <span className="text-xs text-gray-600">{d.label}</span>
+                                                                {d.withdrawn > 0 && (
+                                                                    <p className="text-[10px] text-gray-400 font-medium">
+                                                                        Retiro {formatCurrency(d.withdrawn)} · Quedó {formatCurrency(d.left)}
+                                                                    </p>
+                                                                )}
+                                                            </div>
+                                                            {d.diff !== null && (
+                                                                <span className={`text-xs font-black shrink-0 ${d.diff === 0 ? 'text-emerald-600' : d.diff < 0 ? 'text-red-500' : 'text-amber-600'}`}>
+                                                                    {d.diff === 0 ? 'Cuadra' : `${d.diff < 0 ? 'Faltó' : 'Sobró'} ${formatCurrency(Math.abs(d.diff))}`}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                            <button
+                                                type="button"
+                                                onClick={openCountModal}
+                                                className="w-full mt-2 inline-flex items-center justify-center gap-2 bg-[#34baab]/10 hover:bg-[#34baab]/20 text-[#1f8f83] px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95"
+                                            >
+                                                <ClipboardCheck className="w-3.5 h-3.5" />
+                                                Arqueo / Saldo inicial
+                                            </button>
                                         </div>
                                     );
                                 })()}
@@ -485,8 +746,8 @@ export default function FinanzasPage() {
                                         <TrendingUp className="w-5 h-5 md:w-6 md:h-6" />
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        <h3 className="text-gray-400 font-black uppercase tracking-widest text-[8px] md:text-[9px] mb-0.5 truncate">Ingresos</h3>
-                                        <p className="text-base md:text-xl font-black text-white truncate">{formatCurrency(overview?.totalIncome || 0)}</p>
+                                        <h3 className="text-gray-400 font-black uppercase tracking-widest text-[8px] md:text-[9px] mb-0.5 leading-tight">Ingresos</h3>
+                                        <p className="text-base md:text-lg 2xl:text-xl font-black text-white break-words leading-tight">{formatCurrency(overview?.totalIncome || 0)}</p>
                                     </div>
                                     <ArrowUpDown className={`w-3 h-3 text-gray-500 transition-transform flex-shrink-0 ${expandedMetric === 'ingresos' ? 'rotate-180' : ''}`} />
                                 </button>
@@ -532,8 +793,8 @@ export default function FinanzasPage() {
                                         <TrendingDown className="w-5 h-5 md:w-6 md:h-6" />
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        <h3 className="text-gray-400 font-black uppercase tracking-widest text-[8px] md:text-[9px] mb-0.5 truncate">Egresos</h3>
-                                        <p className="text-base md:text-xl font-black text-gray-900 truncate">{formatCurrency(overview?.totalEgresosGeneral || 0)}</p>
+                                        <h3 className="text-gray-400 font-black uppercase tracking-widest text-[8px] md:text-[9px] mb-0.5 leading-tight">Egresos</h3>
+                                        <p className="text-base md:text-lg 2xl:text-xl font-black text-gray-900 break-words leading-tight">{formatCurrency(overview?.totalEgresosGeneral || 0)}</p>
                                     </div>
                                     <ArrowUpDown className={`w-3 h-3 text-gray-300 transition-transform flex-shrink-0 ${expandedMetric === 'egresos' ? 'rotate-180' : ''}`} />
                                 </button>
@@ -541,12 +802,12 @@ export default function FinanzasPage() {
                                     <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 animate-in slide-in-from-top-2 duration-200 space-y-3">
                                         <div className="space-y-2 pb-3 border-b border-gray-100">
                                             <div className="flex justify-between items-center">
-                                                <span className="text-xs font-bold text-gray-500 uppercase">Gastos</span>
+                                                <span className="text-xs font-bold text-gray-500 uppercase">Gastos y liquidaciones pagadas</span>
                                                 <span className="text-sm font-black text-gray-700">{formatCurrency(overview?.totalEgresos || 0)}</span>
                                             </div>
                                             <div className="flex justify-between items-center">
-                                                <span className="text-xs font-bold text-gray-500 uppercase">Comisiones</span>
-                                                <span className="text-sm font-black text-gray-700">{formatCurrency(overview?.totalProfCommissions || 0)}</span>
+                                                <span className="text-xs font-bold text-gray-400 uppercase">Comisiones pendientes (no incluidas)</span>
+                                                <span className="text-sm font-black text-gray-400">{formatCurrency(overview?.totalProfCommissions || 0)}</span>
                                             </div>
                                         </div>
                                         <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Por Método de Pago:</p>
@@ -585,10 +846,10 @@ export default function FinanzasPage() {
                                     {canSeeAdminMetrics ? <Users className="w-5 h-5 md:w-6 md:h-6" /> : <DollarSign className="w-5 h-5 md:w-6 md:h-6" />}
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <h3 className={`font-black uppercase tracking-widest text-[8px] md:text-[9px] mb-0.5 truncate ${canSeeAdminMetrics ? 'text-gray-400' : 'text-white/70'}`}>
+                                    <h3 className={`font-black uppercase tracking-widest text-[8px] md:text-[9px] mb-0.5 leading-tight ${canSeeAdminMetrics ? 'text-gray-400' : 'text-white/70'}`}>
                                         {canSeeAdminMetrics ? 'Comisiones Profesionales' : (personalData?.type === 'apoyo' ? 'Mi Sueldo' : 'Mi Ganancia')}
                                     </h3>
-                                    <p className={`text-base md:text-xl font-black truncate ${canSeeAdminMetrics ? 'text-gray-900' : 'text-white'}`}>
+                                    <p className={`text-base md:text-lg 2xl:text-xl font-black break-words leading-tight ${canSeeAdminMetrics ? 'text-gray-900' : 'text-white'}`}>
                                         {formatCurrency(canSeeAdminMetrics
                                             ? Object.values(overview?.byProfessional || {}).filter(d => d.type !== 'apoyo').reduce((s, d) => s + (d.totalCommission || 0), 0)
                                             : (personalData?.totalCommission || 0))}
@@ -616,6 +877,8 @@ export default function FinanzasPage() {
                                                             {data.productCommission > 0 && <span className="text-xs text-gray-500">Prod: <span className="font-bold text-gray-700">{formatCurrency(data.productCommission)}</span></span>}
                                                             {data.rentalCommission > 0 && <span className="text-xs text-gray-500">Alq: <span className="font-bold text-gray-700">{formatCurrency(data.rentalCommission)}</span></span>}
                                                             {data.totalCommission <= 0 && <span className="text-xs text-gray-400 italic">Sin actividad en el período</span>}
+                                                            {data.liquidatedAmount > 0 && <span className="text-xs text-gray-500">Pagado: <span className="font-bold text-emerald-600">{formatCurrency(data.liquidatedAmount)}</span></span>}
+                                                            {!pendingMovement && data.totalCommission > 0 && <span className="text-[9px] font-black uppercase tracking-widest text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">Liquidado</span>}
                                                         </div>
                                                         {pendingMovement && (
                                                             <button
@@ -624,7 +887,7 @@ export default function FinanzasPage() {
                                                                 className="inline-flex items-center gap-1 bg-amber-500 hover:bg-amber-600 text-white px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-sm shrink-0"
                                                             >
                                                                 <DollarSign className="w-2.5 h-2.5" />
-                                                                Liquidar
+                                                                Liquidar{pendingMovement.amount > 0 ? ` ${formatCurrency(pendingMovement.amount)}` : ''}
                                                             </button>
                                                         )}
                                                     </div>
@@ -648,10 +911,10 @@ export default function FinanzasPage() {
                                         <Users className="w-5 h-5 md:w-6 md:h-6" />
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        <h3 className="font-black uppercase tracking-widest text-[8px] md:text-[9px] mb-0.5 truncate text-gray-400">
+                                        <h3 className="font-black uppercase tracking-widest text-[8px] md:text-[9px] mb-0.5 leading-tight text-gray-400">
                                             Sueldo Personal de Apoyo
                                         </h3>
-                                        <p className="text-base md:text-xl font-black truncate text-gray-900">
+                                        <p className="text-base md:text-lg 2xl:text-xl font-black break-words leading-tight text-gray-900">
                                             {formatCurrency(Object.values(overview?.byProfessional || {}).filter(d => d.type === 'apoyo').reduce((s, d) => s + (d.totalCommission || 0), 0))}
                                         </p>
                                     </div>
@@ -671,7 +934,11 @@ export default function FinanzasPage() {
                                                             <span className="text-sm font-black text-violet-600">{formatCurrency(data.totalCommission)}</span>
                                                         </div>
                                                         <div className="flex items-center justify-between gap-2">
-                                                            <span className="text-xs text-gray-500">Asistencia: <span className="font-bold text-gray-700">{formatCurrency(data.attendanceWage)}</span></span>
+                                                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                                                                <span className="text-xs text-gray-500">Asistencia: <span className="font-bold text-gray-700">{formatCurrency(data.attendanceWage)}</span></span>
+                                                                {data.liquidatedAmount > 0 && <span className="text-xs text-gray-500">Pagado: <span className="font-bold text-emerald-600">{formatCurrency(data.liquidatedAmount)}</span></span>}
+                                                                {!pendingMovement && data.totalCommission > 0 && <span className="text-[9px] font-black uppercase tracking-widest text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">Liquidado</span>}
+                                                            </div>
                                                             {pendingMovement && (
                                                                 <button
                                                                     type="button"
@@ -679,7 +946,7 @@ export default function FinanzasPage() {
                                                                     className="inline-flex items-center gap-1 bg-violet-500 hover:bg-violet-600 text-white px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-sm shrink-0"
                                                                 >
                                                                     <DollarSign className="w-2.5 h-2.5" />
-                                                                    Liquidar
+                                                                    Liquidar{pendingMovement.amount > 0 ? ` ${formatCurrency(pendingMovement.amount)}` : ''}
                                                                 </button>
                                                             )}
                                                         </div>
@@ -693,6 +960,20 @@ export default function FinanzasPage() {
                         )}
                     </div>
 
+
+                    {/* Registrar un gasto sin salir de Finanzas */}
+                    {canSeeAdminMetrics && (
+                        <div className="flex justify-end">
+                            <button
+                                type="button"
+                                onClick={() => setEgresoModalOpen(true)}
+                                className="inline-flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white font-black px-6 py-3 rounded-2xl shadow-lg shadow-red-200 transition-all active:scale-95"
+                            >
+                                <Plus className="w-5 h-5" />
+                                Registrar egreso
+                            </button>
+                        </div>
+                    )}
 
                     {/* 3. Libro Diario - REFINED TABLE WITH LOAD MORE */}
                     {canSeeIncome && (
@@ -735,7 +1016,7 @@ export default function FinanzasPage() {
                                             <th className="w-[150px] px-2 py-3">Descripción</th>
                                             <th className="w-[80px] px-2 py-3">Cuenta</th>
                                             <th className="w-[110px] px-2 py-3 text-right">Monto</th>
-                                            <th className="w-[110px] px-2 py-3 text-right">Saldo</th>
+                                            <th className="w-[110px] px-2 py-3 text-right" title="Suma acumulada de los movimientos de este período, sin el saldo inicial de las cuentas">Acum. período</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-50">
@@ -850,10 +1131,13 @@ export default function FinanzasPage() {
                             { label: 'Fecha', value: selectedMovement.date.split('-').reverse().join('/') },
                             { label: 'Categoría', value: EGRESO_CATEGORY_LABEL[selectedMovement.category as EgresoCategory] || selectedMovement.category },
                             { label: 'Descripción', value: selectedMovement.description },
-                            { label: 'Método', value: methodLabels[selectedMovement.method] || selectedMovement.method },
-                            { label: 'Monto', value: formatCurrency(selectedMovement.amount) },
-                        ].map(row => (
-                            <div key={row.label} className="flex justify-between items-center">
+                            ...(egresoParts.length > 0 ? egresoParts : [selectedMovement]).map(part => ({
+                                label: 'Método',
+                                value: `${methodLabels[part.method] || part.method}${part.bankAccount && part.method !== 'cash' ? ` (${formatBankAccount(part.bankAccount)})` : ''}${egresoParts.length > 1 ? `: ${formatCurrency(part.amount)}` : ''}`,
+                            })),
+                            { label: 'Monto', value: formatCurrency(egresoParts.length > 0 ? egresoTotal : selectedMovement.amount) },
+                        ].map((row, rowIdx) => (
+                            <div key={`${row.label}-${rowIdx}`} className="flex justify-between items-center">
                                 <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{row.label}</span>
                                 <span className={`text-sm font-bold ${row.label === 'Monto' ? 'text-red-600' : 'text-gray-800'}`}>{row.value}</span>
                             </div>
@@ -895,7 +1179,10 @@ export default function FinanzasPage() {
                     </div>
 
                     <p className="text-sm text-gray-500 font-medium">
-                        Registrá el pago para <span className="font-bold text-gray-700">{liquidatingMovement.description.replace(/^(Comisión|Sueldo) \(Pendiente\): /, '')}</span> por el período mostrado. Comisión calculada: <span className="font-bold text-gray-700">{formatCurrency(liquidatingMovement.amount)}</span>. Podés ajustar el monto final para sumar un incentivo o aplicar un descuento.
+                        Registrá el pago para <span className="font-bold text-gray-700">{liquidatingMovement.description.replace(/^(Comisión|Sueldo) \(Pendiente\): /, '')}</span> por el período mostrado ({periodRange.start.split('-').reverse().join('/')}{periodRange.end !== periodRange.start ? ` al ${periodRange.end.split('-').reverse().join('/')}` : ''}). {liquidatingMovement.amount > 0
+                            ? <>Pendiente de liquidar: <span className="font-bold text-gray-700">{formatCurrency(liquidatingMovement.amount)}</span> (no incluye fechas ya liquidadas antes). Podés ajustar el monto final para sumar un incentivo o aplicar un descuento.</>
+                            : <>No hay comisión calculada automáticamente para este período: ingresá el monto que le corresponde.</>}
+                        {' '}Al confirmar, todas las fechas de este período quedan cerradas con el monto que pagues.
                     </p>
 
                     <div className="pt-2 max-h-[50vh] overflow-y-auto pr-1 -mr-1">
@@ -935,7 +1222,8 @@ export default function FinanzasPage() {
                                                     setLiquidatePayments(ps => ps.map((pay, i) => i !== idx ? pay : {
                                                         ...pay,
                                                         method,
-                                                        bankAccount: method === 'cash' ? null : pay.bankAccount,
+                                                        // El selector de cuenta muestra Brubank por defecto: el estado debe coincidir.
+                                                        bankAccount: method === 'cash' ? null : (pay.bankAccount || 'cuenta1'),
                                                     }));
                                                 }}
                                                 className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#34baab] bg-white"
@@ -1012,6 +1300,186 @@ export default function FinanzasPage() {
                 </div>
             </div>
         )}
+
+        {/* Modal: Registrar egreso (mismo formulario que la pantalla de Egresos) */}
+        <EgresoFormModal
+            isOpen={egresoModalOpen}
+            egreso={null}
+            // Si se está mirando un solo día, el gasto arranca con esa fecha (se puede cambiar en el formulario)
+            defaultDate={periodRange.start && periodRange.start === periodRange.end ? periodRange.start : getTodayDate()}
+            onClose={() => setEgresoModalOpen(false)}
+            onSaved={loadData}
+        />
+
+        {/* Modal: Arqueo / Saldo inicial */}
+        {countModalOpen && (() => {
+            const hasReba = cashCounts.some(c => c.balances.cuenta2 !== undefined)
+                || (overview?.incomeByMethodDetailed.cuenta2 || 0) > 0
+                || (overview?.egresosByMethod.cuenta2 || 0) > 0;
+            const modalPlaces = BALANCE_PLACES.filter(p => p.key !== 'cuenta2' || hasReba);
+            const isFirstCount = cashCounts.length === 0;
+            const recentCounts = [...cashCounts].reverse().slice(0, 5);
+
+            return (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-8 flex flex-col max-h-[92vh]">
+                        <div className="flex items-center gap-3 mb-3 flex-shrink-0">
+                            <div className="w-10 h-10 bg-[#34baab]/20 rounded-full flex items-center justify-center">
+                                <ClipboardCheck className="w-6 h-6 text-[#34baab]" />
+                            </div>
+                            <h2 className="text-2xl font-black text-gray-900">{isFirstCount ? 'Saldo inicial' : 'Arqueo de caja'}</h2>
+                        </div>
+
+                        <div className="overflow-y-auto pr-1 -mr-1 space-y-4">
+                            <p className="text-sm text-gray-500 font-medium">
+                                Contá lo que hay <span className="font-bold text-gray-700">al cierre</span> de la fecha elegida, con todos los movimientos de ese día ya cargados.
+                                {isFirstCount
+                                    ? ' Es el punto de partida: desde acá Finanzas acumula el saldo de cada lugar. Si lo cargás durante el día, poné la fecha de ayer para que los movimientos de hoy se sumen.'
+                                    : ' Se compara contra lo que calcula el sistema.'}
+                                {' '}Si después <span className="font-bold text-gray-700">retirás plata</span> (por ejemplo dejando solo el cambio), anotá el retiro: mañana el sistema arranca con lo que quede.
+                                {' '}Los lugares que dejes vacíos no se siguen.
+                            </p>
+
+                            <div>
+                                <label htmlFor="count-date" className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1 block">Fecha del arqueo</label>
+                                <input
+                                    id="count-date"
+                                    type="date"
+                                    max={getTodayDate()}
+                                    value={countDate}
+                                    onChange={e => {
+                                        setCountDate(e.target.value);
+                                        if (e.target.value) void refreshCountExpected(e.target.value, cashCounts);
+                                    }}
+                                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-[#34baab] bg-white"
+                                />
+                            </div>
+
+                            <div className="space-y-3">
+                                {modalPlaces.map(({ key, label }) => {
+                                    const raw = countValues[key] ?? '';
+                                    const counted = raw !== '' && Number.isFinite(Number(raw)) ? Number(raw) : null;
+                                    const expected = countExpected?.[key] ?? null;
+                                    const diff = counted !== null && expected !== null ? Math.round((counted - expected) * 100) / 100 : null;
+                                    return (
+                                        <div key={key} className="bg-gray-50 rounded-2xl p-3 border border-gray-100">
+                                            <div className="flex justify-between items-center mb-2">
+                                                <label htmlFor={`count-${key}`} className="text-xs font-black text-gray-700">{label}</label>
+                                                <span className="text-[10px] font-bold text-gray-400">
+                                                    {countExpectedLoading ? 'Calculando...' : expected !== null ? `Sistema: ${formatCurrency(expected)}` : 'Sin saldo previo'}
+                                                </span>
+                                            </div>
+                                            <input
+                                                id={`count-${key}`}
+                                                type="text"
+                                                inputMode="decimal"
+                                                value={raw}
+                                                placeholder="Contado (dejar vacío si no se cuenta)"
+                                                onChange={e => {
+                                                    const value = sanitizeDecimalInput(e.target.value);
+                                                    setCountValues(v => ({ ...v, [key]: value }));
+                                                }}
+                                                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-[#34baab] bg-white placeholder:font-medium placeholder:text-gray-300 placeholder:text-xs"
+                                            />
+                                            {diff !== null && (
+                                                <p className={`text-[11px] font-black mt-1.5 ${diff === 0 ? 'text-emerald-600' : diff < 0 ? 'text-red-500' : 'text-amber-600'}`}>
+                                                    {diff === 0 ? 'Cuadra' : `${diff < 0 ? 'Falta' : 'Sobra'} ${formatCurrency(Math.abs(diff))}`}
+                                                </p>
+                                            )}
+                                            {counted !== null && (
+                                                <div className="mt-2 pt-2 border-t border-gray-100">
+                                                    <div className="flex items-center gap-2">
+                                                        <label htmlFor={`withdraw-${key}`} className="text-[10px] font-black uppercase tracking-widest text-gray-400 shrink-0">Retiro</label>
+                                                        <input
+                                                            id={`withdraw-${key}`}
+                                                            type="text"
+                                                            inputMode="decimal"
+                                                            value={withdrawValues[key] ?? ''}
+                                                            placeholder="0"
+                                                            onChange={e => {
+                                                                const value = sanitizeDecimalInput(e.target.value);
+                                                                setWithdrawValues(v => ({ ...v, [key]: value }));
+                                                            }}
+                                                            className="min-w-0 flex-1 border border-gray-200 rounded-xl px-3 py-1.5 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-[#34baab] bg-white placeholder:text-gray-300"
+                                                        />
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setWithdrawValues(v => ({ ...v, [key]: String(counted) }))}
+                                                            className="text-[10px] font-black uppercase tracking-widest text-[#1f8f83] hover:underline shrink-0"
+                                                        >
+                                                            Retirar todo
+                                                        </button>
+                                                    </div>
+                                                    <p className={`text-[11px] font-black mt-1.5 ${(Number(withdrawValues[key]) || 0) > counted ? 'text-red-500' : 'text-gray-500'}`}>
+                                                        {(Number(withdrawValues[key]) || 0) > counted
+                                                            ? 'El retiro no puede ser mayor a lo contado'
+                                                            : `Queda para mañana: ${formatCurrency(Math.round((counted - (Number(withdrawValues[key]) || 0)) * 100) / 100)}`}
+                                                    </p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            <div>
+                                <label htmlFor="count-note" className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1 block">Nota (opcional)</label>
+                                <input
+                                    id="count-note"
+                                    type="text"
+                                    value={countNote}
+                                    onChange={e => setCountNote(e.target.value)}
+                                    placeholder="Ej: faltó registrar un gasto"
+                                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#34baab] bg-white"
+                                />
+                            </div>
+
+                            {recentCounts.length > 0 && (
+                                <div className="pt-2 border-t border-gray-100">
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">Arqueos anteriores</p>
+                                    <div className="space-y-1.5">
+                                        {recentCounts.map(c => (
+                                            <div key={c.id} className="flex items-center justify-between gap-2 text-xs">
+                                                <span className="font-bold text-gray-700">{c.date.split('-').reverse().join('/')}</span>
+                                                <span className="text-gray-400 truncate flex-1">
+                                                    {BALANCE_PLACES.filter(p => c.balances[p.key] !== undefined).map(p => p.label).join(', ')}
+                                                    {c.note ? ` · ${c.note}` : ''}
+                                                </span>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleDeleteCount(c)}
+                                                    className="text-[10px] font-black uppercase tracking-widest text-red-400 hover:text-red-600 shrink-0"
+                                                >
+                                                    Eliminar
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="flex gap-3 pt-4 mt-2 flex-shrink-0">
+                            <button
+                                type="button"
+                                onClick={() => setCountModalOpen(false)}
+                                className="flex-1 py-3 rounded-2xl border border-gray-200 font-bold text-gray-600 hover:bg-gray-50 transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleSaveCount}
+                                disabled={savingCount}
+                                className="flex-1 py-3 rounded-2xl bg-[#34baab] hover:bg-[#2da598] text-white font-bold transition-colors disabled:opacity-60"
+                            >
+                                {savingCount ? 'Guardando...' : 'Guardar arqueo'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        })()}
         </>
     );
 }

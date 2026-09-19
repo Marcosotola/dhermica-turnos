@@ -13,6 +13,8 @@ import { Professional } from '../types/professional';
 import { GiftCard } from '../types/giftCard';
 import { Attendance } from '../types/attendance';
 import { getUsersByRole } from './users';
+import { computeServiceCommission } from '../utils/serviceCommission';
+import { getTodayDate } from '../utils/time';
 
 export interface FinanceMovement {
     id: string;
@@ -27,6 +29,54 @@ export interface FinanceMovement {
     referenceId?: string;
     referenceType?: 'appointment' | 'egreso' | 'sale' | 'rental' | 'commission' | 'gift_card';
     isPending?: boolean;
+}
+
+export interface ProfessionalFinanceData {
+    serviceIncome: number;
+    productIncome: number;
+    rentalIncome: number;
+    serviceCommission: number;
+    productCommission: number;
+    rentalCommission: number;
+    attendanceWage: number;
+    // Total ganado en el período (suma calculada de todos los componentes de arriba).
+    totalCommission: number;
+    // Parte del total ganado cuyas fechas todavía NO están cubiertas por ninguna liquidación:
+    // es lo que realmente queda por pagar.
+    pendingCommission: number;
+    // Suma de lo efectivamente pagado en liquidaciones cuyo período cae dentro del rango
+    // consultado (puede diferir de lo calculado si se ajustó el monto al liquidar).
+    liquidatedAmount: number;
+    name: string;
+    userId?: string;
+    type: 'tratamiento' | 'apoyo';
+    isProfessionalRecord: boolean;
+}
+
+// Turno del período que no generó comisión (realizado con la comisión en $0, o cobrado pero
+// todavía "Pendiente"), con el motivo. Sirve para que la secretaria detecte configuraciones o
+// cierres incompletos en vez de ver un $0 sin explicación.
+export interface CommissionWarning {
+    appointmentId: string;
+    date: string;
+    clientName: string;
+    treatment: string;
+    professionalName: string;
+    reason: string;
+}
+
+function emptyProfessionalData(
+    name: string,
+    userId: string | undefined,
+    type: 'tratamiento' | 'apoyo',
+    isProfessionalRecord: boolean
+): ProfessionalFinanceData {
+    return {
+        serviceIncome: 0, productIncome: 0, rentalIncome: 0,
+        serviceCommission: 0, productCommission: 0, rentalCommission: 0, attendanceWage: 0,
+        totalCommission: 0, pendingCommission: 0, liquidatedAmount: 0,
+        name, userId, type, isProfessionalRecord,
+    };
 }
 
 export interface FinanceOverview {
@@ -45,20 +95,8 @@ export interface FinanceOverview {
     byMethod: Record<string, number>;
     incomeByMethodDetailed: Record<string, number>;
     egresosByMethod: Record<string, number>;
-    byProfessional: Record<string, {
-        serviceIncome: number;
-        productIncome: number;
-        rentalIncome: number;
-        serviceCommission: number;
-        productCommission: number;
-        rentalCommission: number;
-        attendanceWage: number;
-        totalCommission: number;
-        name: string;
-        userId?: string;
-        type: 'tratamiento' | 'apoyo';
-        isProfessionalRecord: boolean;
-    }>;
+    byProfessional: Record<string, ProfessionalFinanceData>;
+    commissionWarnings: CommissionWarning[];
     byProduct: Record<string, {
         name: string;
         quantity: number;
@@ -69,14 +107,14 @@ export interface FinanceOverview {
 
 const TRANSFER_ACCOUNT_KEYS = ['cuenta1', 'cuenta2', 'mercadopago', 'prex'];
 
-function resolveMethodKey(method: string, bankAccount?: string | null): string {
+export function resolveMethodKey(method: string, bankAccount?: string | null): string {
     if (method === 'transfer') {
         return bankAccount && TRANSFER_ACCOUNT_KEYS.includes(bankAccount) ? bankAccount : 'cuenta1';
     }
     return method || 'cash';
 }
 
-function addDays(dateStr: string, days: number): string {
+export function addDays(dateStr: string, days: number): string {
     const d = new Date(dateStr + 'T00:00:00');
     d.setDate(d.getDate() + days);
     const y = d.getFullYear();
@@ -152,6 +190,7 @@ export async function getFinanceOverview(startDate: string, endDate: string, tar
         incomeByMethodDetailed: { cash: 0, cuenta1: 0, cuenta2: 0, mercadopago: 0, prex: 0, debit: 0, credit: 0, qr: 0 },
         egresosByMethod: { cash: 0, cuenta1: 0, cuenta2: 0, mercadopago: 0, prex: 0, debit: 0, credit: 0, qr: 0 },
         byProfessional: {},
+        commissionWarnings: [],
         byProduct: {},
         movements: []
     };
@@ -167,12 +206,9 @@ export async function getFinanceOverview(startDate: string, endDate: string, tar
         nameToProfessional[nameKey] = p;
         
         if (!overview.byProfessional[nameKey]) {
-            overview.byProfessional[nameKey] = {
-                serviceIncome: 0, productIncome: 0, rentalIncome: 0,
-                serviceCommission: 0, productCommission: 0, rentalCommission: 0, attendanceWage: 0,
-                totalCommission: 0, name: nameKey, userId: p.userId, type: p.type === 'apoyo' ? 'apoyo' : 'tratamiento',
-                isProfessionalRecord: true
-            };
+            overview.byProfessional[nameKey] = emptyProfessionalData(
+                nameKey, p.userId, p.type === 'apoyo' ? 'apoyo' : 'tratamiento', true
+            );
         }
     });
 
@@ -180,12 +216,7 @@ export async function getFinanceOverview(startDate: string, endDate: string, tar
         const nameKey = u.fullName.trim();
         if (u.uid) idToName[u.uid] = nameKey;
         if (!overview.byProfessional[nameKey]) {
-            overview.byProfessional[nameKey] = {
-                serviceIncome: 0, productIncome: 0, rentalIncome: 0,
-                serviceCommission: 0, productCommission: 0, rentalCommission: 0, attendanceWage: 0,
-                totalCommission: 0, name: nameKey, userId: u.uid, type: 'tratamiento',
-                isProfessionalRecord: false
-            };
+            overview.byProfessional[nameKey] = emptyProfessionalData(nameKey, u.uid, 'tratamiento', false);
         }
     });
 
@@ -196,16 +227,38 @@ export async function getFinanceOverview(startDate: string, endDate: string, tar
         const nameKey = u.fullName.trim();
         idToName[u.uid] = nameKey;
         if (!overview.byProfessional[nameKey]) {
-            overview.byProfessional[nameKey] = {
-                serviceIncome: 0, productIncome: 0, rentalIncome: 0,
-                serviceCommission: 0, productCommission: 0, rentalCommission: 0, attendanceWage: 0,
-                totalCommission: 0, name: nameKey, userId: u.uid, type: 'tratamiento',
-                isProfessionalRecord: false
-            };
+            overview.byProfessional[nameKey] = emptyProfessionalData(nameKey, u.uid, 'tratamiento', false);
         }
     });
 
+    // Liquidaciones ya hechas, por profesional. Cada una cubre un rango de fechas
+    // (día, semana, quincena, mes... lo que se haya liquidado): toda comisión o sueldo
+    // cuya fecha caiga dentro de un rango liquidado se considera pagado, sin importar en
+    // qué período se esté mirando ahora. Así no importa que cada profesional se liquide
+    // con una frecuencia distinta.
+    // Una liquidación solo cubre hasta el día en que se pagó (coverEnd): si se liquida un
+    // mes a mitad de mes, lo que se complete después no debe darse por pagado.
+    const liquidationsByProfessional: Record<string, { start: string; end: string; coverEnd: string; amount: number }[]> = {};
+    commissionPayments.forEach(e => {
+        if (!e.professionalId || !e.commissionPeriodStart || !e.commissionPeriodEnd) return;
+        if (!liquidationsByProfessional[e.professionalId]) liquidationsByProfessional[e.professionalId] = [];
+        liquidationsByProfessional[e.professionalId].push({
+            start: e.commissionPeriodStart,
+            end: e.commissionPeriodEnd,
+            coverEnd: e.date && e.date < e.commissionPeriodEnd ? e.date : e.commissionPeriodEnd,
+            amount: Number(e.amount) || 0,
+        });
+    });
+
+    const isCommissionCovered = (profName: string, date: string): boolean => {
+        const prof = nameToProfessional[profName];
+        if (!prof) return false;
+        return (liquidationsByProfessional[prof.id] || []).some(l => date >= l.start && date <= l.coverEnd);
+    };
+
     const allMovements: FinanceMovement[] = [];
+    const commissionWarnings = overview.commissionWarnings;
+    const todayStr = getTodayDate();
 
     // 2. Procesar Turnos
     appointments.forEach(apt => {
@@ -273,44 +326,40 @@ export async function getFinanceOverview(startDate: string, endDate: string, tar
         }
 
         // COMISIONES: Sobre el precio total cuando el turno cae en el rango, sin importar cuándo pagó el cliente
-        if (isAptInDateRange && isCompleted && actualPrice > 0) {
-            const profName = apt.professionalId ? (idToName[apt.professionalId] || apt.professionalId) : null;
-            if (profName && overview.byProfessional[profName]) {
+        const profName = apt.professionalId ? (idToName[apt.professionalId] || apt.professionalId) : null;
+        const warn = (reason: string) => commissionWarnings.push({
+            appointmentId: apt.id,
+            date: apt.date,
+            clientName: apt.clientName,
+            treatment: apt.treatment,
+            professionalName: profName || 'Sin profesional',
+            reason,
+        });
+
+        if (isAptInDateRange && !isCompleted && !isCancelled && apt.date <= todayStr && totalPaid > 0) {
+            // Cobrado pero nunca marcado como Realizado (en "Cerrar Turno" el estado hay que
+            // elegirlo a mano): el ingreso ya está en caja pero no se calcula comisión.
+            warn('Ya tiene pagos cargados pero sigue como "Pendiente": marcalo como Realizado para que genere comisión');
+        }
+
+        if (isAptInDateRange && isCompleted) {
+            if (actualPrice <= 0) {
+                warn('El turno no tiene precio ni pagos cargados');
+            } else if (!apt.professionalId) {
+                warn('El turno no tiene profesional asignado');
+            } else if (!profName || !overview.byProfessional[profName]) {
+                warn('No se encontró al profesional del turno entre los profesionales o usuarios');
+            } else {
                 const prof = nameToProfessional[profName];
                 const profData = overview.byProfessional[profName];
 
                 profData.serviceIncome += actualPrice;
 
-                // Prioridad: monto fijo override > modo fixed del profesional > porcentaje override > porcentaje del profesional
-                if (apt.commissionFixedOverride !== undefined && apt.commissionFixedOverride !== null && apt.commissionFixedOverride > 0) {
-                    profData.serviceCommission += apt.commissionFixedOverride;
-                } else if (prof?.serviceCommissionMode === 'fixed' && prof.professionalPrices?.length && apt.treatments?.length) {
-                    let fixedTotal = 0;
-                    for (const t of apt.treatments) {
-                        const match = prof.professionalPrices.find(
-                            pp => pp.treatmentId === t.treatmentId
-                                && (pp.zone || '') === (t.zone || '')
-                                && (pp.gender || 'both') === (t.gender || 'both')
-                        );
-                        if (match) fixedTotal += match.price;
-                    }
-                    if (fixedTotal > 0) {
-                        profData.serviceCommission += fixedTotal;
-                    } else {
-                        const pct = apt.commissionPercentageOverride !== undefined && apt.commissionPercentageOverride !== null
-                            ? apt.commissionPercentageOverride
-                            : (prof?.serviceCommissionPercentage ?? (prof as any)?.commissionPercentage ?? 0);
-                        if (pct > 0) profData.serviceCommission += (actualPrice * pct) / 100;
-                    }
-                } else {
-                    const commissionPct = apt.commissionPercentageOverride !== undefined && apt.commissionPercentageOverride !== null
-                        ? apt.commissionPercentageOverride
-                        : (prof?.serviceCommissionPercentage ?? (prof as any)?.commissionPercentage ?? 0);
+                const { amount: aptCommission, zeroReason } = computeServiceCommission(apt, prof, actualPrice);
+                if (zeroReason) warn(zeroReason);
 
-                    if (commissionPct > 0) {
-                        profData.serviceCommission += (actualPrice * commissionPct) / 100;
-                    }
-                }
+                profData.serviceCommission += aptCommission;
+                if (!isCommissionCovered(profName, apt.date)) profData.pendingCommission += aptCommission;
             }
         }
     });
@@ -353,7 +402,11 @@ export async function getFinanceOverview(startDate: string, endDate: string, tar
         if (sellerName && overview.byProfessional[sellerName]) {
             overview.byProfessional[sellerName].productIncome += amount;
             if (sale.commission) {
-                overview.byProfessional[sellerName].productCommission += Number(sale.commission) || 0;
+                const saleCommission = Number(sale.commission) || 0;
+                overview.byProfessional[sellerName].productCommission += saleCommission;
+                if (!isCommissionCovered(sellerName, sale.date)) {
+                    overview.byProfessional[sellerName].pendingCommission += saleCommission;
+                }
             }
         }
     });
@@ -394,8 +447,12 @@ export async function getFinanceOverview(startDate: string, endDate: string, tar
 
         const sellerName = rental.sellerId ? (idToName[rental.sellerId] || rental.sellerId) : null;
         if (sellerName && overview.byProfessional[sellerName]) {
+            const rentalCommission = Number(rental.commission) || 0;
             overview.byProfessional[sellerName].rentalIncome += amount;
-            overview.byProfessional[sellerName].rentalCommission += Number(rental.commission) || 0;
+            overview.byProfessional[sellerName].rentalCommission += rentalCommission;
+            if (!isCommissionCovered(sellerName, rental.date)) {
+                overview.byProfessional[sellerName].pendingCommission += rentalCommission;
+            }
         }
     });
 
@@ -422,22 +479,53 @@ export async function getFinanceOverview(startDate: string, endDate: string, tar
     attendances.forEach(a => {
         const profName = idToName[a.professionalId] || a.professionalId;
         if (overview.byProfessional[profName]) {
-            overview.byProfessional[profName].attendanceWage += Number(a.amount) || 0;
+            const wage = Number(a.amount) || 0;
+            overview.byProfessional[profName].attendanceWage += wage;
+            if (!isCommissionCovered(profName, a.date)) overview.byProfessional[profName].pendingCommission += wage;
         }
     });
 
     // 6. Egresos Manuales
+    // Un gasto puede pagarse con varios métodos (ej. parte efectivo, parte transferencia):
+    // se genera un movimiento por cada pago para que cada método/cuenta descuente lo suyo.
+    // referenceId apunta siempre al gasto original (para editarlo/eliminarlo).
     egresos.forEach(e => {
         const amount = Number(e.amount) || 0;
+        const category = e.category || 'Otros';
+        const description = e.description || 'Gasto general';
+        const payments = (e.payments || []).filter(p => (Number(p.amount) || 0) > 0);
+        const paymentsTotal = payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+
+        // Solo se desglosa si los pagos suman el monto del gasto; si no cierran (datos viejos
+        // o inconsistentes) se mantiene el monto total del gasto con el método principal.
+        if (payments.length > 0 && Math.abs(paymentsTotal - amount) < 0.01) {
+            payments.forEach((p, idx) => {
+                allMovements.push({
+                    id: `${e.id}_p${idx}`,
+                    date: e.date,
+                    type: 'egreso',
+                    category,
+                    description,
+                    amount: Number(p.amount) || 0,
+                    method: p.method,
+                    bankAccount: p.bankAccount,
+                    referenceId: e.id,
+                    referenceType: 'egreso',
+                });
+            });
+            return;
+        }
+
         allMovements.push({
             id: e.id,
             date: e.date,
             type: 'egreso',
-            category: e.category || 'Otros',
-            description: e.description || 'Gasto general',
+            category,
+            description,
             amount,
             method: e.payments?.[0]?.method || e.paymentMethod || 'cash',
             bankAccount: e.payments?.[0]?.bankAccount || e.bankAccount,
+            referenceId: e.id,
             referenceType: 'egreso',
         });
     });
@@ -446,43 +534,34 @@ export async function getFinanceOverview(startDate: string, endDate: string, tar
     overview.totalProfCommissions = 0;
     overview.totalStaffWages = 0;
 
-    // Períodos ya liquidados para cada profesional (el % es solo referencia: una vez liquidado
-    // el período, el monto pactado queda fijo y no debe generar saldo pendiente ni a favor,
-    // sin importar si se pagó de más o de menos respecto del cálculo).
-    const liquidatedPeriods = new Set<string>();
-    const liquidatedAmountByPeriod: Record<string, number> = {};
-    commissionPayments.forEach(e => {
-        if (!e.professionalId || !e.commissionPeriodStart || !e.commissionPeriodEnd) return;
-        const key = `${e.professionalId}|${e.commissionPeriodStart}|${e.commissionPeriodEnd}`;
-        liquidatedPeriods.add(key);
-        liquidatedAmountByPeriod[key] = (liquidatedAmountByPeriod[key] || 0) + e.amount;
-    });
-
+    // El % es solo referencia: una vez que un rango de fechas se liquida, el monto pactado
+    // queda fijo y esas fechas no generan pendiente ni saldo a favor, sin importar si se
+    // pagó de más o de menos respecto del cálculo (ver isCommissionCovered).
     Object.values(overview.byProfessional).forEach((data) => {
-        // totalCommission = total ganado (referencia calculada), salvo que el período ya
-        // se haya liquidado: en ese caso se muestra el monto realmente pagado (puede haber
-        // sido editado a mano al liquidar), para que el resumen y el panel del profesional
-        // coincidan con lo efectivamente pagado.
+        // totalCommission = total ganado calculado en el período (siempre suma de sus
+        // componentes). Lo efectivamente pagado va aparte en liquidatedAmount, y lo que
+        // falta pagar en pendingCommission.
         data.totalCommission = data.serviceCommission + data.productCommission + data.rentalCommission + data.attendanceWage;
 
         const prof = nameToProfessional[data.name];
-        const periodKey = prof ? `${prof.id}|${startDate}|${endDate}` : '';
-        const isLiquidated = prof ? liquidatedPeriods.has(periodKey) : false;
+        const liquidations = prof ? (liquidationsByProfessional[prof.id] || []) : [];
 
-        if (isLiquidated && periodKey in liquidatedAmountByPeriod) {
-            data.totalCommission = liquidatedAmountByPeriod[periodKey];
-        }
+        // Pagado: liquidaciones cuyo período entra completo en el rango consultado. Una
+        // liquidación más grande que el rango (ej. mirando un día de un mes ya liquidado)
+        // no se puede repartir por día, así que no se cuenta acá; esas fechas igual quedan
+        // sin pendiente.
+        data.liquidatedAmount = liquidations
+            .filter(l => l.start >= startDate && l.end <= endDate)
+            .reduce((sum, l) => sum + l.amount, 0);
+        const hasLiquidationInRange = liquidations.some(l => l.start <= endDate && l.coverEnd >= startDate);
 
-        // Si ya se liquidó este período, el monto pactado queda fijo: no queda pendiente.
-        const virtualCommissionToPay = isLiquidated
-            ? 0
-            : Math.max(0, data.serviceCommission + data.productCommission + data.rentalCommission + data.attendanceWage);
+        const virtualCommissionToPay = Math.max(0, data.pendingCommission);
 
         // Mostrar el botón "Liquidar" también para un profesional en $0: puede no haber
         // facturado nada este período y aun así la dueña quiera pagarle algo (un adelanto,
-        // un bono). No aplica si el período ya se liquidó (quedaría un botón fantasma para
-        // volver a "liquidar" un período ya cerrado).
-        if (virtualCommissionToPay > 0 || (data.isProfessionalRecord && !isLiquidated)) {
+        // un bono). No aplica si ya hay una liquidación que toca este rango (quedaría un
+        // botón fantasma para volver a "liquidar" fechas ya cerradas).
+        if (virtualCommissionToPay > 0 || (data.isProfessionalRecord && !hasLiquidationInRange)) {
             const isStaff = data.type === 'apoyo';
             if (isStaff) overview.totalStaffWages += virtualCommissionToPay;
             else overview.totalProfCommissions += virtualCommissionToPay;
