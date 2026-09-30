@@ -2,96 +2,216 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Helper function to check if the user is an administrator or a promoter
-    function isAdmin() {
-      return request.auth != null && 
-        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
-         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'promotor' ||
-         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'secretary');
+
+    // ------------------------------------------------------------------
+    // Helpers de roles
+    // ------------------------------------------------------------------
+    function signedIn() {
+      return request.auth != null;
     }
 
-    // Helper: solo admin y secretaria (sin promotor)
-    function isAdminOrSecretary() {
-      return request.auth != null &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'secretary'];
+    function myProfile() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
 
-    // --- Treatment categories (lectura pública; gestión solo admin y secretaria) ---
+    // Un usuario sin campo `role` se trata como cliente (igual que en la app)
+    function myRole() {
+      return myProfile().get('role', 'client');
+    }
+
+    // Admin y secretaria
+    function isStaff() {
+      return signedIn() && myRole() in ['admin', 'secretary'];
+    }
+
+    // Admin, secretaria y profesionales (quienes trabajan con la agenda)
+    function isTeam() {
+      return signedIn() && myRole() in ['admin', 'secretary', 'professional'];
+    }
+
+    // Quienes gestionan el contenido público (catálogo, promociones, comunidad)
+    function isContentManager() {
+      return signedIn() && myRole() in ['admin', 'secretary', 'promotor'];
+    }
+
+    // Todo el personal interno: cualquiera que no sea cliente
+    function isInternal() {
+      return signedIn() && myRole() in ['admin', 'secretary', 'professional', 'promotor', 'contador'];
+    }
+
+    // El turno pertenece al cliente logueado (por ID, o por nombre en turnos cargados sin ID)
+    function isMyAppointment(data) {
+      return data.get('clientId', '') == request.auth.uid
+        || (data.get('clientName', '') != '' && data.get('clientName', '') == myProfile().get('fullName', ''));
+    }
+
+    // ------------------------------------------------------------------
+    // Contenido público (landing)
+    // ------------------------------------------------------------------
+    match /treatments/{treatmentId} {
+      allow read: if true;
+      allow write: if isContentManager();
+    }
+
+    // Categorías de tratamientos: gestión solo admin y secretaria
     match /treatment_categories/{categoryId} {
       allow read: if true;
-      allow create, update: if isAdminOrSecretary()
+      allow create, update: if isStaff()
         && request.resource.data.name is string
         && request.resource.data.name.size() > 0
         && request.resource.data.name.size() <= 50
         && request.resource.data.order is number;
-      allow delete: if isAdminOrSecretary();
+      allow delete: if isStaff();
     }
 
-    // --- Treatments (public read for landing page) ---
-    match /treatments/{treatmentId} {
-      allow read: if true;
-      allow write: if request.auth != null;
-    }
-
-    // --- Products (public read for landing page) ---
     match /products/{productId} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow write: if isContentManager();
     }
 
-    // --- Impact Gallery (public read for landing page) ---
     match /impact_gallery/{imageId} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow write: if isInternal();
     }
 
-    // --- Community Posts (public read for landing page) ---
     match /community_posts/{postId} {
       allow read: if true;
 
-      allow create: if request.auth != null
+      allow create: if signedIn()
         && request.resource.data.userId == request.auth.uid;
 
-      allow delete: if request.auth != null
-        && (resource.data.userId == request.auth.uid || isAdmin());
+      allow delete: if signedIn()
+        && (resource.data.userId == request.auth.uid || isContentManager());
 
-      allow update: if request.auth != null && (
-        // Allow if the user is the owner
+      allow update: if signedIn() && (
         resource.data.userId == request.auth.uid ||
-        // Allow if the user is an admin
-        isAdmin() ||
-        // Allow if ONLY the 'likes' field is being modified
-        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes']))
+        isContentManager() ||
+        // Cualquier usuario logueado puede dar/quitar like
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes'])
       );
     }
 
-    // Helper: true for any authenticated non-client role
-    function isNotClient() {
-      return request.auth != null &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role != 'client';
+    match /promotions/{promotionId} {
+      allow read: if signedIn();
+      allow write: if isContentManager();
     }
 
-    // --- Users Collection ---
+    // ------------------------------------------------------------------
+    // Usuarios
+    // ------------------------------------------------------------------
     match /users/{userId} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null && (request.auth.uid == userId || isAdmin());
+      allow read: if signedIn();
+
+      // Alta: uno mismo solo como cliente; el equipo puede cargar clientes manuales;
+      // admin y secretaria pueden crear cualquier rol.
+      allow create: if isStaff()
+        || (signedIn() && request.auth.uid == userId && request.resource.data.get('role', 'client') == 'client')
+        || (isTeam() && request.resource.data.get('role', 'client') in ['client', 'cliente-prueba']);
+
+      // Edición: nadie puede cambiar un rol salvo admin y secretaria.
+      allow update: if isStaff()
+        || ((request.auth.uid == userId || isTeam())
+            && request.resource.data.get('role', null) == resource.data.get('role', null));
+
+      allow delete: if isStaff();
     }
 
-    // --- Aparato Sessions (internal scheduling — clients cannot read) ---
+    // ------------------------------------------------------------------
+    // Agenda
+    // ------------------------------------------------------------------
+    match /professionals/{professionalId} {
+      allow read: if signedIn();
+      allow write: if isTeam();
+    }
+
+    match /appointments/{appointmentId} {
+      allow read: if signedIn();
+      allow create, delete: if isTeam();
+      // El cliente solo puede cancelar su propio turno
+      allow update: if isTeam()
+        || (signedIn()
+            && isMyAppointment(resource.data)
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])
+            && request.resource.data.status == 'cancelled');
+    }
+
     match /aparato_sessions/{sessionId} {
-      allow read: if isNotClient();
-      allow write: if isAdmin();
+      allow read: if isInternal();
+      allow write: if isStaff();
     }
 
-    // --- Cash counts (arqueos / saldos iniciales — solo personal administrativo) ---
+    // Reservas online: se crean y confirman desde el servidor
+    match /pendingBookings/{bookingId} {
+      allow read: if isStaff() || (signedIn() && resource.data.clientId == request.auth.uid);
+      allow write: if isStaff();
+    }
+
+    // ------------------------------------------------------------------
+    // Saldos de clientes
+    // ------------------------------------------------------------------
+    match /clientCredits/{creditId} {
+      allow read: if signedIn();
+      // El cliente solo puede generar el crédito de la seña de un turno propio ya cancelado
+      allow create: if isTeam()
+        || (signedIn()
+            && request.resource.data.clientId == request.auth.uid
+            && request.resource.data.reason == 'cancelled_appointment'
+            && request.resource.data.status in ['available', 'forfeited']
+            && request.resource.data.amount is number
+            && request.resource.data.amount > 0
+            && isMyAppointment(get(/databases/$(database)/documents/appointments/$(request.resource.data.sourceAppointmentId)).data)
+            && get(/databases/$(database)/documents/appointments/$(request.resource.data.sourceAppointmentId)).data.status == 'cancelled');
+      allow update, delete: if isTeam();
+    }
+
+    match /giftCards/{giftCardId} {
+      allow read: if signedIn();
+      allow write: if isTeam();
+    }
+
+    // ------------------------------------------------------------------
+    // Administración y finanzas (los clientes no acceden)
+    // ------------------------------------------------------------------
+    match /egresos/{egresoId} {
+      allow read: if isInternal();
+      allow write: if isStaff();
+    }
+
+    match /sales/{saleId} {
+      allow read, write: if isInternal();
+    }
+
+    match /rentals/{rentalId} {
+      allow read, write: if isInternal();
+    }
+
+    match /attendances/{attendanceId} {
+      allow read: if isInternal();
+      allow write: if isTeam();
+    }
+
+    // Arqueos / saldos iniciales
     match /cash_counts/{countId} {
-      allow read, write: if isAdmin();
+      allow read: if isStaff() || (signedIn() && myRole() == 'contador');
+      allow write: if isStaff();
     }
 
-    // --- Default rules for all other collections ---
-    match /{document=**} {
-      allow read, write: if request.auth != null;
+    match /notifications/{notificationId} {
+      allow read, write: if isStaff();
+    }
+
+    // ------------------------------------------------------------------
+    // Cualquier otra colección (turnos legacy: turnosLuciana, turnosGisela, etc.)
+    // queda solo para el equipo. Las colecciones con regla propia se excluyen acá
+    // porque en Firestore alcanza con que UNA regla permita para que se permita.
+    // ------------------------------------------------------------------
+    match /{otherCollection}/{docId} {
+      allow read, write: if isTeam() && !(otherCollection in [
+        'treatments', 'treatment_categories', 'products', 'impact_gallery', 'community_posts',
+        'promotions', 'users', 'professionals', 'appointments', 'aparato_sessions',
+        'pendingBookings', 'clientCredits', 'giftCards', 'egresos', 'sales', 'rentals',
+        'attendances', 'cash_counts', 'notifications'
+      ]);
     }
   }
 }
