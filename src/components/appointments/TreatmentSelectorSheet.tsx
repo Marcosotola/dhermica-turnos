@@ -2,13 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { getTreatments } from '@/lib/firebase/treatments';
-import { Treatment, TreatmentCategory, TreatmentPrice } from '@/lib/types/treatment';
+import { getTreatmentCategoryDocs } from '@/lib/firebase/treatmentCategories';
+import { Treatment, TreatmentCategory, TreatmentPrice, getTreatmentCategories } from '@/lib/types/treatment';
 import { SelectedTreatment } from '@/lib/types/appointment';
 import { Search, X, ChevronRight, Plus } from 'lucide-react';
-
-const CATEGORIES: TreatmentCategory[] = [
-    'Facial', 'Corporal', 'Depilación', 'Manos', 'Pies', 'Aparatología', 'Cejas', 'Pestañas', 'Plasma', 'Botox',
-];
 
 const GENDER_LABELS: Record<string, string> = {
     male: 'Masculino',
@@ -30,6 +27,7 @@ export function TreatmentSelectorSheet({ isOpen, onClose, onAdd, allowedTreatmen
     const [search, setSearch] = useState('');
     const [activeCategory, setActiveCategory] = useState<TreatmentCategory | null>(null);
     const [expandedId, setExpandedId] = useState<string | null>(null);
+    const [managedCategories, setManagedCategories] = useState<TreatmentCategory[]>([]);
 
     useEffect(() => {
         if (!isOpen) {
@@ -39,6 +37,9 @@ export function TreatmentSelectorSheet({ isOpen, onClose, onAdd, allowedTreatmen
             return;
         }
         setLoading(true);
+        getTreatmentCategoryDocs()
+            .then(docs => setManagedCategories(docs.map(c => c.name)))
+            .catch(error => console.error('Error fetching treatment categories:', error));
         getTreatments().then(data => {
             setTreatments(data);
             if (editingTreatmentId) {
@@ -117,7 +118,7 @@ export function TreatmentSelectorSheet({ isOpen, onClose, onAdd, allowedTreatmen
                     >
                         Todos
                     </button>
-                    {CATEGORIES.map(cat => {
+                    {getTreatmentCategories(treatments, managedCategories).map(cat => {
                         // Solo mostrar la categoría si hay al menos un tratamiento que coincida con los permitidos
                         const hasTreatments = treatments.some(t => 
                             t.category === cat && 

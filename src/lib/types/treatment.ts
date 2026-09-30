@@ -1,4 +1,35 @@
-export type TreatmentCategory = 'Facial' | 'Corporal' | 'Depilación' | 'Manos' | 'Pies' | 'Aparatología' | 'Cejas' | 'Pestañas' | 'Plasma' | 'Botox' | 'Peluquería';
+// Las categorías se gestionan en la colección `treatment_categories` (admin y secretaria).
+// Cada tratamiento guarda el nombre de su categoría.
+export type TreatmentCategory = string;
+
+export interface TreatmentCategoryDoc {
+    id: string;
+    name: string;
+    order: number;
+}
+
+// Se usan para inicializar la colección la primera vez y como respaldo si todavía está vacía
+export const DEFAULT_TREATMENT_CATEGORIES: TreatmentCategory[] = [
+    'Facial', 'Corporal', 'Aparatología', 'Depilación', 'Manos', 'Pies', 'Cejas', 'Pestañas', 'Plasma', 'Botox', 'Peluquería', 'Nutrición',
+];
+
+// Categorías gestionadas (o las predeterminadas si no hay ninguna) + las que usan tratamientos
+// y no estén en la lista, sin duplicados ignorando mayúsculas
+export function getTreatmentCategories(
+    treatments: { category?: TreatmentCategory }[],
+    managed: TreatmentCategory[] = [],
+): TreatmentCategory[] {
+    const result = managed.length > 0 ? [...managed] : [...DEFAULT_TREATMENT_CATEGORIES];
+    const seen = new Set(result.map(c => c.toLowerCase()));
+    treatments.forEach(t => {
+        const cat = t.category?.trim();
+        if (cat && !seen.has(cat.toLowerCase())) {
+            seen.add(cat.toLowerCase());
+            result.push(cat);
+        }
+    });
+    return result;
+}
 
 export interface TreatmentPrice {
     zone: string;

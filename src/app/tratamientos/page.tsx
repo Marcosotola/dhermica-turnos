@@ -1,20 +1,20 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
-import { Sparkles, Plus, Search, Filter } from 'lucide-react';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { Sparkles, Plus, Search, Filter, Tags } from 'lucide-react';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { getTreatments, createTreatment, updateTreatment, deleteTreatment } from '@/lib/firebase/treatments';
-import { Treatment, TreatmentCategory } from '@/lib/types/treatment';
+import { getTreatmentCategoryDocs, seedTreatmentCategories, createTreatmentCategory } from '@/lib/firebase/treatmentCategories';
+import { Treatment, TreatmentCategory, TreatmentCategoryDoc, getTreatmentCategories } from '@/lib/types/treatment';
 import { TreatmentCard } from '@/components/treatments/TreatmentCard';
 import { TreatmentForm } from '@/components/treatments/TreatmentForm';
+import { TreatmentCategoryManager } from '@/components/treatments/TreatmentCategoryManager';
 import { TreatmentDetail } from '@/components/treatments/TreatmentDetail';
 import { TreatmentSeeder } from '@/components/treatments/TreatmentSeeder';
 import { Button } from '@/components/ui/Button';
 import { toast, Toaster } from 'sonner';
 import { CardSkeleton } from '@/components/ui/Skeleton';
 import { haptics } from '@/lib/utils/haptics';
-
-const CATEGORIES: (TreatmentCategory | 'Todos')[] = ['Todos', 'Facial', 'Corporal', 'Aparatología', 'Depilación', 'Manos', 'Pies', 'Cejas', 'Pestañas', 'Plasma', 'Botox', 'Peluquería'];
 
 export default function TratamientosPage() {
     const { profile, loading: authLoading } = useAuth();
@@ -28,12 +28,28 @@ export default function TratamientosPage() {
     const [isDetailOpen, setIsDetailOpen] = useState(false);
     const [editingTreatment, setEditingTreatment] = useState<Treatment | undefined>();
     const [selectedTreatment, setSelectedTreatment] = useState<Treatment | null>(null);
+    const [categoryDocs, setCategoryDocs] = useState<TreatmentCategoryDoc[]>([]);
+    const [categoriesLoaded, setCategoriesLoaded] = useState(false);
+    const [isCategoryManagerOpen, setIsCategoryManagerOpen] = useState(false);
+    const seedStartedRef = useRef(false);
 
     const isAdmin = profile?.role === 'admin' || profile?.role === 'secretary' || profile?.role === 'promotor';
+    const canManageCategories = profile?.role === 'admin' || profile?.role === 'secretary';
 
     useEffect(() => {
         fetchTreatments();
+        fetchCategories();
     }, []);
+
+    // La primera vez que entra alguien que puede gestionar, se crea la colección con las categorías actuales
+    useEffect(() => {
+        if (!canManageCategories || loading || !categoriesLoaded || categoryDocs.length > 0) return;
+        if (seedStartedRef.current) return;
+        seedStartedRef.current = true;
+        seedTreatmentCategories(treatments)
+            .then(setCategoryDocs)
+            .catch(error => console.error('Error seeding treatment categories:', error));
+    }, [canManageCategories, loading, categoriesLoaded, categoryDocs.length, treatments]);
 
     const fetchTreatments = async () => {
         setLoading(true);
@@ -42,8 +58,27 @@ export default function TratamientosPage() {
         setLoading(false);
     };
 
+    const fetchCategories = async () => {
+        try {
+            setCategoryDocs(await getTreatmentCategoryDocs());
+            setCategoriesLoaded(true);
+        } catch (error) {
+            console.error('Error fetching treatment categories:', error);
+        }
+    };
+
+    // Si el tratamiento trae una categoría nueva (creada desde el formulario), la registramos en la colección
+    const ensureCategoryExists = async (name: TreatmentCategory) => {
+        if (!canManageCategories) return;
+        if (categoryDocs.some(c => c.name.toLowerCase() === name.toLowerCase())) return;
+        const nextOrder = categoryDocs.reduce((max, c) => Math.max(max, c.order), -1) + 1;
+        await createTreatmentCategory(name, nextOrder);
+        await fetchCategories();
+    };
+
     const handleCreate = async (data: Omit<Treatment, 'id' | 'createdAt' | 'updatedAt'>) => {
         await createTreatment(data);
+        await ensureCategoryExists(data.category);
         toast.success('Tratamiento creado exitosamente');
         fetchTreatments();
     };
@@ -51,6 +86,7 @@ export default function TratamientosPage() {
     const handleUpdate = async (data: Omit<Treatment, 'id' | 'createdAt' | 'updatedAt'>) => {
         if (!editingTreatment) return;
         await updateTreatment(editingTreatment.id, data);
+        await ensureCategoryExists(data.category);
         toast.success('Tratamiento actualizado');
         fetchTreatments();
         setEditingTreatment(undefined);
@@ -63,6 +99,11 @@ export default function TratamientosPage() {
             fetchTreatments();
         }
     };
+
+    const categories = useMemo(
+        () => getTreatmentCategories(treatments, categoryDocs.map(c => c.name)),
+        [treatments, categoryDocs]
+    );
 
     const filteredTreatments = useMemo(() => {
         return treatments.filter(t => {
@@ -96,14 +137,24 @@ export default function TratamientosPage() {
                             </h1>
                             <p className="text-gray-300 font-medium">Descubre nuestra amplia gama de tratamientos estéticos.</p>
                         </div>
-                        {isAdmin && (
-                            <Button
-                                onClick={() => { setEditingTreatment(undefined); setIsFormOpen(true); }}
-                                className="bg-[#34baab] hover:bg-[#2aa89a] border-none rounded-2xl py-4 px-8 shadow-lg shadow-[#34baab]/20 transform hover:-translate-y-1 transition-all"
-                            >
-                                <Plus className="w-5 h-5 mr-2" /> Nuevo Tratamiento
-                            </Button>
-                        )}
+                        <div className="flex flex-wrap gap-3">
+                            {canManageCategories && (
+                                <Button
+                                    onClick={() => setIsCategoryManagerOpen(true)}
+                                    className="bg-white/10 hover:bg-white/20 border-none rounded-2xl py-4 px-6 text-white transition-all"
+                                >
+                                    <Tags className="w-5 h-5 mr-2" /> Categorías
+                                </Button>
+                            )}
+                            {isAdmin && (
+                                <Button
+                                    onClick={() => { setEditingTreatment(undefined); setIsFormOpen(true); }}
+                                    className="bg-[#34baab] hover:bg-[#2aa89a] border-none rounded-2xl py-4 px-8 shadow-lg shadow-[#34baab]/20 transform hover:-translate-y-1 transition-all"
+                                >
+                                    <Plus className="w-5 h-5 mr-2" /> Nuevo Tratamiento
+                                </Button>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -126,7 +177,7 @@ export default function TratamientosPage() {
                             />
                         </div>
                         <div className="flex gap-2 overflow-x-auto pb-4 lg:pb-0 no-scrollbar touch-pan-x">
-                            {CATEGORIES.map(cat => (
+                            {(['Todos', ...categories] as (TreatmentCategory | 'Todos')[]).map(cat => (
                                 <button
                                     key={cat}
                                     onClick={() => setSelectedCategory(cat)}
@@ -183,8 +234,22 @@ export default function TratamientosPage() {
                 isOpen={isFormOpen}
                 onClose={() => setIsFormOpen(false)}
                 treatment={editingTreatment}
+                categories={categories}
+                allowNewCategory={canManageCategories}
                 onSubmit={editingTreatment ? handleUpdate : handleCreate}
             />
+
+            {canManageCategories && (
+                <TreatmentCategoryManager
+                    isOpen={isCategoryManagerOpen}
+                    onClose={() => setIsCategoryManagerOpen(false)}
+                    categories={categoryDocs}
+                    treatments={treatments}
+                    onChanged={async () => {
+                        await Promise.all([fetchCategories(), fetchTreatments()]);
+                    }}
+                />
+            )}
 
             <TreatmentDetail
                 isOpen={isDetailOpen}

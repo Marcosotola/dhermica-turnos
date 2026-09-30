@@ -11,6 +11,23 @@ service cloud.firestore {
          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'secretary');
     }
 
+    // Helper: solo admin y secretaria (sin promotor)
+    function isAdminOrSecretary() {
+      return request.auth != null &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'secretary'];
+    }
+
+    // --- Treatment categories (lectura pública; gestión solo admin y secretaria) ---
+    match /treatment_categories/{categoryId} {
+      allow read: if true;
+      allow create, update: if isAdminOrSecretary()
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 50
+        && request.resource.data.order is number;
+      allow delete: if isAdminOrSecretary();
+    }
+
     // --- Treatments (public read for landing page) ---
     match /treatments/{treatmentId} {
       allow read: if true;

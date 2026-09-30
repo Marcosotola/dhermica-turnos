@@ -5,7 +5,7 @@ import { Modal } from '../ui/Modal';
 import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
 import { Button } from '../ui/Button';
-import { Treatment, TreatmentCategory, TreatmentPrice, CancellationPolicy } from '@/lib/types/treatment';
+import { Treatment, TreatmentCategory, TreatmentPrice, CancellationPolicy, DEFAULT_TREATMENT_CATEGORIES } from '@/lib/types/treatment';
 import { Plus, Trash2, Clock, Banknote } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -14,9 +14,11 @@ interface TreatmentFormProps {
     onClose: () => void;
     onSubmit: (data: Omit<Treatment, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
     treatment?: Treatment;
+    categories?: TreatmentCategory[];
+    allowNewCategory?: boolean;
 }
 
-const CATEGORIES: TreatmentCategory[] = ['Facial', 'Corporal', 'Aparatología', 'Depilación', 'Manos', 'Pies', 'Cejas', 'Pestañas', 'Plasma', 'Botox', 'Peluquería'];
+const NEW_CATEGORY_VALUE = '__new__';
 
 const DURATION_OPTIONS_MINUTES = [
     { value: 15, label: '15 minutos' },
@@ -33,7 +35,7 @@ const DURATION_OPTIONS_MINUTES = [
 
 const PRESET_DURATIONS = new Set(DURATION_OPTIONS_MINUTES.map(o => o.value));
 
-function buildFormData(treatment?: Treatment): Omit<Treatment, 'id' | 'createdAt' | 'updatedAt'> {
+function buildFormData(treatment?: Treatment, defaultCategory: TreatmentCategory = DEFAULT_TREATMENT_CATEGORIES[0]): Omit<Treatment, 'id' | 'createdAt' | 'updatedAt'> {
     if (treatment) {
         return {
             name: treatment.name,
@@ -54,7 +56,7 @@ function buildFormData(treatment?: Treatment): Omit<Treatment, 'id' | 'createdAt
         name: '',
         shortDescription: '',
         fullDescription: '',
-        category: 'Facial',
+        category: defaultCategory,
         prices: [],
         contraindications: [],
         benefits: [],
@@ -76,15 +78,34 @@ function buildCustomDurations(treatment?: Treatment): Record<number, boolean> {
     return map;
 }
 
-export function TreatmentForm({ isOpen, onClose, onSubmit, treatment }: TreatmentFormProps) {
+export function TreatmentForm({ isOpen, onClose, onSubmit, treatment, categories = DEFAULT_TREATMENT_CATEGORIES, allowNewCategory = false }: TreatmentFormProps) {
     const [loading, setLoading] = useState(false);
+    const [isNewCategory, setIsNewCategory] = useState(false);
+    const [newCategory, setNewCategory] = useState('');
     const [customDurationRows, setCustomDurationRows] = useState<Record<number, boolean>>(() => buildCustomDurations(treatment));
-    const [formData, setFormData] = useState<Omit<Treatment, 'id' | 'createdAt' | 'updatedAt'>>(() => buildFormData(treatment));
+    const [formData, setFormData] = useState<Omit<Treatment, 'id' | 'createdAt' | 'updatedAt'>>(() => buildFormData(treatment, categories[0]));
 
     useEffect(() => {
-        setFormData(buildFormData(treatment));
+        setFormData(buildFormData(treatment, categories[0]));
         setCustomDurationRows(buildCustomDurations(treatment));
+        setIsNewCategory(false);
+        setNewCategory('');
     }, [treatment, isOpen]);
+
+    // Si el tratamiento editado tiene una categoría que no está en la lista, la incluimos igual
+    const categoryOptions = formData.category && !categories.includes(formData.category)
+        ? [...categories, formData.category]
+        : categories;
+
+    const handleCategorySelectChange = (value: string) => {
+        if (value === NEW_CATEGORY_VALUE) {
+            setIsNewCategory(true);
+        } else {
+            setIsNewCategory(false);
+            setNewCategory('');
+            setFormData(prev => ({ ...prev, category: value }));
+        }
+    };
 
     const handleAddPrice = () => {
         setFormData(prev => ({
@@ -142,9 +163,20 @@ export function TreatmentForm({ isOpen, onClose, onSubmit, treatment }: Treatmen
             toast.error('Debes agregar al menos un precio');
             return;
         }
+        let category = formData.category;
+        if (isNewCategory) {
+            const typed = newCategory.trim().replace(/\s+/g, ' ');
+            if (!typed) {
+                toast.error('Escribí el nombre de la nueva categoría');
+                return;
+            }
+            // Si ya existe (sin importar mayúsculas), usamos la existente para no duplicar
+            const existing = categoryOptions.find(c => c.toLowerCase() === typed.toLowerCase());
+            category = existing ?? typed.charAt(0).toUpperCase() + typed.slice(1);
+        }
         setLoading(true);
         try {
-            await onSubmit(formData);
+            await onSubmit({ ...formData, category });
             onClose();
         } catch (error) {
             console.error('Error submitting treatment:', error);
@@ -165,12 +197,27 @@ export function TreatmentForm({ isOpen, onClose, onSubmit, treatment }: Treatmen
                         required
                         placeholder="Ej: Limpieza Facial Profunda"
                     />
-                    <Select
-                        label="Categoría"
-                        value={formData.category}
-                        onChange={(e) => setFormData({ ...formData, category: e.target.value as TreatmentCategory })}
-                        options={CATEGORIES.map(c => ({ value: c, label: c }))}
-                    />
+                    <div className="space-y-3">
+                        <Select
+                            label="Categoría"
+                            value={isNewCategory ? NEW_CATEGORY_VALUE : formData.category}
+                            onChange={(e) => handleCategorySelectChange(e.target.value)}
+                            options={[
+                                ...categoryOptions.map(c => ({ value: c, label: c })),
+                                ...(allowNewCategory ? [{ value: NEW_CATEGORY_VALUE, label: '+ Nueva categoría...' }] : []),
+                            ]}
+                        />
+                        {isNewCategory && (
+                            <Input
+                                label="Nombre de la nueva categoría"
+                                value={newCategory}
+                                onChange={(e) => setNewCategory(e.target.value)}
+                                placeholder="Ej: Masajes"
+                                autoFocus
+                                required
+                            />
+                        )}
+                    </div>
                 </div>
 
                 <Input
