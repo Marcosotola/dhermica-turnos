@@ -150,6 +150,8 @@ async function notifyN8nAppointmentCancelled(
                     duration: data.duration || data.duracion || null,
                     price: data.price || 0,
                     notes: data.notes || null,
+                    // Estado antes de cancelar/eliminar: n8n no avisa la anulación de un turno ya cancelado o realizado
+                    status: data.status || data.estado || null,
                 },
                 professional: {
                     id: data.professionalId || null,
@@ -633,10 +635,11 @@ export async function deleteAppointment(id: string): Promise<void> {
             dateDisplay = ` del ${day}-${month}-${year}`;
         }
 
+        // Eliminar es para turnos cargados por error: se avisa como anulado, no como cancelado
         if (clientId) {
             sendAutomatedNotification(
-                'Dhermica Estetica Unisex: Turno Cancelado ❌',
-                `Tu cita para ${treatment}${dateDisplay} a las ${appointmentTime} ha sido cancelada.`,
+                'Dhermica Estetica Unisex: Turno Anulado',
+                `Tu cita para ${treatment}${dateDisplay} a las ${appointmentTime} se registró por error y fue anulada. Disculpá las molestias.`,
                 clientId,
                 '/mis-turnos'
             );
