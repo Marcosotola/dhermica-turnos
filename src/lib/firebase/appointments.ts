@@ -359,9 +359,10 @@ export async function createAppointment(
     data: Omit<Appointment, 'id' | 'createdAt' | 'updatedAt'>
 ): Promise<string> {
     const now = Timestamp.now();
+    const clientPhone = formatPhone(data.clientPhone || '');
     const docRef = await addDoc(collection(db, APPOINTMENTS_COLLECTION), {
         ...data,
-        clientPhone: formatPhone(data.clientPhone || ''),
+        clientPhone,
         notified1h: false,
         notified24h: false,
         notified48h: false,
@@ -390,7 +391,7 @@ export async function createAppointment(
             if (profSnap.exists()) professionalName = profSnap.data().name || '';
         } catch {}
     }
-    notifyN8nNewAppointment(docRef.id, data, professionalName);
+    notifyN8nNewAppointment(docRef.id, { ...data, clientPhone }, professionalName);
 
     return docRef.id;
 }

@@ -1,6 +1,7 @@
 import { adminDb } from './admin';
 import { Timestamp, FieldValue } from 'firebase-admin/firestore';
 import { sendServerFCMNotification, notifyN8nFromServer } from '../notifications/server';
+import { formatPhone } from '../utils/phone';
 
 export interface ExtraPaymentLine {
     id: string;
@@ -138,7 +139,7 @@ export async function confirmBookingAndCreateAppointments({
             clientId: booking.clientId,
             clientName: booking.clientName,
             clientEmail: booking.clientEmail || '',
-            clientPhone: booking.clientPhone || '',
+            clientPhone: formatPhone(booking.clientPhone || ''),
             treatment: fullTreatment,
             treatments: slot.treatmentIds.map((id: string, i: number) => ({
                 treatmentId: id,
@@ -229,7 +230,7 @@ export async function confirmBookingAndCreateAppointments({
         notifyN8nFromServer({
             appointmentId: appointmentIds[i],
             clientName: booking.clientName,
-            clientPhone: booking.clientPhone,
+            clientPhone: formatPhone(booking.clientPhone || ''),
             clientEmail: booking.clientEmail,
             treatment: fullTreatment,
             treatments: slot.treatmentIds.map((id: string, j: number) => ({
