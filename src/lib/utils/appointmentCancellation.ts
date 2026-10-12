@@ -22,7 +22,10 @@ export async function cancelAppointmentWithCredit(
     // Primero se cancela el turno y recién después se registra el crédito. Al revés, si la
     // cancelación fallaba quedaba un crédito creado para un turno que seguía vivo, y cada
     // reintento del usuario creaba otro crédito más (la seña duplicada a favor del cliente).
-    await cancelAppointment(appointment.id);
+    await cancelAppointment(appointment.id, {
+        action: totalPaid > 0 ? creditAction : 'none',
+        amount: totalPaid,
+    });
 
     if (creditAction !== 'none' && totalPaid > 0) {
         try {

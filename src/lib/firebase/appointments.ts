@@ -94,10 +94,17 @@ async function notifyN8nNewAppointment(
 /**
  * Notifies n8n webhook when an appointment is cancelled or deleted (fire-and-forget)
  */
+/** Qué pasó con la seña al cancelar: retenida como crédito, perdida, o no había seña. */
+export interface CancellationDeposit {
+    action: 'retain' | 'forfeit' | 'none';
+    amount: number;
+}
+
 async function notifyN8nAppointmentCancelled(
     appointmentId: string,
     data: Record<string, any>,
-    event: 'appointment_cancelled' | 'appointment_deleted'
+    event: 'appointment_cancelled' | 'appointment_deleted',
+    deposit?: CancellationDeposit
 ) {
     const webhookUrl = process.env.NEXT_PUBLIC_N8N_WEBHOOK_URL;
     if (!webhookUrl) return;
@@ -148,6 +155,7 @@ async function notifyN8nAppointmentCancelled(
                     id: data.professionalId || null,
                     name: professionalName || null,
                 },
+                deposit: deposit || null,
                 cancelledAt: new Date().toISOString(),
             }),
         });
@@ -495,9 +503,10 @@ export async function updateAppointment(
 }
 
 /**
- * Cancela un turno (soft cancel) — mantiene el registro con status 'cancelled'
+ * Cancela un turno (soft cancel) — mantiene el registro con status 'cancelled'.
+ * `deposit` (opcional) se informa a n8n para que el WhatsApp de cancelación diga qué pasó con la seña.
  */
-export async function cancelAppointment(id: string): Promise<void> {
+export async function cancelAppointment(id: string, deposit?: CancellationDeposit): Promise<void> {
     const docRef = doc(db, APPOINTMENTS_COLLECTION, id);
     const snap = await getDoc(docRef);
 
@@ -542,7 +551,7 @@ export async function cancelAppointment(id: string): Promise<void> {
         );
     }
 
-    notifyN8nAppointmentCancelled(id, data, 'appointment_cancelled');
+    notifyN8nAppointmentCancelled(id, data, 'appointment_cancelled', deposit);
 }
 
 /**

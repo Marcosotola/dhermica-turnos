@@ -38,7 +38,10 @@ export function ClientCancelButton({ appointment, clientId, clientName, onCancel
     const handleCancel = async () => {
         setLoading(true);
         try {
-            await cancelAppointment(appointment.id);
+            await cancelAppointment(appointment.id, {
+                action: depositPaid > 0 ? (keepDeposit ? 'retain' : 'forfeit') : 'none',
+                amount: depositPaid,
+            });
 
             if (depositPaid > 0) {
                 await createClientCredit({
