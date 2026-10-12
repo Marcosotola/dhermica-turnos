@@ -418,7 +418,7 @@ export function TreatmentForm({ isOpen, onClose, onSubmit, treatment, categories
                                 onChange={e => setFormData(prev => ({
                                     ...prev,
                                     cancellationPolicy: e.target.checked
-                                        ? { hoursBeforeToCancel: 45, forfeitDeposit: true }
+                                        ? { hoursBeforeToCancel: 24, forfeitDeposit: true }
                                         : undefined,
                                 }))}
                                 className="accent-amber-500 w-4 h-4"
@@ -446,7 +446,7 @@ export function TreatmentForm({ isOpen, onClose, onSubmit, treatment, categories
                                             },
                                         }))}
                                         min={1}
-                                        placeholder="45"
+                                        placeholder="24"
                                         className="bg-white"
                                     />
                                 </div>
