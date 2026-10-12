@@ -234,6 +234,7 @@ export async function confirmBookingAndCreateAppointments({
             clientEmail: booking.clientEmail,
             treatment: fullTreatment,
             treatments: slot.treatmentIds.map((id: string, j: number) => ({
+                treatmentId: id,
                 name: slot.treatmentNames[j] || '',
                 zone: slot.zones[j] || null,
                 price: slot.estimatedPrice / slot.treatmentIds.length,

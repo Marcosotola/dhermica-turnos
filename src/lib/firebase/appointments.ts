@@ -43,6 +43,7 @@ async function notifyN8nNewAppointment(
         const formattedDate = day && month && year ? `${day}/${month}/${year}` : data.date;
 
         const treatmentsList = (data.treatments || []).map(t => ({
+            treatmentId: t.treatmentId || null,
             name: t.name,
             zone: t.zone || null,
             price: t.price,
@@ -115,6 +116,7 @@ async function notifyN8nAppointmentCancelled(
         }
 
         const treatmentsList = (data.treatments || []).map((t: any) => ({
+            treatmentId: t.treatmentId || null,
             name: t.name || t.treatmentName || '',
             zone: t.zone || null,
             price: t.price,

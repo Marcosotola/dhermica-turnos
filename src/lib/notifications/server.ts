@@ -104,7 +104,7 @@ export async function notifyN8nFromServer({
     clientPhone?: string;
     clientEmail?: string;
     treatment: string;
-    treatments?: { name: string; zone?: string | null; price: number; duration: number }[];
+    treatments?: { treatmentId?: string | null; name: string; zone?: string | null; price: number; duration: number }[];
     date: string;
     time: string;
     duration?: number;
