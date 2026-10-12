@@ -150,12 +150,16 @@ export function TreatmentForm({ isOpen, onClose, onSubmit, treatment, categories
         }
     };
 
+    // Se guardan todas las líneas mientras se escribe (si no, Enter al final no crea una línea nueva);
+    // las vacías se limpian al guardar
     const handleListChange = (field: 'contraindications' | 'benefits' | 'results' | 'preCare' | 'postCare', value: string) => {
         setFormData(prev => ({
             ...prev,
-            [field]: value.split('\n').filter(line => line.trim() !== '')
+            [field]: value.split('\n')
         }));
     };
+
+    const cleanList = (list?: string[]) => (list || []).map(line => line.trim()).filter(line => line !== '');
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -176,7 +180,15 @@ export function TreatmentForm({ isOpen, onClose, onSubmit, treatment, categories
         }
         setLoading(true);
         try {
-            await onSubmit({ ...formData, category });
+            await onSubmit({
+                ...formData,
+                category,
+                contraindications: cleanList(formData.contraindications),
+                benefits: cleanList(formData.benefits),
+                results: cleanList(formData.results),
+                preCare: cleanList(formData.preCare),
+                postCare: cleanList(formData.postCare),
+            });
             onClose();
         } catch (error) {
             console.error('Error submitting treatment:', error);
@@ -341,6 +353,32 @@ export function TreatmentForm({ isOpen, onClose, onSubmit, treatment, categories
                             value={formData.benefits?.join('\n')}
                             onChange={(e) => handleListChange('benefits', e.target.value)}
                             rows={3}
+                            className="w-full px-4 py-3 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-[#34baab] outline-none resize-none transition-all text-gray-900 text-sm"
+                        />
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label htmlFor="preCare" className="block text-sm font-bold text-gray-700 mb-2 ml-1 italic">Indicaciones previas (una por línea)</label>
+                        <textarea
+                            id="preCare"
+                            value={formData.preCare?.join('\n')}
+                            onChange={(e) => handleListChange('preCare', e.target.value)}
+                            rows={3}
+                            placeholder="Ej: Venir rasurada 24 h antes"
+                            className="w-full px-4 py-3 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-[#34baab] outline-none resize-none transition-all text-gray-900 text-sm"
+                        />
+                        <p className="text-xs text-gray-500 mt-1 ml-1">Se envían al cliente en la confirmación y los recordatorios del turno.</p>
+                    </div>
+                    <div>
+                        <label htmlFor="postCare" className="block text-sm font-bold text-gray-700 mb-2 ml-1 italic">Cuidados posteriores (uno por línea)</label>
+                        <textarea
+                            id="postCare"
+                            value={formData.postCare?.join('\n')}
+                            onChange={(e) => handleListChange('postCare', e.target.value)}
+                            rows={3}
+                            placeholder="Ej: No exponerse al sol por 48 h"
                             className="w-full px-4 py-3 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-[#34baab] outline-none resize-none transition-all text-gray-900 text-sm"
                         />
                     </div>
