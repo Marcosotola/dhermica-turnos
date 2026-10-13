@@ -15,7 +15,8 @@ import {
     serverTimestamp,
     writeBatch,
 } from 'firebase/firestore';
-import { db } from './config';
+import { db, auth } from './config';
+import { authFetch } from './auth';
 import { Professional } from '../types/professional';
 import { Appointment } from '../types/appointment';
 import { getActiveProfessionals, getProfessionals } from './professionals';
@@ -28,6 +29,24 @@ const APPOINTMENTS_COLLECTION = 'appointments';
 const AUTOMATED_PUSH_NOTIFICATIONS_ENABLED = false;
 
 /**
+ * Manda un aviso de turno a n8n: al flujo viejo (URL pública, directo desde el navegador)
+ * y al n8n nuevo a través de /api/avisos, que agrega la clave secreta del lado del servidor.
+ */
+async function postAvisoN8n(payload: Record<string, unknown>) {
+    const webhookUrl = process.env.NEXT_PUBLIC_N8N_WEBHOOK_URL;
+    const envio = { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) };
+
+    const envios: Promise<Response>[] = [];
+    if (webhookUrl) envios.push(fetch(webhookUrl, envio));
+    if (auth.currentUser) envios.push(authFetch(auth.currentUser, '/api/avisos', envio));
+
+    const resultados = await Promise.allSettled(envios);
+    resultados.forEach(r => {
+        if (r.status === 'rejected') console.error(`[n8n] Error al notificar ${payload.event} (no bloqueante):`, r.reason);
+    });
+}
+
+/**
  * Notifies n8n webhook when a new appointment is created (fire-and-forget)
  */
 async function notifyN8nNewAppointment(
@@ -35,9 +54,6 @@ async function notifyN8nNewAppointment(
     data: Omit<Appointment, 'id' | 'createdAt' | 'updatedAt'>,
     professionalName: string
 ) {
-    const webhookUrl = process.env.NEXT_PUBLIC_N8N_WEBHOOK_URL;
-    if (!webhookUrl) return;
-
     try {
         const [year, month, day] = (data.date || '').split('-');
         const formattedDate = day && month && year ? `${day}/${month}/${year}` : data.date;
@@ -52,38 +68,34 @@ async function notifyN8nNewAppointment(
 
         const totalPaid = (data.payments || []).reduce((sum, p) => sum + p.amount, 0);
 
-        await fetch(webhookUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                event: 'appointment_created',
-                appointmentId,
-                client: {
-                    name: data.clientName,
-                    firstName: data.clientFirstName || null,
-                    lastName: data.clientLastName || null,
-                    phone: data.clientPhone || null,
-                    email: data.clientEmail || null,
-                },
-                appointment: {
-                    treatment: data.treatment,
-                    treatments: treatmentsList,
-                    date: data.date,
-                    dateFormatted: formattedDate,
-                    time: data.time,
-                    duration: data.duration,
-                    price: data.price || 0,
-                    totalPaid,
-                    balance: (data.price || 0) - totalPaid,
-                    status: data.status,
-                    notes: data.notes || null,
-                },
-                professional: {
-                    id: data.professionalId || null,
-                    name: professionalName || null,
-                },
-                createdAt: new Date().toISOString(),
-            }),
+        await postAvisoN8n({
+            event: 'appointment_created',
+            appointmentId,
+            client: {
+                name: data.clientName,
+                firstName: data.clientFirstName || null,
+                lastName: data.clientLastName || null,
+                phone: data.clientPhone || null,
+                email: data.clientEmail || null,
+            },
+            appointment: {
+                treatment: data.treatment,
+                treatments: treatmentsList,
+                date: data.date,
+                dateFormatted: formattedDate,
+                time: data.time,
+                duration: data.duration,
+                price: data.price || 0,
+                totalPaid,
+                balance: (data.price || 0) - totalPaid,
+                status: data.status,
+                notes: data.notes || null,
+            },
+            professional: {
+                id: data.professionalId || null,
+                name: professionalName || null,
+            },
+            createdAt: new Date().toISOString(),
         });
         console.log('[n8n] Webhook notificado correctamente');
     } catch (error) {
@@ -106,9 +118,6 @@ async function notifyN8nAppointmentCancelled(
     event: 'appointment_cancelled' | 'appointment_deleted',
     deposit?: CancellationDeposit
 ) {
-    const webhookUrl = process.env.NEXT_PUBLIC_N8N_WEBHOOK_URL;
-    if (!webhookUrl) return;
-
     try {
         const date = data.date || '';
         const [year, month, day] = date.split('-');
@@ -130,36 +139,32 @@ async function notifyN8nAppointmentCancelled(
             duration: t.duration,
         }));
 
-        await fetch(webhookUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                event,
-                appointmentId,
-                client: {
-                    name: data.clientName || data.nombre || '',
-                    phone: data.clientPhone || data.telefono || null,
-                    email: data.clientEmail || data.email || null,
-                },
-                appointment: {
-                    treatment: data.treatment || data.servicio || '',
-                    treatments: treatmentsList,
-                    date,
-                    dateFormatted: formattedDate,
-                    time: data.time || data.hora || '',
-                    duration: data.duration || data.duracion || null,
-                    price: data.price || 0,
-                    notes: data.notes || null,
-                    // Estado antes de cancelar/eliminar: n8n no avisa la anulación de un turno ya cancelado o realizado
-                    status: data.status || data.estado || null,
-                },
-                professional: {
-                    id: data.professionalId || null,
-                    name: professionalName || null,
-                },
-                deposit: deposit || null,
-                cancelledAt: new Date().toISOString(),
-            }),
+        await postAvisoN8n({
+            event,
+            appointmentId,
+            client: {
+                name: data.clientName || data.nombre || '',
+                phone: data.clientPhone || data.telefono || null,
+                email: data.clientEmail || data.email || null,
+            },
+            appointment: {
+                treatment: data.treatment || data.servicio || '',
+                treatments: treatmentsList,
+                date,
+                dateFormatted: formattedDate,
+                time: data.time || data.hora || '',
+                duration: data.duration || data.duracion || null,
+                price: data.price || 0,
+                notes: data.notes || null,
+                // Estado antes de cancelar/eliminar: n8n no avisa la anulación de un turno ya cancelado o realizado
+                status: data.status || data.estado || null,
+            },
+            professional: {
+                id: data.professionalId || null,
+                name: professionalName || null,
+            },
+            deposit: deposit || null,
+            cancelledAt: new Date().toISOString(),
         });
         console.log(`[n8n] Webhook ${event} notificado correctamente`);
     } catch (error) {

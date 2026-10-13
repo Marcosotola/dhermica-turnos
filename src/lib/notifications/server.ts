@@ -1,5 +1,6 @@
 import { adminDb, adminMessaging } from '@/lib/firebase/admin';
 import * as admin from 'firebase-admin';
+import { sendToN8nAvisos } from './avisos';
 
 // Notificaciones push automáticas desactivadas: el envío ahora es solo manual
 // desde el menú de Avisos (secretaria/notificaciones). Para reactivar, volver a poner en true.
@@ -114,7 +115,6 @@ export async function notifyN8nFromServer({
     professionalId?: string;
 }) {
     const webhookUrl = process.env.NEXT_PUBLIC_N8N_WEBHOOK_URL;
-    if (!webhookUrl) return;
 
     try {
         const [year, month, day] = (date || '').split('-');
@@ -132,40 +132,48 @@ export async function notifyN8nFromServer({
 
         const paid = totalPaid ?? 0;
 
-        await fetch(webhookUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                event: 'appointment_created',
-                appointmentId,
-                client: {
-                    name: clientName,
-                    firstName,
-                    lastName,
-                    phone: clientPhone || null,
-                    email: clientEmail || null,
-                },
-                appointment: {
-                    treatment,
-                    treatments: treatments || [],
-                    date,
-                    dateFormatted: formattedDate,
-                    time,
-                    duration: duration || 0,
-                    price: price || 0,
-                    totalPaid: paid,
-                    balance: (price || 0) - paid,
-                    status: 'pending',
-                    notes: notes || null,
-                },
-                professional: {
-                    id: professionalId || null,
-                    name: professionalName || null,
-                },
-                source: 'online_booking',
-                createdAt: new Date().toISOString(),
-            }),
-        });
+        const payload = {
+            event: 'appointment_created',
+            appointmentId,
+            client: {
+                name: clientName,
+                firstName,
+                lastName,
+                phone: clientPhone || null,
+                email: clientEmail || null,
+            },
+            appointment: {
+                treatment,
+                treatments: treatments || [],
+                date,
+                dateFormatted: formattedDate,
+                time,
+                duration: duration || 0,
+                price: price || 0,
+                totalPaid: paid,
+                balance: (price || 0) - paid,
+                status: 'pending',
+                notes: notes || null,
+            },
+            professional: {
+                id: professionalId || null,
+                name: professionalName || null,
+            },
+            source: 'online_booking',
+            createdAt: new Date().toISOString(),
+        };
+
+        // Flujo viejo y n8n nuevo (este último solo si N8N_AVISOS_URL está configurada)
+        await Promise.all([
+            webhookUrl
+                ? fetch(webhookUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                })
+                : null,
+            sendToN8nAvisos(payload),
+        ]);
         console.log('[ServerNotif] n8n webhook notified');
     } catch (error) {
         console.error('[ServerNotif] n8n webhook error (non-blocking):', error);
