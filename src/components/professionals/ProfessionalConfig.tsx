@@ -6,6 +6,7 @@ import { Professional, ProfessionalPrice } from '@/lib/types/professional';
 import { updateProfessional, toggleProfessionalStatus, deleteProfessional } from '@/lib/firebase/professionals';
 import { Treatment } from '@/lib/types/treatment';
 import { getTreatments } from '@/lib/firebase/treatments';
+import { formatPhone } from '@/lib/utils/phone';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
@@ -30,6 +31,8 @@ export function ProfessionalConfig({ professional, onUpdate }: ProfessionalConfi
     const [serviceCommissionPercentage, setServiceCommissionPercentage] = useState(professional.serviceCommissionPercentage || 0);
     const [productCommissionPercentage, setProductCommissionPercentage] = useState(professional.productCommissionPercentage || 0);
     const [professionalPrices, setProfessionalPrices] = useState<ProfessionalPrice[]>(professional.professionalPrices || []);
+    const [whatsappAvisos, setWhatsappAvisos] = useState(professional.whatsappAvisos || false);
+    const [whatsappPhone, setWhatsappPhone] = useState(professional.whatsappPhone || '');
 
     const [treatments, setTreatments] = useState<Treatment[]>([]);
     const [expandedTreatments, setExpandedTreatments] = useState<Set<string>>(new Set());
@@ -75,6 +78,11 @@ export function ProfessionalConfig({ professional, onUpdate }: ProfessionalConfi
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
+        const phone = formatPhone(whatsappPhone);
+        if (!isStaff && whatsappAvisos && phone.replace(/\D/g, '').length < 10) {
+            toast.error('Cargá un celular válido para los avisos por WhatsApp');
+            return;
+        }
         setSaving(true);
         try {
             await updateProfessional(professional.id, isStaff
@@ -88,7 +96,10 @@ export function ProfessionalConfig({ professional, onUpdate }: ProfessionalConfi
                     serviceCommissionPercentage,
                     productCommissionPercentage,
                     professionalPrices: serviceCommissionMode === 'fixed' ? professionalPrices : [],
+                    whatsappAvisos,
+                    whatsappPhone: phone,
                 });
+            if (!isStaff) setWhatsappPhone(phone);
             toast.success('Configuración guardada');
             onUpdate();
         } catch {
@@ -326,6 +337,36 @@ export function ProfessionalConfig({ professional, onUpdate }: ProfessionalConfi
                             </div>
                         )}
                     </div>
+                    )}
+
+                    {!isStaff && (
+                        <div className="pt-4 border-t border-gray-100">
+                            <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mb-4">Avisos por WhatsApp</p>
+                            <label className="flex items-center gap-3 cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={whatsappAvisos}
+                                    onChange={(e) => setWhatsappAvisos(e.target.checked)}
+                                    className="w-4 h-4 accent-[#34baab]"
+                                />
+                                <span className="text-sm font-bold text-gray-900">Avisarle por WhatsApp sus turnos</span>
+                            </label>
+                            <p className="text-[10px] text-gray-400 font-bold mt-1">
+                                Le llega un mensaje cuando se le asigna, cancela o anula un turno.
+                            </p>
+                            {whatsappAvisos && (
+                                <div className="mt-4">
+                                    <label className="text-[10px] text-gray-400 font-black uppercase tracking-widest">Celular</label>
+                                    <Input
+                                        type="tel"
+                                        value={whatsappPhone}
+                                        onChange={(e) => setWhatsappPhone(e.target.value)}
+                                        placeholder="Ej: 351 555 1234"
+                                        className="mt-1"
+                                    />
+                                </div>
+                            )}
+                        </div>
                     )}
 
                     <div className="flex justify-end pt-4 border-t border-gray-100">

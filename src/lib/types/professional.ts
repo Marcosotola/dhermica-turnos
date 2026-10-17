@@ -33,6 +33,9 @@ export interface Professional {
     productCommissionPercentage?: number;
     professionalPrices?: ProfessionalPrice[];
     services?: string[]; // IDs o nombres de tratamientos que realiza
+    // Avisos por WhatsApp (los manda n8n): turno asignado, cancelado o anulado
+    whatsappAvisos?: boolean;
+    whatsappPhone?: string; // Formato +549...
     workingHours?: {
         [key: string]: { // key is day index 0-6 or name
             start: string;

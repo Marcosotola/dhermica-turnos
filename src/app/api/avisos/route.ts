@@ -10,7 +10,7 @@ const EVENTS = ['appointment_created', 'appointment_cancelled', 'appointment_del
 /**
  * Recibe los avisos de turnos que dispara el navegador (crear, cancelar, eliminar) y los
  * reenvía al n8n nuevo con la clave secreta. Un cliente solo puede avisar la cancelación
- * de un turno suyo, y el nombre y teléfono se toman de Firestore: así nadie puede usar esta
+ * de un turno suyo, y el nombre, teléfono y profesional se toman de Firestore: así nadie puede usar esta
  * ruta para mandar WhatsApp a otros números.
  */
 export async function POST(req: NextRequest) {
@@ -51,6 +51,10 @@ export async function POST(req: NextRequest) {
             name: apt.clientName || '',
             phone: apt.clientPhone || null,
             email: apt.clientEmail || null,
+        };
+        payload.professional = {
+            ...payload.professional,
+            id: apt.professionalId || null,
         };
     }
 
