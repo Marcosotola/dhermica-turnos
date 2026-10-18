@@ -27,7 +27,7 @@ export interface LedgerEntry {
 }
 
 export interface ClientLedgerSummary {
-    totalBilled: number;        // suma de precios de todos los turnos completados/pendientes
+    totalBilled: number;        // suma de precios de los turnos completados y de los pendientes ya pasados
     totalPaid: number;          // suma de todos los pagos recibidos
     totalDebt: number;          // lo que el cliente aún debe
     availableCredit: number;    // señas retenidas a favor del cliente
@@ -115,22 +115,29 @@ export function getClientLedgerSummary(
 ): ClientLedgerSummary {
     const activeStatuses = new Set(['completed', 'pending', 'realizado']);
 
+    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Cordoba' });
+
     // Solo se cuentan turnos desde BALANCE_SINCE; los anteriores no tenían registro de pago
     const billableAppointments = appointments.filter(apt => (apt.date || '') >= BALANCE_SINCE);
 
     let totalBilled = 0;
     let totalPaid = 0;
+    let paidTowardsDebt = 0;
 
     for (const apt of billableAppointments) {
+        const paid = (apt.payments || []).reduce((s, p) => s + p.amount, 0);
+        totalPaid += paid;
+
+        // Un turno pendiente de hoy o futuro todavía no es deuda (ni su seña la descuenta)
+        if (apt.status === 'pending' && (apt.date || '') >= today) continue;
+
         if (activeStatuses.has(apt.status)) {
             totalBilled += apt.price || 0;
         }
-        totalPaid += (apt.payments || []).reduce((s, p) => s + p.amount, 0);
+        paidTowardsDebt += paid;
     }
 
-    const totalDebt = Math.max(0, totalBilled - totalPaid);
-
-    const today = new Date().toISOString().split('T')[0];
+    const totalDebt = Math.max(0, totalBilled - paidTowardsDebt);
     const availableGiftCardBalance = giftCards
         .filter(g => (g.status === 'active' || g.status === 'partially_used') && (!g.expiryDate || g.expiryDate >= today))
         .reduce((s, g) => s + g.remainingBalance, 0);
