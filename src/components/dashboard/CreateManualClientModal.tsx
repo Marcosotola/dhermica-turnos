@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { UserProfile } from '@/lib/types/user';
-import { createManualUserProfile } from '@/lib/firebase/users';
+import { createManualUserProfile, canCreateClient } from '@/lib/firebase/users';
 import { toast } from 'sonner';
 import { 
     X, 
@@ -55,6 +55,9 @@ export function CreateManualClientModal({ isOpen, onClose, onCreated }: CreateMa
 
         setLoading(true);
         try {
+            const fullName = `${formData.firstName} ${formData.lastName}`.trim();
+            if (!(await canCreateClient(fullName, formData.phone, formData.email))) return;
+
             await createManualUserProfile({
                 firstName: formData.firstName,
                 lastName: formData.lastName,

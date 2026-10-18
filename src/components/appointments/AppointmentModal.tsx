@@ -15,8 +15,10 @@ import {
     Phone, Sparkles, Gift, AlertCircle, Search, UserPlus, User, BadgeDollarSign, Pencil
 } from 'lucide-react';
 import { Professional } from '@/lib/types/professional';
-import { UserProfile } from '@/lib/types/user';
+import { UserProfile, isClientRole } from '@/lib/types/user';
 import { getAllUsers, createManualUserProfile } from '@/lib/firebase/users';
+import { formatPhone } from '@/lib/utils/phone';
+import { sameName } from '@/lib/utils/clientMatch';
 import { capitalizeName, timeToDecimal } from '@/lib/utils/time';
 import { validateAppointment, checkOverlap, checkAppointmentConflict } from '@/lib/utils/validation';
 import { createAppointment, updateAppointment } from '@/lib/firebase/appointments';
@@ -474,9 +476,25 @@ export function AppointmentModal({
             // Si es modo manual, intentamos registrar al cliente o encontrar uno existente por teléfono
             if (clientMode === 'manual') {
                 try {
-                    // 1. Buscar si ya existe un cliente con este teléfono para evitar duplicados
-                    const formattedPhone = formData.clientPhone;
-                    const existingClient = clients.find(c => c.phone === formattedPhone);
+                    // 1. Buscar si ya existe el cliente (mismo email, o mismo teléfono) para evitar duplicados
+                    const formattedPhone = formatPhone(formData.clientPhone);
+                    const email = formData.clientEmail.toLowerCase().trim();
+                    const fullName = `${formData.clientFirstName} ${formData.clientLastName}`;
+                    const isClient = (c: UserProfile) => isClientRole(c.role);
+                    let existingClient = email
+                        ? clients.find(c => isClient(c) && c.email?.toLowerCase().trim() === email)
+                        : undefined;
+                    if (!existingClient && formattedPhone.replace(/\D/g, '').length >= 8) {
+                        const samePhone = clients.filter(c => isClient(c) && c.phone && formatPhone(c.phone) === formattedPhone);
+                        existingClient = samePhone.find(c => sameName(c.fullName, fullName));
+                        // Mismo teléfono con otro nombre: puede ser la misma persona o un familiar
+                        if (!existingClient && samePhone.length > 0) {
+                            const other = samePhone[0];
+                            if (window.confirm(`Ya existe la ficha de ${other.fullName} con este teléfono. ¿Es la misma persona?\n\nAceptar: usar esa ficha.\nCancelar: crear una ficha nueva.`)) {
+                                existingClient = other;
+                            }
+                        }
+                    }
 
                     if (existingClient) {
                         finalClientId = existingClient.uid;

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { UserProfile } from '@/lib/types/user';
-import { createManualUserProfile } from '@/lib/firebase/users';
+import { createManualUserProfile, canCreateClient } from '@/lib/firebase/users';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
@@ -47,6 +47,8 @@ export function CreateClientModal({ isOpen, onClose, onCreated }: CreateClientMo
             // Use provided email or generate a placeholder
             const finalEmail = formData.email.trim() || `manual_${Date.now()}@dhermica.internal`;
             const fullName = `${formData.firstName.trim()} ${formData.lastName.trim()}`;
+
+            if (!(await canCreateClient(fullName, `${countryCode}${formData.phone}`, formData.email))) return;
 
             const newProfile: Omit<UserProfile, 'uid' | 'createdAt' | 'updatedAt'> = {
                 email: finalEmail,

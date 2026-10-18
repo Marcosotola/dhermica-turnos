@@ -25,6 +25,8 @@ import { UserProfile, UserRole } from '../types/user';
 const USERS_COLLECTION = 'users';
 
 import { formatPhone } from '../utils/phone';
+import { sameName } from '../utils/clientMatch';
+import { toast } from 'sonner';
 
 // Se reexporta para no romper los imports existentes desde '@/lib/firebase/users'
 export { formatPhone };
@@ -72,6 +74,46 @@ export async function getUserByEmail(email: string): Promise<UserProfile | null>
         createdAt: data.createdAt?.toDate(),
         updatedAt: data.updatedAt?.toDate(),
     } as UserProfile;
+}
+
+/**
+ * Busca una ficha que ya exista para este cliente: por email (si es real) o por teléfono.
+ * Si devuelve 'phone-other-name', puede ser un familiar que comparte el teléfono.
+ */
+export async function findDuplicateClient(
+    fullName: string,
+    phone: string,
+    email: string
+): Promise<{ profile: UserProfile; reason: 'email' | 'phone-same-name' | 'phone-other-name' } | null> {
+    const cleanEmail = email.toLowerCase().trim();
+    if (cleanEmail && !cleanEmail.endsWith('@dhermica.internal')) {
+        const byEmail = await getUserByEmail(cleanEmail);
+        if (byEmail) return { profile: byEmail, reason: 'email' };
+    }
+    if (phone.replace(/\D/g, '').length >= 8) {
+        const q = query(collection(db, USERS_COLLECTION), where('phone', '==', formatPhone(phone)));
+        const snap = await getDocs(q);
+        const samePhone = snap.docs.map(d => ({ ...d.data(), uid: d.id }) as UserProfile);
+        const same = samePhone.find(p => sameName(p.fullName, fullName));
+        if (same) return { profile: same, reason: 'phone-same-name' };
+        if (samePhone.length > 0) return { profile: samePhone[0], reason: 'phone-other-name' };
+    }
+    return null;
+}
+
+/**
+ * Para los formularios de "nuevo cliente": avisa si ya existe la ficha.
+ * Devuelve true si se puede crear la ficha nueva.
+ */
+export async function canCreateClient(fullName: string, phone: string, email: string): Promise<boolean> {
+    const dup = await findDuplicateClient(fullName, phone, email);
+    if (!dup) return true;
+    if (dup.reason === 'phone-other-name') {
+        return window.confirm(`Ya existe la ficha de ${dup.profile.fullName} con ese teléfono. ¿Crear igual una ficha nueva para ${fullName}?`);
+    }
+    const dato = dup.reason === 'email' ? 'ese email' : 'ese teléfono';
+    toast.error(`Ya existe la ficha de ${dup.profile.fullName} con ${dato}. Buscala en la lista de clientes.`);
+    return false;
 }
 
 export async function createUserProfile(profile: Omit<UserProfile, 'createdAt' | 'updatedAt'>): Promise<void> {
