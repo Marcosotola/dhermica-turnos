@@ -233,8 +233,8 @@ function ReceiptCard({ receipt }: { receipt: DepositReceipt }) {
                     {receipt.messageText && <p className="text-xs text-gray-500">Mensaje: “{receipt.messageText}”</p>}
 
                     {/* Turno, concepto, monto y cuenta */}
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-3 pt-1">
-                        <div className="md:col-span-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
+                        <div className="md:col-span-3">
                             <Select
                                 label="Turno"
                                 value={appointmentId}
@@ -263,12 +263,12 @@ function ReceiptCard({ receipt }: { receipt: DepositReceipt }) {
                             onChange={e => setBankAccount(e.target.value as BankAccount)}
                             options={BANK_ACCOUNTS}
                         />
-                        <div className="flex items-end gap-2">
+                        <div className="md:col-span-3 flex justify-end gap-2">
                             <button
                                 type="button"
                                 onClick={handleConfirm}
                                 disabled={saving}
-                                className="flex-1 min-h-[44px] bg-[#34baab] hover:bg-[#2da699] text-white rounded-xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-1 disabled:opacity-50"
+                                className="flex-1 md:flex-none md:px-8 min-h-[44px] bg-[#34baab] hover:bg-[#2da699] text-white rounded-xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-1 disabled:opacity-50"
                             >
                                 <Check className="w-4 h-4" /> Confirmar
                             </button>
