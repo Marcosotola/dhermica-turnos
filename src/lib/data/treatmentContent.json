@@ -1,0 +1,722 @@
+{
+  "_nota": "Contenido para completar los tratamientos desde el botón del catálogo. Solo se escriben los campos que están vacíos; lo ya cargado no se toca. 'correcciones' reemplaza el comienzo exacto de un texto (errores de tipeo).",
+  "tratamientos": {
+    "1LlpcefeVckLpZlZL5Yh": {
+      "_nombre": "Lifting de Pestañas",
+      "benefits": [
+        "Curvatura natural sin extensiones",
+        "Pestañas más largas y visibles",
+        "Tinte incluido para una mirada más intensa",
+        "Mantenimiento mínimo"
+      ],
+      "contraindications": [
+        "Infecciones oculares (conjuntivitis, orzuelo)",
+        "Cirugía ocular reciente",
+        "Alergia a los productos o al tinte",
+        "Irritación o heridas en los párpados",
+        "Embarazo y lactancia (consultar)"
+      ],
+      "preCare": [
+        "Venir sin maquillaje en los ojos",
+        "No usar lentes de contacto el día del turno",
+        "No usar rizador ni máscara 24 h antes"
+      ],
+      "postCare": [
+        "No mojar las pestañas durante 24 h",
+        "Evitar vapor, sauna y pileta por 48 h",
+        "No usar rizador",
+        "Peinarlas a diario y aplicar aceite nutritivo"
+      ]
+    },
+    "5qO3qzgc271kSpn3yDha": {
+      "_nombre": "Permanente de Pestañas",
+      "benefits": [
+        "Curvatura duradera",
+        "Mirada más abierta",
+        "Tinte incluido para mayor definición",
+        "Ahorra tiempo de maquillaje"
+      ],
+      "contraindications": [
+        "Infecciones oculares (conjuntivitis, orzuelo)",
+        "Cirugía ocular reciente",
+        "Alergia a los productos o al tinte",
+        "Irritación o heridas en los párpados",
+        "Embarazo y lactancia (consultar)"
+      ],
+      "preCare": [
+        "Venir sin maquillaje en los ojos",
+        "No usar lentes de contacto el día del turno",
+        "No usar rizador ni máscara 24 h antes"
+      ],
+      "postCare": [
+        "No mojar las pestañas durante 24 h",
+        "Evitar vapor, sauna y pileta por 48 h",
+        "No usar rizador",
+        "Peinarlas a diario y aplicar aceite nutritivo"
+      ]
+    },
+    "1jX66pDEthPc03pNGqYJ": {
+      "_nombre": "Depilación láser definitiva",
+      "fullDescription": "Depilación láser con tecnología Soprano Titanium, que combina tres longitudes de onda (alejandrita, diodo y Nd:YAG) para actuar sobre distintos tipos de vello y de piel. Su sistema de enfriamiento hace que el tratamiento sea prácticamente indoloro. Se realizan varias sesiones espaciadas para lograr una reducción progresiva y duradera del vello.",
+      "benefits": [
+        "Reducción progresiva y duradera del vello",
+        "Prácticamente indoloro",
+        "Apto para distintos tipos de piel",
+        "Previene vellos encarnados y foliculitis",
+        "Sesiones rápidas"
+      ],
+      "contraindications": [
+        "Embarazo y lactancia",
+        "Piel bronceada o exposición solar reciente",
+        "Medicación fotosensibilizante (ej. isotretinoína)",
+        "Heridas, infecciones o herpes activo en la zona",
+        "Tatuajes en la zona a tratar",
+        "Epilepsia fotosensible"
+      ],
+      "preCare": [
+        "Rasurar la zona 24 h antes",
+        "No usar cera, pinza ni depiladora eléctrica desde 3 semanas antes",
+        "Evitar sol y autobronceante 15 días antes",
+        "Venir con la piel limpia, sin cremas ni desodorante",
+        "Informar la medicación que estés tomando"
+      ],
+      "postCare": [
+        "Protector solar SPF50+ en zonas expuestas",
+        "Evitar sol, sauna y pileta por 48 h",
+        "Entre sesiones solo rasurar (no cera ni pinza)",
+        "Hidratar la zona con crema calmante",
+        "Evitar ejercicio intenso por 24 h"
+      ]
+    },
+    "t8gLMgeYaonLNZ1vABcE": {
+      "_nombre": "Depilacion Definitiva Hombre",
+      "fullDescription": "Depilación láser definitiva para hombres con tecnología Soprano Titanium. Ideal para espalda, pecho, abdomen, cuello, perfilado de barba y zona íntima. Combina tres longitudes de onda para tratar vello grueso y distintos tipos de piel, con un sistema de enfriamiento que lo hace prácticamente indoloro. Se realizan varias sesiones para una reducción progresiva y duradera del vello.",
+      "benefits": [
+        "Reducción progresiva y duradera del vello",
+        "Evita la irritación del afeitado",
+        "Previene vellos encarnados",
+        "Prácticamente indoloro"
+      ],
+      "contraindications": [
+        "Piel bronceada o exposición solar reciente",
+        "Medicación fotosensibilizante (ej. isotretinoína)",
+        "Heridas, infecciones o herpes activo en la zona",
+        "Tatuajes en la zona a tratar",
+        "Epilepsia fotosensible"
+      ],
+      "preCare": [
+        "Rasurar la zona 24 h antes",
+        "No usar cera, pinza ni depiladora eléctrica desde 3 semanas antes",
+        "Evitar sol y autobronceante 15 días antes",
+        "Venir con la piel limpia, sin cremas ni desodorante",
+        "Informar la medicación que estés tomando"
+      ],
+      "postCare": [
+        "Protector solar SPF50+ en zonas expuestas",
+        "Evitar sol, sauna y pileta por 48 h",
+        "Entre sesiones solo rasurar (no cera ni pinza)",
+        "Hidratar la zona con crema calmante",
+        "Evitar ejercicio intenso por 24 h"
+      ]
+    },
+    "3AzE5bgz6uWrsYDmPnUO": {
+      "_nombre": "Depilación con Cera",
+      "benefits": [
+        "Piel suave por 3 a 4 semanas",
+        "Resultado inmediato",
+        "El vello crece más fino con el tiempo",
+        "Apta para todas las zonas"
+      ],
+      "contraindications": [
+        "Várices o problemas circulatorios en la zona",
+        "Heridas, quemaduras o piel irritada",
+        "Uso de retinoides o isotretinoína",
+        "Piel quemada por el sol",
+        "Diabetes (consultar)"
+      ],
+      "preCare": [
+        "Vello de al menos 0,5 cm de largo",
+        "Exfoliar suavemente 24 a 48 h antes",
+        "No aplicar cremas ni aceites el día del turno",
+        "Evitar el sol el día anterior"
+      ],
+      "postCare": [
+        "Evitar sol, sauna y pileta por 24 h",
+        "No usar perfumes ni desodorante con alcohol por 24 h",
+        "Usar ropa holgada",
+        "Exfoliar 2 o 3 veces por semana desde el tercer día",
+        "Hidratar la piel a diario"
+      ]
+    },
+    "2jHfKitoQid8CGR2EyYC": {
+      "_nombre": "Estimulación Facial",
+      "benefits": [
+        "Tonifica los músculos faciales",
+        "Redefine el óvalo facial",
+        "Efecto lifting natural",
+        "Indoloro y sin recuperación"
+      ],
+      "contraindications": [
+        "Marcapasos u otros dispositivos implantados",
+        "Embarazo",
+        "Epilepsia",
+        "Implantes metálicos en el rostro",
+        "Heridas o infecciones en la zona"
+      ],
+      "preCare": [
+        "Venir con el rostro limpio, sin maquillaje",
+        "Retirar aros, piercings y objetos metálicos",
+        "Buena hidratación el día anterior"
+      ],
+      "postCare": [
+        "Aplicar crema hidratante y protector solar",
+        "Beber agua para potenciar los resultados",
+        "Respetar la frecuencia de sesiones indicada"
+      ]
+    },
+    "RueXDSFatdEOHFXZPW0W": {
+      "_nombre": "Alta frecuencia",
+      "benefits": [
+        "Acción bactericida y antiinflamatoria",
+        "Acelera la cicatrización",
+        "Controla el exceso de grasa",
+        "Oxigena la piel y el cuero cabelludo",
+        "Ayuda a fortalecer el cabello"
+      ],
+      "contraindications": [
+        "Embarazo",
+        "Marcapasos",
+        "Epilepsia",
+        "Implantes metálicos en la zona",
+        "Rosácea o cuperosis marcada"
+      ],
+      "preCare": [
+        "Venir con la piel o el cuero cabelludo limpio",
+        "No usar productos con alcohol, lacas ni spray",
+        "Retirar aros, cadenas y objetos metálicos"
+      ],
+      "postCare": [
+        "Aplicar protector solar en el rostro",
+        "No tocar ni apretar las lesiones",
+        "En capilar, aplicar la loción indicada"
+      ]
+    },
+    "TUgnwWPyThtnFYQHnAAU": {
+      "_nombre": "Extracción de Puntos Negros",
+      "benefits": [
+        "Elimina puntos negros y comedones",
+        "Poros limpios y desobstruidos",
+        "Previene brotes de acné",
+        "Piel más suave y uniforme"
+      ],
+      "contraindications": [
+        "Acné inflamatorio severo (consultar)",
+        "Rosácea",
+        "Herpes activo",
+        "Uso de isotretinoína",
+        "Heridas o quemaduras solares"
+      ],
+      "preCare": [
+        "Venir sin maquillaje",
+        "Suspender exfoliantes y ácidos 3 días antes",
+        "No apretar granitos en casa"
+      ],
+      "postCare": [
+        "No maquillarse durante 24 h",
+        "No tocar ni apretar la zona",
+        "Protector solar obligatorio",
+        "Limpieza e hidratación suaves"
+      ]
+    },
+    "Tnh3piaUxuLI74lHPyhM": {
+      "_nombre": "Peeling Químico",
+      "contraindications": [
+        "Embarazo y lactancia",
+        "Herpes activo",
+        "Heridas o piel irritada",
+        "Uso de isotretinoína en los últimos 6 meses",
+        "Piel bronceada o exposición solar reciente",
+        "Alergia a los ácidos"
+      ]
+    },
+    "CA36cJnJ9evwdjif9aeW": {
+      "_nombre": "punta de diamante",
+      "contraindications": [
+        "Acné activo inflamado",
+        "Rosácea o cuperosis",
+        "Herpes activo",
+        "Heridas o quemaduras",
+        "Uso de isotretinoína en los últimos 6 meses",
+        "Piel quemada por el sol"
+      ],
+      "preCare": [
+        "Suspender retinoides y ácidos 3 a 5 días antes",
+        "Evitar el sol 48 h antes",
+        "No depilar el rostro con cera 3 días antes"
+      ]
+    },
+    "D30ZERb1IMnm2obch6a1": {
+      "_nombre": "Botox",
+      "benefits": [
+        "Suaviza las arrugas de expresión",
+        "Previene nuevas arrugas",
+        "Resultados naturales",
+        "Sin tiempo de recuperación",
+        "Duración de 4 a 6 meses"
+      ],
+      "contraindications": [
+        "Embarazo y lactancia",
+        "Enfermedades neuromusculares (miastenia gravis, ELA)",
+        "Infección en la zona a tratar",
+        "Alergia a la toxina botulínica",
+        "Uso de antibióticos aminoglucósidos"
+      ],
+      "preCare": [
+        "Evitar alcohol 24 h antes",
+        "Evitar aspirina y antiinflamatorios unos días antes (consultá con tu médico)",
+        "Venir con el rostro limpio, sin maquillaje",
+        "Informar medicación y tratamientos previos"
+      ],
+      "postCare": [
+        "No acostarse durante las primeras 4 h",
+        "No tocar ni masajear la zona",
+        "Evitar ejercicio intenso, sauna y calor por 24 h",
+        "Asistir al control a los 15 días"
+      ]
+    },
+    "Qcg7gOilx5DliwnV2iTf": {
+      "_nombre": "Plasma",
+      "benefits": [
+        "Rejuvenecimiento 100% natural",
+        "Estimula colágeno y elastina",
+        "Mejora textura y luminosidad",
+        "Atenúa cicatrices y líneas finas",
+        "Ayuda a fortalecer el cabello"
+      ],
+      "contraindications": [
+        "Embarazo y lactancia",
+        "Trastornos de la coagulación o plaquetas bajas",
+        "Uso de anticoagulantes",
+        "Cáncer o enfermedades de la sangre",
+        "Infecciones activas o herpes en la zona"
+      ],
+      "preCare": [
+        "Evitar aspirina y antiinflamatorios 7 días antes (consultá con tu médico)",
+        "Evitar alcohol 48 h antes",
+        "Hidratarse bien y comer liviano antes",
+        "Venir sin maquillaje"
+      ],
+      "postCare": [
+        "No maquillarse ni lavar la zona por 12 h",
+        "Evitar sol, sauna y ejercicio intenso por 48 h",
+        "Protector solar SPF50+",
+        "No tomar antiinflamatorios por 3 días"
+      ]
+    },
+    "JqWWsadP9FE3ll3lwXiL": {
+      "_nombre": "Vacumterapia",
+      "contraindications": [
+        "Várices o trombosis",
+        "Embarazo",
+        "Problemas de coagulación o uso de anticoagulantes",
+        "Heridas o infecciones en la zona",
+        "Fragilidad capilar"
+      ],
+      "preCare": [
+        "Beber abundante agua",
+        "Venir con la piel limpia, sin cremas",
+        "Evitar comidas abundantes antes de la sesión"
+      ],
+      "postCare": [
+        "Beber 2 litros de agua por día",
+        "Realizar actividad física suave",
+        "Evitar el sol en la zona por 24 h",
+        "Mantener una alimentación equilibrada"
+      ]
+    },
+    "KQfWaO7iylLLe2wi1TQ1": {
+      "_nombre": "Lipolaser",
+      "contraindications": [
+        "Embarazo y lactancia",
+        "Marcapasos",
+        "Cáncer o tratamiento oncológico",
+        "Enfermedades hepáticas o renales",
+        "Medicación fotosensibilizante",
+        "Heridas o lesiones en la zona"
+      ],
+      "postCare": [
+        "Hacer actividad física dentro de las 24 h",
+        "Beber abundante agua",
+        "Evitar alcohol y comidas grasas",
+        "Complementar con drenaje linfático"
+      ]
+    },
+    "majv4MpkqXiCPZvhb2wB": {
+      "_nombre": "Ultracavitador",
+      "contraindications": [
+        "Embarazo y lactancia",
+        "Marcapasos o prótesis metálicas",
+        "Enfermedades hepáticas o renales",
+        "Diabetes descompensada",
+        "DIU (en zona abdominal)",
+        "Heridas o infecciones en la zona"
+      ],
+      "preCare": [
+        "Beber 2 litros de agua el día anterior",
+        "Evitar alcohol 24 h antes",
+        "No comer en abundancia 2 h antes"
+      ]
+    },
+    "ULXFdUpezzVDtLuOFrBZ": {
+      "_nombre": "Liposonix",
+      "benefits": [
+        "Reduce grasa localizada",
+        "Disminuye centímetros",
+        "Mejora el contorno corporal",
+        "Sin cirugía ni recuperación"
+      ],
+      "contraindications": [
+        "Embarazo y lactancia",
+        "Hernias en la zona a tratar",
+        "Marcapasos o implantes metálicos",
+        "Heridas o infecciones en la zona",
+        "Enfermedades autoinmunes"
+      ],
+      "preCare": [
+        "Beber abundante agua los días previos",
+        "Evitar alcohol 24 h antes",
+        "No aplicar cremas en la zona",
+        "Comer liviano antes de la sesión"
+      ],
+      "postCare": [
+        "Beber 2 litros de agua por día",
+        "Hacer actividad física para potenciar resultados",
+        "Puede haber sensibilidad o enrojecimiento temporal",
+        "Complementar con drenaje linfático"
+      ]
+    },
+    "oPu7v2GEVCnUlR74zu4r": {
+      "_nombre": "Radiofrecuencia Facial",
+      "contraindications": [
+        "Embarazo",
+        "Marcapasos",
+        "Implantes metálicos en la zona",
+        "Rellenos recientes (consultar)",
+        "Cáncer o tratamiento oncológico",
+        "Heridas o infecciones en la zona"
+      ],
+      "preCare": [
+        "Venir con el rostro limpio, sin maquillaje",
+        "Retirar aros y objetos metálicos",
+        "Beber abundante agua"
+      ],
+      "postCare": [
+        "Hidratar la piel y usar protector solar",
+        "Evitar sol y calor intenso por 24 h",
+        "Beber abundante agua"
+      ]
+    },
+    "QcpmS5bCpgLsQq8qnRd8": {
+      "_nombre": "Belleza Manos",
+      "contraindications": [
+        "Hongos o infecciones en las uñas",
+        "Heridas o lesiones en las manos",
+        "Alergia a geles o acrílicos",
+        "Uñas despegadas o muy dañadas (consultar)"
+      ],
+      "preCare": [
+        "Venir sin esmalte o avisar si necesitás retiro",
+        "No cortar las cutículas en casa",
+        "Traer foto de referencia si querés diseño"
+      ],
+      "postCare": [
+        "Usar guantes para limpiar",
+        "Aplicar aceite de cutículas a diario",
+        "No usar las uñas como herramienta",
+        "No retirar el producto en casa"
+      ]
+    },
+    "3MRjbZo9TpW2GqIjVmMR": {
+      "_nombre": "Belleza Pies",
+      "benefits": [
+        "Pies suaves y prolijos",
+        "Eliminación de durezas",
+        "Uñas sanas y esmaltado duradero",
+        "Prevención de uñas encarnadas"
+      ],
+      "contraindications": [
+        "Hongos o infecciones en uñas o piel",
+        "Heridas abiertas",
+        "Pie diabético (requiere atención podológica)"
+      ],
+      "preCare": [
+        "Venir sin esmalte o avisar si necesitás retiro",
+        "No cortar las cutículas en casa",
+        "Traer ojotas o calzado abierto"
+      ],
+      "postCare": [
+        "Usar calzado abierto unas horas si es esmaltado común",
+        "Hidratar los pies a diario",
+        "Aplicar aceite de cutículas",
+        "No retirar el semipermanente en casa"
+      ]
+    },
+    "SErdclLnGKITFfvLCCTT": {
+      "_nombre": "Pulido Corporal con Cremas",
+      "benefits": [
+        "Piel suave y luminosa",
+        "Elimina células muertas",
+        "Hidratación profunda",
+        "Momento de relajación"
+      ],
+      "contraindications": [
+        "Heridas, quemaduras o piel irritada",
+        "Piel quemada por el sol",
+        "Dermatitis o eccema activo",
+        "Alergia a algún componente de las cremas"
+      ],
+      "preCare": [
+        "No depilar con cera 48 h antes",
+        "Evitar el sol el día anterior",
+        "Avisar si tenés alergias"
+      ],
+      "postCare": [
+        "Hidratar la piel a diario",
+        "Usar protector solar y evitar el sol por 24 h",
+        "No exfoliar en casa durante 5 días"
+      ]
+    },
+    "mhdtTsPPJT6BcaIBbNDq": {
+      "_nombre": "Pulido Corporal con Punta de Diamante",
+      "benefits": [
+        "Exfoliación profunda",
+        "Piel lisa y uniforme",
+        "Atenúa manchas y marcas",
+        "Mejor absorción de cremas"
+      ],
+      "contraindications": [
+        "Heridas, quemaduras o piel irritada",
+        "Piel quemada por el sol",
+        "Várices en la zona",
+        "Dermatitis o eccema activo",
+        "Uso de isotretinoína en los últimos 6 meses"
+      ],
+      "preCare": [
+        "No depilar con cera 48 h antes",
+        "Evitar el sol 48 h antes",
+        "Suspender ácidos y retinoides en la zona"
+      ],
+      "postCare": [
+        "Protector solar en zonas expuestas",
+        "Hidratar la piel a diario",
+        "Evitar sol y pileta por 48 h"
+      ]
+    },
+    "lqDKjVwiOm7AIh7tiROt": {
+      "_nombre": "Electro estimulación",
+      "benefits": [
+        "Tonifica la musculatura",
+        "Mejora la firmeza corporal",
+        "Reduce la retención de líquidos",
+        "Complementa el ejercicio"
+      ],
+      "contraindications": [
+        "Marcapasos u otros dispositivos implantados",
+        "Embarazo",
+        "Epilepsia",
+        "Problemas cardíacos",
+        "Hernias o DIU (en zona abdominal)",
+        "Prótesis metálicas o heridas en la zona"
+      ],
+      "preCare": [
+        "Beber abundante agua",
+        "Venir con la piel limpia, sin cremas",
+        "Comer liviano 2 h antes"
+      ],
+      "postCare": [
+        "Beber abundante agua",
+        "Elongar los músculos trabajados",
+        "Acompañar con actividad física y buena alimentación"
+      ]
+    },
+    "qYySM5hTv1r8L1QQaKzt": {
+      "_nombre": "Masajes",
+      "fullDescription": "Un espacio para pausar, desconectarte y soltar tensiones. El masaje relajante calma el sistema nervioso y ayuda a reducir el estrés, mientras que el masaje descontracturante se enfoca en liberar contracturas y aliviar la tensión muscular. Podés elegir torso o cuerpo entero.",
+      "benefits": [
+        "Reduce el estrés y la ansiedad",
+        "Alivia contracturas y tensión muscular",
+        "Mejora la circulación",
+        "Favorece el descanso"
+      ],
+      "contraindications": [
+        "Fiebre o infecciones",
+        "Lesiones, fracturas o inflamaciones agudas",
+        "Trombosis o várices importantes",
+        "Heridas o problemas de piel en la zona",
+        "Embarazo (consultar)"
+      ],
+      "preCare": [
+        "Evitar comidas abundantes antes",
+        "Llegar unos minutos antes para relajarte",
+        "Avisar si tenés lesiones o zonas sensibles"
+      ],
+      "postCare": [
+        "Beber abundante agua",
+        "Evitar esfuerzos intensos el resto del día",
+        "Darte un tiempo de descanso"
+      ]
+    },
+    "bMfjXiIKgEH2Zsd3JjeJ": {
+      "_nombre": "Laminado y perfilado de cejas",
+      "benefits": [
+        "Cejas más pobladas y definidas",
+        "Pelos disciplinados",
+        "Diseño según tu rostro",
+        "Menos tiempo de maquillaje"
+      ],
+      "contraindications": [
+        "Infecciones o irritación en la zona",
+        "Alergia a los productos o al tinte",
+        "Uso de ácidos o retinoides en la zona",
+        "Embarazo y lactancia (consultar)"
+      ],
+      "preCare": [
+        "No depilar las cejas 2 o 3 semanas antes",
+        "Venir sin maquillaje",
+        "No aplicar ácidos en la zona 1 semana antes"
+      ],
+      "postCare": [
+        "No mojar ni maquillar las cejas por 24 h",
+        "Evitar vapor y sauna por 48 h",
+        "Peinarlas a diario",
+        "Aplicar aceite nutritivo"
+      ]
+    },
+    "tULJ9oQmYDUD7qUQh2Zn": {
+      "_nombre": "Perfilado",
+      "fullDescription": "Diseño y depilación de cejas según la forma de tu rostro, para lograr cejas prolijas, armoniosas y que realcen tu mirada.",
+      "benefits": [
+        "Cejas prolijas y simétricas",
+        "Diseño acorde a tu rostro",
+        "Mirada más definida"
+      ],
+      "contraindications": [
+        "Irritación, heridas o infecciones en la zona",
+        "Uso de ácidos o retinoides en la zona",
+        "Piel quemada por el sol"
+      ],
+      "preCare": [
+        "Dejar crecer las cejas 2 o 3 semanas",
+        "Venir sin maquillaje"
+      ],
+      "postCare": [
+        "Evitar sol directo y maquillaje por unas horas",
+        "No tocar la zona",
+        "Aplicar crema calmante si hay enrojecimiento"
+      ]
+    },
+    "2G9as51gwBvkmikIvyAc": {
+      "_nombre": "Peinado",
+      "fullDescription": "Peinado para que luzcas tu cabello prolijo y con estilo, ideal para eventos, salidas o el día a día. Podés elegir planchado o rulos según el look que busques.",
+      "benefits": [
+        "Look prolijo y duradero",
+        "Brillo y definición",
+        "Ideal para eventos"
+      ],
+      "preCare": [
+        "Venir con el cabello limpio y seco",
+        "No usar aceites ni productos pesados ese día",
+        "Traer foto de referencia del look que querés"
+      ],
+      "postCare": [
+        "Evitar humedad y lluvia para que dure más",
+        "Dormir con el cabello recogido o con gorro de seda",
+        "Usar protector térmico si lo retocás con calor"
+      ]
+    },
+    "24RV4Y1EiWNwtAyMSJDY": {
+      "_nombre": "antropometria ISAK 1",
+      "fullDescription": "La antropometría ISAK es una evaluación de la composición corporal con protocolo internacional estandarizado (ISAK nivel 1). Midiendo pliegues cutáneos, perímetros y diámetros óseos se estima el porcentaje de masa grasa y masa muscular, para planificar y seguir con precisión tus objetivos de alimentación y entrenamiento. Puede complementarse con una consulta nutricional.",
+      "benefits": [
+        "Conocés tu % de grasa y de masa muscular",
+        "Medición precisa con protocolo internacional",
+        "Seguimiento objetivo de tu progreso",
+        "Base para tu plan alimentario y de entrenamiento"
+      ],
+      "preCare": [
+        "No hacer actividad física intensa el día de la medición",
+        "No aplicar cremas ni aceites en la piel",
+        "Venir con ropa cómoda (short y top o musculosa)",
+        "Mantener una hidratación normal"
+      ],
+      "postCare": [
+        "Seguir las indicaciones acordadas",
+        "Repetir la medición cada 6 a 8 semanas en las mismas condiciones"
+      ]
+    },
+    "4WUV1m9ImrE2hwg1EhcD": {
+      "_nombre": "consulta individual",
+      "fullDescription": "Consulta nutricional personalizada en la que se evalúan tus hábitos, tu historia clínica y tus objetivos para diseñar un plan alimentario a tu medida. Incluye seguimiento por WhatsApp para acompañarte, resolver dudas y hacer ajustes durante el proceso.",
+      "benefits": [
+        "Plan alimentario personalizado",
+        "Seguimiento por WhatsApp",
+        "Hábitos saludables y sostenibles",
+        "Acompañamiento según tus objetivos"
+      ],
+      "preCare": [
+        "Traer análisis de sangre recientes si tenés",
+        "Anotar lo que comés 2 o 3 días antes",
+        "Informar medicación, patologías o alergias"
+      ],
+      "postCare": [
+        "Seguir el plan y registrar cómo te sentís",
+        "Consultar tus dudas por WhatsApp"
+      ]
+    },
+    "koVkwP6iyyhAi4IDNB6V": {
+      "_nombre": "combo de dos consultas",
+      "fullDescription": "Pack de dos consultas nutricionales: una primera consulta de evaluación y armado del plan alimentario personalizado, y una consulta de control para ver tu evolución y hacer ajustes. Atención una vez por semana, de 8:00 a 14:30 h.",
+      "benefits": [
+        "Primera consulta + control",
+        "Plan alimentario personalizado",
+        "Ajustes según tu evolución",
+        "Acompañamiento continuo"
+      ],
+      "preCare": [
+        "Traer análisis de sangre recientes si tenés",
+        "Anotar lo que comés 2 o 3 días antes",
+        "Informar medicación, patologías o alergias"
+      ],
+      "postCare": [
+        "Seguir el plan y registrar cómo te sentís",
+        "Asistir a la consulta de control"
+      ]
+    }
+  },
+  "correcciones": {
+    "JqWWsadP9FE3ll3lwXiL": {
+      "shortDescription": [
+        "DTécnica de succión",
+        "Técnica de succión"
+      ]
+    },
+    "KQfWaO7iylLLe2wi1TQ1": {
+      "shortDescription": [
+        "ecnología no invasiva",
+        "Tecnología no invasiva"
+      ]
+    },
+    "majv4MpkqXiCPZvhb2wB": {
+      "shortDescription": [
+        "Eecnología de ultrasonido",
+        "Tecnología de ultrasonido"
+      ]
+    },
+    "ULXFdUpezzVDtLuOFrBZ": {
+      "fullDescription": [
+        "iposonix es un",
+        "Liposonix es un"
+      ]
+    }
+  }
+}

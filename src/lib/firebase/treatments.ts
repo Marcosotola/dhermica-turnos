@@ -13,6 +13,7 @@ import {
 } from 'firebase/firestore';
 import { db } from './config';
 import { Treatment } from '../types/treatment';
+import treatmentContent from '../data/treatmentContent.json';
 
 const TREATMENTS_COLLECTION = 'treatments';
 
@@ -74,4 +75,39 @@ export async function updateTreatment(id: string, data: Partial<Omit<Treatment, 
 export async function deleteTreatment(id: string): Promise<void> {
     const docRef = doc(db, TREATMENTS_COLLECTION, id);
     await deleteDoc(docRef);
+}
+
+// Contenido sugerido para completar tratamientos (descripción, beneficios, contraindicaciones
+// y cuidados). Solo se usan los campos que el tratamiento tiene vacíos, nunca pisa lo cargado.
+const CONTENT_FIELDS = ['fullDescription', 'benefits', 'contraindications', 'preCare', 'postCare'] as const;
+type ContentField = typeof CONTENT_FIELDS[number] | 'shortDescription';
+type ContentUpdate = Partial<Pick<Treatment, ContentField>>;
+
+const isEmptyValue = (v: unknown) => v == null || (Array.isArray(v) ? v.length === 0 : String(v).trim() === '');
+
+export function getPendingTreatmentContent(treatments: Treatment[]): { treatment: Treatment; update: ContentUpdate }[] {
+    const content = treatmentContent.tratamientos as Record<string, Record<string, unknown>>;
+    const fixes = treatmentContent.correcciones as Record<string, Record<string, string[]>>;
+
+    return treatments.flatMap(treatment => {
+        const update: Record<string, unknown> = {};
+        const suggested = content[treatment.id] || {};
+        CONTENT_FIELDS.forEach(field => {
+            if (suggested[field] && isEmptyValue(treatment[field])) update[field] = suggested[field];
+        });
+        Object.entries(fixes[treatment.id] || {}).forEach(([field, [from, to]]) => {
+            const text = update[field] ?? treatment[field as ContentField];
+            if (typeof text === 'string' && text.startsWith(from)) update[field] = to + text.slice(from.length);
+        });
+        return Object.keys(update).length > 0 ? [{ treatment, update: update as ContentUpdate }] : [];
+    });
+}
+
+export async function applyPendingTreatmentContent(treatments: Treatment[]): Promise<number> {
+    const pending = getPendingTreatmentContent(treatments);
+    const now = Timestamp.now();
+    await Promise.all(pending.map(({ treatment, update }) =>
+        updateDoc(doc(db, TREATMENTS_COLLECTION, treatment.id), { ...update, updatedAt: now })
+    ));
+    return pending.length;
 }

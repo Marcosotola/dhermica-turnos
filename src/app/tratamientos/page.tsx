@@ -11,6 +11,7 @@ import { TreatmentForm } from '@/components/treatments/TreatmentForm';
 import { TreatmentCategoryManager } from '@/components/treatments/TreatmentCategoryManager';
 import { TreatmentDetail } from '@/components/treatments/TreatmentDetail';
 import { TreatmentSeeder } from '@/components/treatments/TreatmentSeeder';
+import { TreatmentContentFiller } from '@/components/treatments/TreatmentContentFiller';
 import { Button } from '@/components/ui/Button';
 import { toast, Toaster } from 'sonner';
 import { CardSkeleton } from '@/components/ui/Skeleton';
@@ -162,6 +163,8 @@ export default function TratamientosPage() {
             <div className="max-w-7xl mx-auto px-4 -mt-8 relative z-20">
                 {/* Seeder for initial data - Removed after migration to prevent data resets */}
                 {/* {isAdmin && <TreatmentSeeder />} */}
+
+                {isAdmin && <TreatmentContentFiller treatments={treatments} onDone={fetchTreatments} />}
 
                 {/* Search & Filter Bar */}
                 <div className="bg-white rounded-[2rem] shadow-xl border border-gray-100 p-4 md:p-6 mb-8">
