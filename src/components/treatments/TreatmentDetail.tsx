@@ -1,8 +1,9 @@
 'use client';
 
 import { Modal } from "../ui/Modal";
-import { Treatment } from "@/lib/types/treatment";
-import { Sparkles, CheckCircle2, AlertCircle, Clock, Users, ArrowRight, DollarSign } from "lucide-react";
+import { Treatment, getTreatmentSlug } from "@/lib/types/treatment";
+import { Sparkles, CheckCircle2, AlertCircle, Clock, Users, ArrowRight, DollarSign, Share2 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "../ui/Button";
 import { formatCurrencyWithSymbol } from "@/lib/utils/currency";
 
@@ -14,6 +15,26 @@ interface TreatmentDetailProps {
 
 export function TreatmentDetail({ isOpen, onClose, treatment }: TreatmentDetailProps) {
     if (!treatment) return null;
+
+    const handleShare = async () => {
+        const url = `${window.location.origin}/tratamientos?t=${getTreatmentSlug(treatment.name)}`;
+        const title = treatment.name.trim();
+        // En el celular abre el menú para compartir; si no está disponible, copia el enlace
+        if (navigator.share) {
+            try {
+                await navigator.share({ title, text: `${title} en Dhermica`, url });
+            } catch {
+                // Cerró el menú sin compartir
+            }
+            return;
+        }
+        try {
+            await navigator.clipboard.writeText(url);
+            toast.success('Enlace copiado');
+        } catch {
+            toast.error('No se pudo copiar el enlace');
+        }
+    };
 
     return (
         <Modal isOpen={isOpen} onClose={onClose} title={treatment.name} size="lg">
@@ -152,7 +173,10 @@ export function TreatmentDetail({ isOpen, onClose, treatment }: TreatmentDetailP
                     </div>
                 )}
 
-                <div className="pt-4">
+                <div className="pt-4 flex flex-col sm:flex-row gap-3">
+                    <Button variant="outline" onClick={handleShare} className="w-full py-4 rounded-2xl border-2 border-[#34baab]! text-[#34baab]!">
+                        <Share2 className="w-5 h-5 mr-2" /> Compartir
+                    </Button>
                     <Button onClick={onClose} className="w-full py-4 rounded-2xl bg-[#34baab] hover:bg-[#2aa89a] text-white">
                         Cerrar Detalles
                     </Button>

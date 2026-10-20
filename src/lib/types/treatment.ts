@@ -61,3 +61,14 @@ export interface Treatment {
     createdAt?: Date;
     updatedAt?: Date;
 }
+
+// Identificador legible para el enlace de cada tratamiento (/tratamientos?t=lifting-de-pestanas)
+export function getTreatmentSlug(name: string): string {
+    return name
+        .normalize('NFD')
+        .replace(/[̀-ͯ]/g, '')
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+}
