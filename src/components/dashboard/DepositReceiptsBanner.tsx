@@ -144,11 +144,9 @@ function ReceiptCard({ receipt }: { receipt: DepositReceipt }) {
     };
 
     const handleReject = async () => {
-        const reason = window.prompt('¿Por qué se rechaza? (por ejemplo: la plata no entró, no era un comprobante)');
-        if (reason === null) return;
         setSaving(true);
         try {
-            await rejectDepositReceipt(receipt.id, reason.trim(), by);
+            await rejectDepositReceipt(receipt.id, '', by);
             toast.success('Comprobante rechazado');
         } catch (error) {
             console.error('[DepositReceipts] Error al rechazar:', error);
