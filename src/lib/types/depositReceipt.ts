@@ -1,25 +1,26 @@
-// Comprobantes de seña que las clientas mandan por WhatsApp. n8n los lee con IA, busca el
-// turno por el teléfono que envía y los guarda acá como "por confirmar": el pago recién se
-// carga en el turno cuando la secretaria lo confirma mirando el banco.
+// Comprobantes de pago (seña, saldo o total) que las clientas mandan por WhatsApp. n8n los lee
+// con IA, busca el turno por el teléfono que envía y los guarda acá como "por confirmar": el pago
+// recién se carga en el turno cuando la secretaria lo confirma mirando el banco.
+import type { BankAccount } from './bankAccount';
 
 export type DepositReceiptStatus = 'pending' | 'confirmed' | 'rejected';
 
 // Motivos por los que conviene mirar el comprobante con más atención (o asignarlo a mano)
 export type DepositReceiptProblem =
     | 'no_leido'      // la IA no pudo leer el archivo
-    | 'sin_turno'     // el teléfono que envía no tiene turnos próximos
-    | 'destinatario'  // la transferencia no es a la cuenta de Dhermica
+    | 'sin_turno'     // el teléfono que envía no tiene turnos próximos ni recientes con saldo
+    | 'destinatario'  // la transferencia no es a ninguna cuenta de Dhermica
     | 'monto'         // el monto no alcanza para la seña que falta
-    | 'ya_pagada'     // el turno ya tenía la seña cargada
+    | 'ya_pagada'     // el turno ya está pagado
     | 'fecha'         // la transferencia es vieja o tiene una fecha rara
     | 'repetido';     // ya llegó un comprobante con el mismo número de operación
 
 export const DEPOSIT_RECEIPT_PROBLEM_LABELS: Record<DepositReceiptProblem, string> = {
     no_leido: 'No se pudo leer el comprobante',
-    sin_turno: 'El número no tiene turnos próximos',
-    destinatario: 'La transferencia no es a la cuenta de Dhermica',
+    sin_turno: 'El número no tiene turnos próximos ni con saldo',
+    destinatario: 'La transferencia no es a ninguna cuenta de Dhermica',
     monto: 'El monto no alcanza para la seña',
-    ya_pagada: 'El turno ya tenía la seña cargada',
+    ya_pagada: 'El turno ya está pagado',
     fecha: 'La fecha de la transferencia es vieja o rara',
     repetido: 'Ya llegó un comprobante con el mismo n.º de operación',
 };
@@ -41,7 +42,7 @@ export interface DepositReceiptReading {
     notes: string;
 }
 
-/** Turno próximo de la clienta, con lo que falta de seña (lo calcula n8n al recibir). */
+/** Turno de la clienta, con la seña que pide, lo pagado y el precio (lo calcula n8n al recibir). */
 export interface DepositReceiptCandidate {
     appointmentId: string;
     clientName: string;
@@ -50,6 +51,7 @@ export interface DepositReceiptCandidate {
     treatment: string;
     depositRequired: number;
     paid: number;
+    price?: number;
 }
 
 export interface DepositReceipt {
@@ -71,9 +73,13 @@ export interface DepositReceipt {
 
     reading: DepositReceiptReading | null;
 
-    // Turno sugerido y los otros turnos próximos del mismo teléfono
+    // Turno sugerido y los otros turnos del mismo teléfono
     appointmentId: string | null;
     candidates: DepositReceiptCandidate[];
+
+    // Sugerencias de n8n: concepto del pago y cuenta a la que entró
+    suggestedLabel?: string; // 'Seña' | 'Saldo' | 'Pago Total'
+    suggestedBankAccount?: BankAccount | '';
 
     // Al confirmar o rechazar
     confirmedAmount?: number;

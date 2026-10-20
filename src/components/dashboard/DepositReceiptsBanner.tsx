@@ -33,11 +33,14 @@ function guessBankAccount(bank: string | undefined): BankAccount {
     return 'cuenta1';
 }
 
+const LABELS = ['Seña', 'Saldo', 'Pago Total', 'Pago Parcial'].map(l => ({ value: l, label: l }));
+
 function candidateLabel(c: DepositReceiptCandidate): string {
-    const sena = c.depositRequired > 0
-        ? ` · seña ${plata(c.depositRequired)}${c.paid > 0 ? ` (pagado ${plata(c.paid)})` : ''}`
-        : '';
-    return `${ddmm(c.date)} ${c.time} · ${c.clientName} · ${c.treatment}${sena}`;
+    const partes = [];
+    if (c.depositRequired > 0) partes.push(`seña ${plata(c.depositRequired)}`);
+    if (c.price) partes.push(`total ${plata(c.price)}`);
+    if (c.paid > 0) partes.push(`pagado ${plata(c.paid)}`);
+    return `${ddmm(c.date)} ${c.time} · ${c.clientName} · ${c.treatment}${partes.length ? ' · ' + partes.join(', ') : ''}`;
 }
 
 function toCandidate(a: Appointment): DepositReceiptCandidate {
@@ -49,13 +52,14 @@ function toCandidate(a: Appointment): DepositReceiptCandidate {
         treatment: a.treatment,
         depositRequired: 0,
         paid: (a.payments || []).reduce((s, p) => s + p.amount, 0),
+        price: a.price ?? a.treatments?.reduce((s, x) => s + x.price, 0) ?? 0,
     };
 }
 
 /**
- * Aviso del panel principal con los comprobantes de seña que llegaron por WhatsApp y todavía
- * no se confirmaron. La secretaria mira el banco y, si la plata entró, confirma: recién ahí se
- * carga la seña en el turno. No se puede cerrar: sigue apareciendo hasta resolverlos todos.
+ * Aviso del panel principal con los comprobantes de pago (seña, saldo o total) que llegaron por
+ * WhatsApp y todavía no se confirmaron. La secretaria mira el banco y, si la plata entró, confirma:
+ * recién ahí se carga el pago en el turno. No se puede cerrar: sigue apareciendo hasta resolverlos todos.
  */
 export function DepositReceiptsBanner() {
     const [receipts, setReceipts] = useState<DepositReceipt[]>([]);
@@ -81,7 +85,7 @@ export function DepositReceiptsBanner() {
                         </div>
                         <div>
                             <h3 className="text-lg font-black text-amber-900 leading-tight uppercase tracking-tight">
-                                {receipts.length === 1 ? 'Hay 1 seña por confirmar' : `Hay ${receipts.length} señas por confirmar`}
+                                {receipts.length === 1 ? 'Hay 1 pago por confirmar' : `Hay ${receipts.length} pagos por confirmar`}
                             </h3>
                             <p className="text-sm text-amber-800 mt-1 font-medium opacity-80">
                                 Llegaron comprobantes por WhatsApp. Revisá en el banco que la plata haya entrado y confirmalos.
@@ -114,7 +118,8 @@ function ReceiptCard({ receipt }: { receipt: DepositReceipt }) {
 
     const [appointmentId, setAppointmentId] = useState(receipt.appointmentId || '');
     const [amount, setAmount] = useState(reading?.amount || 0);
-    const [bankAccount, setBankAccount] = useState<BankAccount>(guessBankAccount(reading?.recipientBank));
+    const [bankAccount, setBankAccount] = useState<BankAccount>(receipt.suggestedBankAccount || guessBankAccount(reading?.recipientBank));
+    const [label, setLabel] = useState(receipt.suggestedLabel || 'Seña');
     const [extraCandidates, setExtraCandidates] = useState<DepositReceiptCandidate[]>([]);
     const [searching, setSearching] = useState(false);
     const [saving, setSaving] = useState(false);
@@ -129,15 +134,15 @@ function ReceiptCard({ receipt }: { receipt: DepositReceipt }) {
     const whatsappUrl = `https://wa.me/${receipt.fromPhone.replace(/\D/g, '')}`;
 
     const handleConfirm = async () => {
-        if (!appointmentId) return toast.error('Elegí el turno al que corresponde la seña');
+        if (!appointmentId) return toast.error('Elegí el turno al que corresponde el pago');
         if (amount <= 0) return toast.error('El monto debe ser mayor a 0');
         setSaving(true);
         try {
-            await confirmDepositReceipt(receipt.id, { appointmentId, amount, date: paymentDate, bankAccount }, by);
-            toast.success(`Seña de ${plata(amount)} cargada en el turno`);
+            await confirmDepositReceipt(receipt.id, { appointmentId, amount, date: paymentDate, bankAccount, label }, by);
+            toast.success(`${label} de ${plata(amount)} cargado en el turno`);
         } catch (error: any) {
             console.error('[DepositReceipts] Error al confirmar:', error);
-            toast.error(error?.message || 'No se pudo confirmar la seña');
+            toast.error(error?.message || 'No se pudo confirmar el pago');
         } finally {
             setSaving(false);
         }
@@ -227,9 +232,9 @@ function ReceiptCard({ receipt }: { receipt: DepositReceipt }) {
                     )}
                     {receipt.messageText && <p className="text-xs text-gray-500">Mensaje: “{receipt.messageText}”</p>}
 
-                    {/* Turno, monto y cuenta */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
-                        <div className="md:col-span-3">
+                    {/* Turno, concepto, monto y cuenta */}
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-3 pt-1">
+                        <div className="md:col-span-4">
                             <Select
                                 label="Turno"
                                 value={appointmentId}
@@ -250,7 +255,8 @@ function ReceiptCard({ receipt }: { receipt: DepositReceipt }) {
                                 </button>
                             )}
                         </div>
-                        <CurrencyInput label="Monto de la seña" value={amount} onChange={setAmount} />
+                        <Select label="Concepto" value={label} onChange={e => setLabel(e.target.value)} options={LABELS} />
+                        <CurrencyInput label="Monto" value={amount} onChange={setAmount} />
                         <Select
                             label="Cuenta"
                             value={bankAccount}
@@ -283,17 +289,18 @@ function ReceiptCard({ receipt }: { receipt: DepositReceipt }) {
     );
 }
 
-/** Busca entre los turnos pendientes de los próximos 90 días por nombre de cliente. */
+/** Busca por nombre de cliente entre los turnos de los últimos 7 días y los próximos 90 (no cancelados). */
 function AppointmentSearch({ onPick, onCancel }: { onPick: (c: DepositReceiptCandidate) => void; onCancel: () => void }) {
     const [appointments, setAppointments] = useState<Appointment[] | null>(null);
     const [text, setText] = useState('');
 
     useEffect(() => {
-        const today = getTodayDate();
+        const start = new Date();
+        start.setDate(start.getDate() - 7);
         const end = new Date();
         end.setDate(end.getDate() + 90);
-        getAppointmentsByDateRange(today, end.toLocaleDateString('en-CA'))
-            .then(list => setAppointments(list.filter(a => a.status === 'pending')))
+        getAppointmentsByDateRange(start.toLocaleDateString('en-CA'), end.toLocaleDateString('en-CA'))
+            .then(list => setAppointments(list.filter(a => a.status !== 'cancelled' && a.status !== 'cancelado')))
             .catch(error => {
                 console.error('[DepositReceipts] Error al buscar turnos:', error);
                 setAppointments([]);
@@ -333,7 +340,7 @@ function AppointmentSearch({ onPick, onCancel }: { onPick: (c: DepositReceiptCan
                 </button>
             ))}
             {appointments && text.trim().length >= 2 && results.length === 0 && (
-                <p className="text-xs text-gray-500">No hay turnos pendientes con ese nombre en los próximos 90 días.</p>
+                <p className="text-xs text-gray-500">No hay turnos con ese nombre (últimos 7 días y próximos 90).</p>
             )}
         </div>
     );

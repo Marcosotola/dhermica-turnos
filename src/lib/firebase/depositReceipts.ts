@@ -38,12 +38,12 @@ interface ResolvedBy {
 }
 
 /**
- * Carga la seña en el turno y marca el comprobante como confirmado, todo junto (si alguien
+ * Carga el pago en el turno y marca el comprobante como confirmado, todo junto (si alguien
  * ya lo resolvió desde otra pantalla, no se carga dos veces).
  */
 export async function confirmDepositReceipt(
     receiptId: string,
-    data: { appointmentId: string; amount: number; date: string; bankAccount: BankAccount },
+    data: { appointmentId: string; amount: number; date: string; bankAccount: BankAccount; label: string },
     by: ResolvedBy
 ): Promise<void> {
     const receiptRef = doc(db, COLLECTION, receiptId);
@@ -63,7 +63,7 @@ export async function confirmDepositReceipt(
             id: Math.random().toString(36).substring(2, 9),
             amount: data.amount,
             method: 'transfer',
-            label: 'Seña',
+            label: data.label,
             bankAccount: data.bankAccount,
             date: data.date,
             receiptId,

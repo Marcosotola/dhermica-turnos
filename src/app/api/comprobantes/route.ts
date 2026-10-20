@@ -3,6 +3,7 @@ import { randomUUID, timingSafeEqual } from 'crypto';
 import { getStorage } from 'firebase-admin/storage';
 import { adminDb } from '@/lib/firebase/admin';
 import { AVISOS_SECRET_HEADER } from '@/lib/notifications/avisos';
+import { BANK_ACCOUNTS, BankAccount } from '@/lib/types/bankAccount';
 import type {
     DepositReceipt,
     DepositReceiptCandidate,
@@ -20,6 +21,8 @@ const EXTENSIONS: Record<string, string> = {
     'application/pdf': 'pdf',
 };
 const MAX_FILE_BYTES = 8 * 1024 * 1024;
+const LABELS = ['Seña', 'Saldo', 'Pago Total', 'Pago Parcial'];
+const ACCOUNTS: BankAccount[] = BANK_ACCOUNTS.map(a => a.value);
 
 function hasValidSecret(req: NextRequest): boolean {
     const expected = process.env.N8N_AVISOS_SECRET;
@@ -62,6 +65,7 @@ function parseCandidates(list: unknown): DepositReceiptCandidate[] {
         treatment: str(c?.treatment, 200),
         depositRequired: num(c?.depositRequired),
         paid: num(c?.paid),
+        price: num(c?.price),
     })).filter(c => c.appointmentId);
 }
 
@@ -86,7 +90,7 @@ async function saveFile(docId: string, file: any): Promise<{ url: string; path: 
 }
 
 /**
- * Recibe de n8n un comprobante de seña ya leído por la IA y lo guarda como "por confirmar".
+ * Recibe de n8n un comprobante de pago (seña, saldo o total) ya leído por la IA y lo guarda como "por confirmar".
  * Solo acepta pedidos con la misma clave secreta que usa la app para mandarle avisos a n8n.
  * Si el mismo mensaje llega dos veces (reintentos de YCloud o de n8n), no lo duplica.
  */
@@ -151,6 +155,8 @@ export async function POST(req: NextRequest) {
         reading,
         appointmentId: candidates.some(c => c.appointmentId === appointmentId) ? appointmentId : null,
         candidates,
+        suggestedLabel: LABELS.includes(body.suggestedLabel) ? body.suggestedLabel : 'Seña',
+        suggestedBankAccount: ACCOUNTS.includes(body.suggestedBankAccount) ? body.suggestedBankAccount : '',
         createdAt: new Date().toISOString(),
     };
 
