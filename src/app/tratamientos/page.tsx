@@ -5,7 +5,7 @@ import { Sparkles, Plus, Search, Filter, Tags } from 'lucide-react';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { getTreatments, createTreatment, updateTreatment, deleteTreatment } from '@/lib/firebase/treatments';
 import { getTreatmentCategoryDocs, seedTreatmentCategories, createTreatmentCategory } from '@/lib/firebase/treatmentCategories';
-import { Treatment, TreatmentCategory, TreatmentCategoryDoc, getTreatmentCategories } from '@/lib/types/treatment';
+import { Treatment, TreatmentCategory, TreatmentCategoryDoc, getTreatmentCategories, getTreatmentSlug } from '@/lib/types/treatment';
 import { TreatmentCard } from '@/components/treatments/TreatmentCard';
 import { TreatmentForm } from '@/components/treatments/TreatmentForm';
 import { TreatmentCategoryManager } from '@/components/treatments/TreatmentCategoryManager';
@@ -37,7 +37,12 @@ export default function TratamientosPage() {
     const canManageCategories = profile?.role === 'admin' || profile?.role === 'secretary';
 
     useEffect(() => {
-        fetchTreatments();
+        fetchTreatments().then(data => {
+            const param = new URLSearchParams(window.location.search).get('t');
+            if (!param) return;
+            const match = data.find(t => getTreatmentSlug(t.name) === param || t.id === param);
+            if (match) openDetail(match);
+        });
         fetchCategories();
     }, []);
 
@@ -56,6 +61,26 @@ export default function TratamientosPage() {
         const data = await getTreatments();
         setTreatments(data);
         setLoading(false);
+        return data;
+    };
+
+    // Enlace compartible: /tratamientos?t=<slug> abre el detalle de ese tratamiento
+    const setTreatmentParam = (treatment: Treatment | null) => {
+        const url = new URL(window.location.href);
+        if (treatment) url.searchParams.set('t', getTreatmentSlug(treatment.name));
+        else url.searchParams.delete('t');
+        window.history.replaceState(null, '', url);
+    };
+
+    const openDetail = (treatment: Treatment) => {
+        setSelectedTreatment(treatment);
+        setIsDetailOpen(true);
+        setTreatmentParam(treatment);
+    };
+
+    const closeDetail = () => {
+        setIsDetailOpen(false);
+        setTreatmentParam(null);
     };
 
     const fetchCategories = async () => {
@@ -219,8 +244,7 @@ export default function TratamientosPage() {
                                 onDelete={handleDelete}
                                 onClick={(t) => {
                                     haptics.light();
-                                    setSelectedTreatment(t);
-                                    setIsDetailOpen(true);
+                                    openDetail(t);
                                 }}
                             />
                         ))}
@@ -253,7 +277,7 @@ export default function TratamientosPage() {
 
             <TreatmentDetail
                 isOpen={isDetailOpen}
-                onClose={() => setIsDetailOpen(false)}
+                onClose={closeDetail}
                 treatment={selectedTreatment}
             />
         </div>
