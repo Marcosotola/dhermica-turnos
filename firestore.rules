@@ -200,6 +200,12 @@ service cloud.firestore {
       allow read, write: if isStaff();
     }
 
+    // Comprobantes de seña por WhatsApp: los crea n8n desde el servidor (/api/comprobantes)
+    // y solo la secretaria o el admin los confirman o rechazan
+    match /depositReceipts/{receiptId} {
+      allow read, update: if isStaff();
+    }
+
     // ------------------------------------------------------------------
     // Cualquier otra colección (turnos legacy: turnosLuciana, turnosGisela, etc.)
     // queda solo para el equipo. Las colecciones con regla propia se excluyen acá
@@ -210,7 +216,7 @@ service cloud.firestore {
         'treatments', 'treatment_categories', 'products', 'impact_gallery', 'community_posts',
         'promotions', 'users', 'professionals', 'appointments', 'aparato_sessions',
         'pendingBookings', 'clientCredits', 'giftCards', 'egresos', 'sales', 'rentals',
-        'attendances', 'cash_counts', 'notifications'
+        'attendances', 'cash_counts', 'notifications', 'depositReceipts'
       ]);
     }
   }

@@ -7,6 +7,7 @@ import { Calendar, TrendingUp, Sparkles, ShoppingBag, BookOpen, Bell, MapPin, Us
 import { ProfileSection } from '@/components/dashboard/ProfileSection';
 import { EditProfileModal } from '@/components/dashboard/EditProfileModal';
 import { OrphanAlertBanner } from '@/components/dashboard/OrphanAlertBanner';
+import { DepositReceiptsBanner } from '@/components/dashboard/DepositReceiptsBanner';
 import { Toaster } from 'sonner';
 
 export default function SecretariaPage() {
@@ -64,6 +65,7 @@ export default function SecretariaPage() {
                     />
                 </div>
 
+                <DepositReceiptsBanner />
                 <OrphanAlertBanner />
 
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">

@@ -22,6 +22,7 @@ export interface Payment {
     bankAccount?: import('./bankAccount').BankAccount | null;
     giftCardId?: string; // only when method === 'gift_card'
     creditId?: string; // only when method === 'client_credit'
+    receiptId?: string; // seña confirmada desde un comprobante de WhatsApp (depositReceipts)
     createdAt: Date;
 }
 
