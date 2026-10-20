@@ -123,7 +123,7 @@ export function TreatmentDetail({ isOpen, onClose, treatment }: TreatmentDetailP
                 )}
 
                 {/* Pre/Post Care */}
-                {(treatment.preCare?.length || treatment.postCare?.length) && (
+                {((treatment.preCare?.length ?? 0) > 0 || (treatment.postCare?.length ?? 0) > 0) && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {treatment.preCare && treatment.preCare.length > 0 && (
                             <div className="p-6 bg-amber-50 rounded-3xl border border-amber-100">
