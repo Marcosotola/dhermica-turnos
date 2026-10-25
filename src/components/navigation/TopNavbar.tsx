@@ -5,7 +5,7 @@
 import { useState, useEffect, ElementType } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Menu, X, Home, Calendar, Truck, Users, LayoutDashboard, LogOut, BookOpen, Settings, Sparkles, Tag, ShoppingBag, Bell, Share2, MapPin, DollarSign, Zap, TrendingDown, Download, Heart, Gift, CalendarPlus } from 'lucide-react';
+import { Menu, X, Home, Calendar, Truck, Users, LayoutDashboard, LogOut, BookOpen, Settings, Sparkles, Tag, ShoppingBag, Bell, Share2, MapPin, DollarSign, Zap, TrendingDown, Download, Heart, Gift, CalendarPlus, Megaphone } from 'lucide-react';
 
 import { Button } from '../ui/Button';
 import { useAuth } from '@/lib/contexts/AuthContext';
@@ -80,6 +80,7 @@ export function TopNavbar() {
             { href: '/gift-cards', label: 'Gift Cards', icon: Gift },
             { href: '/aparatos', label: 'Aparatos', icon: Zap },
             { href: '/promociones', label: 'Promos', icon: Tag },
+            { href: '/redes', label: 'Redes', icon: Megaphone },
             { href: '/tratamientos', label: 'Servicios', icon: Sparkles },
             { href: '/productos', label: 'Productos', icon: ShoppingBag },
             { href: '/usuarios', label: 'Usuarios', icon: Settings },
@@ -98,6 +99,7 @@ export function TopNavbar() {
             { href: '/tratamientos', label: 'Servicios', icon: Sparkles },
             { href: '/productos', label: 'Productos', icon: ShoppingBag },
             { href: '/promociones', label: 'Promos', icon: Tag },
+            { href: '/redes', label: 'Redes', icon: Megaphone },
             { href: '/comunidad', label: 'Comunidad', icon: Users },
             { href: '/impacto', label: 'Impacto', icon: Heart },
             { href: '/ubicacion', label: 'Ubicación', icon: MapPin },
@@ -111,6 +113,7 @@ export function TopNavbar() {
             { href: '/gift-cards', label: 'Gift Cards', icon: Gift },
             { href: '/aparatos', label: 'Aparatos', icon: Zap },
             { href: '/promociones', label: 'Promos', icon: Tag },
+            { href: '/redes', label: 'Redes', icon: Megaphone },
             { href: '/tratamientos', label: 'Servicios', icon: Sparkles },
             { href: '/productos', label: 'Productos', icon: ShoppingBag },
             { href: '/secretaria/notificaciones', label: 'Avisos', icon: Bell },
