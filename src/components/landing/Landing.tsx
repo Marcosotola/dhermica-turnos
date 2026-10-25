@@ -18,6 +18,27 @@ import { CommunityPost } from '@/lib/types/community';
 import { Treatment } from '@/lib/types/treatment';
 import { Product } from '@/lib/types/product';
 import { formatCurrencyWithSymbol } from '@/lib/utils/currency';
+import { TreatmentDetail } from '@/components/treatments/TreatmentDetail';
+
+// A dónde ir después de ingresar (p. ej. "Reservar turno" → /reservar)
+const NEXT_PATH_KEY = 'dhermica-despues-de-ingresar';
+
+export function takeNextPath(): string | null {
+    try {
+        const path = sessionStorage.getItem(NEXT_PATH_KEY);
+        sessionStorage.removeItem(NEXT_PATH_KEY);
+        // Solo rutas internas
+        return path && path.startsWith('/') && !path.startsWith('//') ? path : null;
+    } catch {
+        return null;
+    }
+}
+
+function setNextPath(path: string) {
+    try {
+        sessionStorage.setItem(NEXT_PATH_KEY, path);
+    } catch { }
+}
 
 const MISSION_CARDS = [
     {
@@ -37,9 +58,12 @@ const MISSION_CARDS = [
     },
 ];
 
-export function DesktopLanding() {
+export function Landing({ completeProfile = false }: { completeProfile?: boolean }) {
     const [showAuthModal, setShowAuthModal] = useState(false);
     const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
+    const [authReason, setAuthReason] = useState<string | null>(null);
+    const [selectedTreatment, setSelectedTreatment] = useState<Treatment | null>(null);
+    const [treatmentCategory, setTreatmentCategory] = useState('Todos');
     const [treatments, setTreatments] = useState<Treatment[]>([]);
     const [products, setProducts] = useState<Product[]>([]);
     const [impactImages, setImpactImages] = useState<ImpactImage[]>([]);
@@ -55,33 +79,77 @@ export function DesktopLanding() {
         ).catch(console.error);
     }, []);
 
+    const treatmentCategories = [...new Set(treatments.map(t => t.category).filter(Boolean))];
+    const visibleTreatments = treatmentCategory === 'Todos'
+        ? treatments
+        : treatments.filter(t => t.category === treatmentCategory);
+
     const scrollTo = (id: string) => {
         document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
     };
 
     const openLogin = () => {
         setAuthMode('login');
+        setAuthReason(null);
         setShowAuthModal(true);
     };
 
     const openRegister = () => {
         setAuthMode('register');
+        setAuthReason(null);
         setShowAuthModal(true);
     };
+
+    // La cuenta se pide recién al sacar turno
+    const reserve = () => {
+        setNextPath('/reservar');
+        setSelectedTreatment(null);
+        setAuthMode('register');
+        setAuthReason('Para sacar tu turno, creá tu cuenta o iniciá sesión.');
+        setShowAuthModal(true);
+    };
+
+    useEffect(() => {
+        if (completeProfile) {
+            setAuthMode('register');
+            setAuthReason('Completá tus datos para terminar de crear tu cuenta.');
+            setShowAuthModal(true);
+            return;
+        }
+        // Viene de /reservar sin sesión
+        if (new URLSearchParams(window.location.search).get('reservar') === '1') {
+            reserve();
+        }
+    }, [completeProfile]);
 
     return (
         <div className="min-h-screen bg-white">
             {/* Fixed Navbar */}
             <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-xl border-b border-gray-100">
-                <div className="max-w-7xl mx-auto px-8 h-20 flex items-center justify-between">
+                <div className="max-w-7xl mx-auto px-4 sm:px-8 h-16 sm:h-20 flex items-center justify-between gap-3">
                     <span
-                        className="text-3xl text-[#34baab]"
+                        className="text-2xl sm:text-3xl text-[#34baab]"
                         style={{ fontFamily: 'var(--font-amsterdam), sans-serif' }}
                     >
                         Dhermica
                     </span>
 
-                    <div className="flex items-center gap-8">
+                    <div className="flex items-center gap-2 lg:hidden">
+                        <button
+                            onClick={reserve}
+                            className="bg-[#34baab] text-white px-4 py-2 rounded-xl font-bold text-xs active:scale-95 transition-all"
+                        >
+                            Reservar turno
+                        </button>
+                        <button
+                            onClick={openLogin}
+                            className="text-gray-600 px-3 py-2 rounded-xl font-bold text-xs border border-gray-200 active:scale-95 transition-all"
+                        >
+                            Ingresar
+                        </button>
+                    </div>
+
+                    <div className="hidden lg:flex items-center gap-8">
                         <button onClick={() => scrollTo('servicios')} className="text-sm font-bold text-gray-600 hover:text-[#34baab] transition-colors">
                             Servicios
                         </button>
@@ -111,55 +179,62 @@ export function DesktopLanding() {
             </nav>
 
             {/* Hero Section */}
-            <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-32">
+            <section className="relative min-h-[90vh] sm:min-h-screen flex items-center justify-center overflow-hidden pt-24 pb-16 sm:pt-32">
                 <div className="absolute inset-0 bg-gradient-to-br from-violet-50 via-white to-teal-50" />
                 <div className="absolute top-20 right-20 w-96 h-96 bg-[#34baab]/5 rounded-full blur-3xl" />
                 <div className="absolute bottom-20 left-20 w-96 h-96 bg-violet-500/5 rounded-full blur-3xl" />
 
-                <div className="relative z-10 text-center max-w-4xl mx-auto px-8">
+                <div className="relative z-10 text-center max-w-4xl mx-auto px-4 sm:px-8">
                     <div className="mb-8">
                         <h1
-                            className="text-8xl text-[#34baab] mb-4"
+                            className="text-6xl sm:text-8xl text-[#34baab] mb-4"
                             style={{ fontFamily: 'var(--font-amsterdam), sans-serif' }}
                         >
                             Dhermica
                         </h1>
                         <div className="flex items-center justify-center gap-3 mb-6">
-                            <div className="h-px w-16 bg-gray-300" />
-                            <p className="text-sm font-black text-gray-400 uppercase tracking-[0.4em]">
+                            <div className="h-px w-8 sm:w-16 bg-gray-300" />
+                            <p className="text-xs sm:text-sm font-black text-gray-400 uppercase tracking-[0.3em] sm:tracking-[0.4em]">
                                 Estética Unisex
                             </p>
-                            <div className="h-px w-16 bg-gray-300" />
+                            <div className="h-px w-8 sm:w-16 bg-gray-300" />
                         </div>
                     </div>
 
-                    <h2 className="text-4xl font-black text-gray-900 tracking-tight mb-6 leading-tight">
+                    <h2 className="text-3xl sm:text-4xl font-black text-gray-900 tracking-tight mb-6 leading-tight">
                         Más que Estética,<br />
                         <span className="text-[#34baab]">un Propósito</span>
                     </h2>
 
-                    <p className="text-xl text-gray-500 font-medium max-w-2xl mx-auto mb-10 leading-relaxed">
+                    <p className="text-lg sm:text-xl text-gray-500 font-medium max-w-2xl mx-auto mb-10 leading-relaxed">
                         Transformamos tu bienestar con tratamientos de calidad profesional.
                         Cada visita impulsa nuestra misión social.
                     </p>
 
-                    <div className="flex items-center justify-center gap-4">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 sm:gap-4">
+                        <button
+                            onClick={reserve}
+                            className="bg-[#34baab] text-white px-8 py-4 rounded-2xl font-bold text-lg hover:bg-[#2da698] transition-all hover:shadow-lg hover:shadow-[#34baab]/20 active:scale-95 flex items-center justify-center gap-3"
+                        >
+                            <Calendar className="w-5 h-5" />
+                            Reservar turno
+                        </button>
+                        <button
+                            onClick={() => scrollTo('servicios')}
+                            className="bg-[#484450] text-white px-8 py-4 rounded-2xl font-bold text-lg hover:bg-[#3a3640] transition-all hover:shadow-lg active:scale-95 flex items-center justify-center gap-3"
+                        >
+                            Ver tratamientos y precios
+                            <ArrowRight className="w-5 h-5" />
+                        </button>
                         <a
                             href="https://wa.me/5493513908626?text=Hola!%20Me%20gustar%C3%ADa%20realizar%20una%20consulta."
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="bg-[#25D366] text-white px-8 py-4 rounded-2xl font-bold text-lg hover:bg-[#20bd5a] transition-all hover:shadow-lg hover:shadow-green-200 active:scale-95 flex items-center gap-3"
+                            className="bg-[#25D366] text-white px-8 py-4 rounded-2xl font-bold text-lg hover:bg-[#20bd5a] transition-all hover:shadow-lg hover:shadow-green-200 active:scale-95 flex items-center justify-center gap-3"
                         >
                             <MessageCircle className="w-5 h-5" />
                             Escribinos
                         </a>
-                        <button
-                            onClick={openRegister}
-                            className="bg-[#484450] text-white px-8 py-4 rounded-2xl font-bold text-lg hover:bg-[#3a3640] transition-all hover:shadow-lg active:scale-95 flex items-center gap-3"
-                        >
-                            Crear Cuenta
-                            <ArrowRight className="w-5 h-5" />
-                        </button>
                     </div>
                 </div>
 
@@ -171,49 +246,72 @@ export function DesktopLanding() {
             </section>
 
             {/* Services / Treatments Section */}
-            <section id="servicios" className="py-24 bg-gray-50">
-                <div className="max-w-7xl mx-auto px-8">
-                    <div className="text-center mb-16">
+            <section id="servicios" className="py-16 sm:py-24 bg-gray-50">
+                <div className="max-w-7xl mx-auto px-4 sm:px-8">
+                    <div className="text-center mb-8 sm:mb-16">
                         <p className="text-sm font-black text-[#34baab] uppercase tracking-[0.3em] mb-3">Nuestros Servicios</p>
-                        <h2 className="text-4xl font-black text-gray-900 tracking-tight mb-4">
+                        <h2 className="text-3xl sm:text-4xl font-black text-gray-900 tracking-tight mb-4">
                             Catálogo de Tratamientos
                         </h2>
                         <p className="text-gray-500 font-medium max-w-xl mx-auto">
                             Descubrí nuestra amplia gama de tratamientos estéticos pensados para tu bienestar.
+                            Tocá uno para ver precios y detalles.
                         </p>
                     </div>
 
+                    {treatmentCategories.length > 1 && (
+                        <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2 mb-6 sm:justify-center sm:flex-wrap">
+                            {['Todos', ...treatmentCategories].map(cat => (
+                                <button
+                                    key={cat}
+                                    onClick={() => setTreatmentCategory(cat)}
+                                    className={`px-4 py-2 rounded-xl font-black text-[10px] sm:text-xs uppercase tracking-widest whitespace-nowrap flex-shrink-0 transition-all ${treatmentCategory === cat
+                                        ? 'bg-[#34baab] text-white shadow-lg shadow-teal-100'
+                                        : 'bg-white text-gray-400 border border-gray-100'
+                                        }`}
+                                >
+                                    {cat}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+
                     {treatments.length > 0 ? (
-                        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                            {treatments.map((treatment) => {
-                                const minPrice = treatment.prices.length > 0
-                                    ? Math.min(...treatment.prices.map(p => p.price))
-                                    : 0;
+                        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6">
+                            {visibleTreatments.map((treatment) => {
+                                // Sin precio cargado (0) se muestra "Consultar"
+                                const loadedPrices = treatment.prices.map(p => p.price).filter(p => p > 0);
+                                const minPrice = loadedPrices.length > 0 ? Math.min(...loadedPrices) : 0;
                                 return (
                                     <div
                                         key={treatment.id}
-                                        className="group relative bg-white rounded-[2rem] border-2 border-gray-100 shadow-sm hover:shadow-xl hover:border-[#34baab]/20 hover:-translate-y-1 transition-all p-6 overflow-hidden"
+                                        onClick={() => setSelectedTreatment(treatment)}
+                                        className="group relative cursor-pointer bg-white rounded-2xl sm:rounded-[2rem] border-2 border-gray-100 shadow-sm hover:shadow-xl hover:border-[#34baab]/20 hover:-translate-y-1 transition-all p-4 sm:p-6 overflow-hidden flex flex-col"
                                     >
                                         <div className="absolute top-0 right-0 w-32 h-32 bg-teal-50/50 rounded-full -mr-12 -mt-12 group-hover:scale-110 transition-transform" />
-                                        <div className="relative z-10">
-                                            <div className="w-12 h-12 bg-[#34baab] rounded-2xl flex items-center justify-center shadow-lg shadow-teal-100 mb-4">
+                                        <div className="relative z-10 flex flex-col flex-1">
+                                            <div className="hidden sm:flex w-12 h-12 bg-[#34baab] rounded-2xl items-center justify-center shadow-lg shadow-teal-100 mb-4">
                                                 <Sparkles className="w-6 h-6 text-white" />
                                             </div>
-                                            <span className="text-[10px] font-black uppercase tracking-widest text-[#34baab] bg-teal-50 px-3 py-1 rounded-full mb-3 inline-block">
+                                            <span className="self-start text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-[#34baab] bg-teal-50 px-2 sm:px-3 py-1 rounded-full mb-2 sm:mb-3 inline-block">
                                                 {treatment.category}
                                             </span>
-                                            <h3 className="text-lg font-black text-gray-900 leading-tight group-hover:text-[#34baab] transition-colors mb-2">
+                                            <h3 className="text-sm sm:text-lg font-black text-gray-900 leading-tight group-hover:text-[#34baab] transition-colors mb-2">
                                                 {treatment.name}
                                             </h3>
-                                            <p className="text-sm text-gray-500 line-clamp-2 mb-4 font-medium">
+                                            <p className="hidden sm:block text-sm text-gray-500 line-clamp-2 mb-4 font-medium">
                                                 {treatment.shortDescription}
                                             </p>
-                                            <div className="flex items-center justify-between border-t border-gray-50 pt-4">
-                                                <div>
-                                                    <span className="text-[9px] font-black uppercase tracking-wider text-gray-400">Desde</span>
-                                                    <p className="text-lg font-black text-gray-900">{formatCurrencyWithSymbol(minPrice)}</p>
-                                                </div>
-                                                <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center group-hover:bg-[#34baab] group-hover:text-white transition-all text-gray-400">
+                                            <div className="mt-auto flex items-center justify-between border-t border-gray-50 pt-3 sm:pt-4">
+                                                {minPrice > 0 ? (
+                                                    <div>
+                                                        <span className="text-[9px] font-black uppercase tracking-wider text-gray-400">Desde</span>
+                                                        <p className="text-base sm:text-lg font-black text-gray-900">{formatCurrencyWithSymbol(minPrice)}</p>
+                                                    </div>
+                                                ) : (
+                                                    <p className="text-sm font-black text-[#34baab]">Consultar</p>
+                                                )}
+                                                <div className="hidden sm:flex w-10 h-10 rounded-xl bg-gray-50 items-center justify-center group-hover:bg-[#34baab] group-hover:text-white transition-all text-gray-400">
                                                     <ChevronRight className="w-5 h-5" />
                                                 </div>
                                             </div>
@@ -232,11 +330,11 @@ export function DesktopLanding() {
 
             {/* Products Section */}
             {products.length > 0 && (
-                <section id="productos" className="py-24 bg-white">
-                    <div className="max-w-7xl mx-auto px-8">
+                <section id="productos" className="py-16 sm:py-24 bg-white">
+                    <div className="max-w-7xl mx-auto px-4 sm:px-8">
                         <div className="text-center mb-16">
                             <p className="text-sm font-black text-[#34baab] uppercase tracking-[0.3em] mb-3">Tienda</p>
-                            <h2 className="text-4xl font-black text-gray-900 tracking-tight mb-4">
+                            <h2 className="text-3xl sm:text-4xl font-black text-gray-900 tracking-tight mb-4">
                                 Productos de Cuidado
                             </h2>
                             <p className="text-gray-500 font-medium max-w-xl mx-auto">
@@ -244,7 +342,7 @@ export function DesktopLanding() {
                             </p>
                         </div>
 
-                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
                             {products.map((product) => (
                                 <div
                                     key={product.id}
@@ -263,7 +361,7 @@ export function DesktopLanding() {
                                             <ShoppingBag className="w-12 h-12 text-gray-200" />
                                         </div>
                                     )}
-                                    <div className="p-5">
+                                    <div className="p-3 sm:p-5">
                                         <h3 className="font-black text-gray-900 mb-1 group-hover:text-[#34baab] transition-colors line-clamp-1">
                                             {product.name}
                                         </h3>
@@ -282,12 +380,12 @@ export function DesktopLanding() {
             )}
 
             {/* About Section */}
-            <section id="nosotros" className="py-24 bg-white">
-                <div className="max-w-7xl mx-auto px-8">
-                    <div className="grid lg:grid-cols-2 gap-16 items-center">
+            <section id="nosotros" className="py-16 sm:py-24 bg-white">
+                <div className="max-w-7xl mx-auto px-4 sm:px-8">
+                    <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
                         <div>
                             <p className="text-sm font-black text-[#34baab] uppercase tracking-[0.3em] mb-3">Quiénes Somos</p>
-                            <h2 className="text-4xl font-black text-gray-900 tracking-tight mb-6">
+                            <h2 className="text-3xl sm:text-4xl font-black text-gray-900 tracking-tight mb-6">
                                 El Corazón de <span className="text-[#34baab]">Dhermica</span>
                             </h2>
                             <div className="space-y-5 text-gray-600 leading-relaxed">
@@ -308,17 +406,17 @@ export function DesktopLanding() {
                             </div>
                         </div>
 
-                        <div className="bg-gradient-to-br from-[#484450] to-[#3a3640] rounded-[2.5rem] p-10 text-white shadow-2xl">
+                        <div className="bg-gradient-to-br from-[#484450] to-[#3a3640] rounded-[2.5rem] p-6 sm:p-10 text-white shadow-2xl">
                             <h3
                                 className="text-5xl text-[#34baab] mb-6"
                                 style={{ fontFamily: 'var(--font-amsterdam), sans-serif' }}
                             >
                                 Dhermica
                             </h3>
-                            <p className="text-xl font-light tracking-[0.2em] uppercase text-gray-300 mb-8">
+                            <p className="text-lg sm:text-xl font-light tracking-[0.2em] uppercase text-gray-300 mb-8">
                                 Más que Estética, un Propósito
                             </p>
-                            <div className="grid grid-cols-3 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                                 {MISSION_CARDS.map((card) => {
                                     const Icon = card.icon;
                                     return (
@@ -336,14 +434,14 @@ export function DesktopLanding() {
             </section>
 
             {/* Impact Section */}
-            <section id="impacto" className="py-24 bg-[#484450] text-white relative overflow-hidden">
+            <section id="impacto" className="py-16 sm:py-24 bg-[#484450] text-white relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-96 h-96 bg-[#34baab]/10 rounded-full -mr-48 -mt-48 blur-3xl" />
                 <div className="absolute bottom-0 left-0 w-96 h-96 bg-violet-500/10 rounded-full -ml-48 -mb-48 blur-3xl" />
 
-                <div className="max-w-7xl mx-auto px-8 relative z-10">
+                <div className="max-w-7xl mx-auto px-4 sm:px-8 relative z-10">
                     <div className="text-center mb-16">
                         <p className="text-sm font-black text-[#34baab] uppercase tracking-[0.3em] mb-3">Impacto Social</p>
-                        <h2 className="text-4xl font-black tracking-tight mb-4">
+                        <h2 className="text-3xl sm:text-4xl font-black tracking-tight mb-4">
                             Un Momento para <span className="text-[#34baab]">Vos</span>,
                             una Bendición para <span className="text-[#34baab]">Otros</span>
                         </h2>
@@ -354,7 +452,7 @@ export function DesktopLanding() {
                     </div>
 
                     {impactImages.length > 0 ? (
-                        <div className="grid grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+                        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6 mb-12">
                             {impactImages.map((image) => (
                                 <div
                                     key={image.id}
@@ -397,7 +495,7 @@ export function DesktopLanding() {
                     )}
 
                     <div className="text-center">
-                        <div className="bg-[#34baab] inline-block rounded-2xl px-10 py-5 shadow-xl shadow-[#34baab]/20">
+                        <div className="bg-[#34baab] inline-block rounded-2xl px-6 sm:px-10 py-5 shadow-xl shadow-[#34baab]/20">
                             <p className="text-lg font-bold">
                                 Creemos que Dios nos bendice para ser de bendición.
                             </p>
@@ -409,7 +507,7 @@ export function DesktopLanding() {
             {/* Impact Lightbox */}
             {selectedImpactImage && (
                 <div
-                    className="fixed inset-0 z-[300] bg-black/95 flex flex-col items-center justify-center p-8"
+                    className="fixed inset-0 z-[300] bg-black/95 flex flex-col items-center justify-center p-4 sm:p-8"
                     onClick={() => setSelectedImpactImage(null)}
                 >
                     <button className="absolute top-6 right-6 text-white p-2 hover:bg-white/10 rounded-full transition-colors">
@@ -434,11 +532,11 @@ export function DesktopLanding() {
             )}
 
             {/* Community Section */}
-            <section id="comunidad" className="py-24 bg-white">
-                <div className="max-w-7xl mx-auto px-8">
+            <section id="comunidad" className="py-16 sm:py-24 bg-white">
+                <div className="max-w-7xl mx-auto px-4 sm:px-8">
                     <div className="text-center mb-16">
                         <p className="text-sm font-black text-[#34baab] uppercase tracking-[0.3em] mb-3">Comunidad</p>
-                        <h2 className="text-4xl font-black text-gray-900 tracking-tight mb-4">
+                        <h2 className="text-3xl sm:text-4xl font-black text-gray-900 tracking-tight mb-4">
                             Resultados Reales, Inspiración Constante
                         </h2>
                         <p className="text-gray-500 font-medium max-w-xl mx-auto">
@@ -449,7 +547,7 @@ export function DesktopLanding() {
 
                     {communityPosts.length > 0 ? (
                         <>
-                            <div className="grid grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+                            <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6 mb-12">
                                 {communityPosts.map((post) => {
                                     const imageUrl = post.imageUrls?.[0] || post.imageUrl;
                                     return (
@@ -511,11 +609,11 @@ export function DesktopLanding() {
             </section>
 
             {/* Contact & Location Section */}
-            <section id="contacto" className="py-24 bg-gray-50">
-                <div className="max-w-7xl mx-auto px-8">
+            <section id="contacto" className="py-16 sm:py-24 bg-gray-50">
+                <div className="max-w-7xl mx-auto px-4 sm:px-8">
                     <div className="text-center mb-16">
                         <p className="text-sm font-black text-[#34baab] uppercase tracking-[0.3em] mb-3">Contacto</p>
-                        <h2 className="text-4xl font-black text-gray-900 tracking-tight mb-4">
+                        <h2 className="text-3xl sm:text-4xl font-black text-gray-900 tracking-tight mb-4">
                             Estamos Acá
                         </h2>
                     </div>
@@ -590,7 +688,7 @@ export function DesktopLanding() {
 
             {/* Footer */}
             <footer className="bg-[#484450] text-white py-16">
-                <div className="max-w-7xl mx-auto px-8">
+                <div className="max-w-7xl mx-auto px-4 sm:px-8">
                     <div className="grid md:grid-cols-3 gap-12 mb-12">
                         <div>
                             <span
@@ -650,7 +748,7 @@ export function DesktopLanding() {
                         </div>
                     </div>
 
-                    <div className="border-t border-white/10 pt-8 flex items-center justify-between">
+                    <div className="border-t border-white/10 pt-8 flex flex-col sm:flex-row items-center justify-between gap-2 text-center">
                         <p className="text-sm text-gray-500">
                             &copy; {new Date().getFullYear()} Dhermica Estética Unisex. Todos los derechos reservados.
                         </p>
@@ -661,6 +759,13 @@ export function DesktopLanding() {
                 </div>
             </footer>
 
+            <TreatmentDetail
+                isOpen={!!selectedTreatment}
+                onClose={() => setSelectedTreatment(null)}
+                treatment={selectedTreatment}
+                onReserve={reserve}
+            />
+
             {/* Auth Modal */}
             {showAuthModal && (
                 <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
@@ -668,7 +773,7 @@ export function DesktopLanding() {
                         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
                         onClick={() => setShowAuthModal(false)}
                     />
-                    <div className="relative z-10 w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+                    <div className="relative z-10 w-full max-w-md max-h-[90vh] overflow-y-auto bg-white rounded-3xl shadow-2xl animate-in zoom-in-95 duration-300">
                         <button
                             onClick={() => setShowAuthModal(false)}
                             className="absolute top-4 right-4 z-20 p-2 hover:bg-gray-100 rounded-full transition-colors"
@@ -676,17 +781,24 @@ export function DesktopLanding() {
                             <X className="w-5 h-5 text-gray-400" />
                         </button>
 
-                        <div className="p-8">
-                            <div className="flex flex-col items-center mb-8">
+                        <div className="p-6 sm:p-8">
+                            <div className="flex flex-col items-center mb-6">
                                 <div className="w-16 h-16 mb-4 flex items-center justify-center">
                                     <img src="/logo.png" alt="Dhermica Logo" className="w-full h-full object-contain" />
                                 </div>
                                 <h2 className="text-3xl font-black text-gray-900 tracking-tighter">Dhermica</h2>
                             </div>
 
+                            {authReason && (
+                                <p className="mb-6 text-center text-sm font-bold text-[#34baab] bg-teal-50 rounded-2xl px-4 py-3">
+                                    {authReason}
+                                </p>
+                            )}
+
                             <div className="flex mb-8 p-1 bg-gray-100 rounded-2xl">
                                 <button
                                     onClick={() => setAuthMode('login')}
+                                    disabled={completeProfile}
                                     className={`flex-1 py-3 text-sm font-black uppercase tracking-wider rounded-xl transition-all ${authMode === 'login'
                                         ? 'bg-white text-[#34baab] shadow-sm'
                                         : 'text-gray-500 hover:text-gray-700'

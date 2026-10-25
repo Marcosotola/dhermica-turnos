@@ -1,24 +1,18 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/contexts/AuthContext';
-import { LoginForm } from '@/components/auth/LoginForm';
-import { RegisterForm } from '@/components/auth/RegisterForm';
-import { DesktopLanding } from '@/components/landing/DesktopLanding';
-import { Toaster } from 'sonner';
+import { Landing, takeNextPath } from '@/components/landing/Landing';
 
 export default function Home() {
   const { user, profile, loading } = useAuth();
   const router = useRouter();
-  const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
 
   useEffect(() => {
     if (!loading && user && profile) {
-      router.push('/dashboard');
-    }
-    if (!loading && user && !profile) {
-      setAuthMode('register');
+      // Si entró desde "Reservar turno", vuelve ahí; si no, al panel
+      router.push(takeNextPath() ?? '/dashboard');
     }
   }, [user, profile, loading, router]);
 
@@ -34,60 +28,6 @@ export default function Home() {
     return null;
   }
 
-  return (
-    <>
-      {/* Desktop: Landing Page */}
-      <div className="hidden lg:block">
-        <DesktopLanding />
-      </div>
-
-      {/* Mobile: Login/Register App */}
-      <div className="lg:hidden">
-        <div className="min-h-screen bg-gradient-to-br from-violet-50 via-pink-50 to-blue-50 flex items-center justify-center p-4">
-          <Toaster position="top-center" richColors />
-
-          <div className="max-w-md w-full bg-white rounded-3xl shadow-2xl overflow-hidden border border-white/20 backdrop-blur-sm bg-white/90">
-            <div className="p-8">
-              <div className="flex flex-col items-center mb-8">
-                <div className="w-16 h-16 mb-4 flex items-center justify-center">
-                  <img src="/logo.png" alt="Dhermica Logo" className="w-full h-full object-contain" />
-                </div>
-                <h1 className="text-3xl font-black text-gray-900 tracking-tighter">
-                  Dhermica
-                </h1>
-              </div>
-
-              <div className="flex mb-8 p-1 bg-gray-100 rounded-2xl">
-                <button
-                  onClick={() => setAuthMode('login')}
-                  disabled={!!(user && !profile)}
-                  className={`flex-1 py-3 text-sm font-black uppercase tracking-wider rounded-xl transition-all ${authMode === 'login'
-                      ? 'bg-white text-[#34baab] shadow-sm'
-                      : 'text-gray-500 hover:text-gray-700'
-                    }`}
-                >
-                  Iniciar Sesión
-                </button>
-                <button
-                  onClick={() => setAuthMode('register')}
-                  className={`flex-1 py-3 text-sm font-black uppercase tracking-wider rounded-xl transition-all ${authMode === 'register'
-                      ? 'bg-white text-[#34baab] shadow-sm'
-                      : 'text-gray-500 hover:text-gray-700'
-                    }`}
-                >
-                  Crear Cuenta
-                </button>
-              </div>
-
-              {authMode === 'login' ? (
-                <LoginForm onToggleMode={() => setAuthMode('register')} />
-              ) : (
-                <RegisterForm onToggleMode={() => setAuthMode('login')} />
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-    </>
-  );
+  // Inició sesión (p. ej. con Google) pero le falta completar el perfil
+  return <Landing completeProfile={!!(user && !profile)} />;
 }

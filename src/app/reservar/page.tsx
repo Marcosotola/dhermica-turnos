@@ -30,7 +30,8 @@ export default function ReservarPage() {
     const inputRef = useRef<HTMLTextAreaElement>(null);
 
     useEffect(() => {
-        if (!loading && !user) router.push('/');
+        // Sin sesión: a la portada, que pide la cuenta y vuelve acá
+        if (!loading && !user) router.push('/?reservar=1');
     }, [user, loading, router]);
 
     useEffect(() => {

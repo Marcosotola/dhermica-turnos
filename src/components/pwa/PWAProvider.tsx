@@ -2,23 +2,26 @@
 
 import React, { useState, useEffect } from 'react';
 import { usePWA } from '@/lib/hooks/usePWA';
+import { useAuth } from '@/lib/contexts/AuthContext';
 import { AndroidInstallModal } from './AndroidInstallModal';
 import { IOSInstallModal } from './IOSInstallModal';
 
 export function PWAProvider({ children }: { children: React.ReactNode }) {
     const { isInstallable, isIOS, isStandalone, installApp } = usePWA();
+    const { user } = useAuth();
     const [showModal, setShowModal] = useState(false);
     const [dismissed, setDismissed] = useState(false);
 
     useEffect(() => {
-        // Show modal after 3 seconds if installable/iOS and not standalone
-        if ((isInstallable || isIOS) && !isStandalone && !dismissed) {
+        // Show modal after 3 seconds if installable/iOS and not standalone.
+        // Solo con sesión: a quien entra a mirar (p. ej. desde Instagram) no se le ofrece instalar
+        if (user && (isInstallable || isIOS) && !isStandalone && !dismissed) {
             const timer = setTimeout(() => {
                 setShowModal(true);
             }, 3000);
             return () => clearTimeout(timer);
         }
-    }, [isInstallable, isIOS, isStandalone, dismissed]);
+    }, [user, isInstallable, isIOS, isStandalone, dismissed]);
 
     useEffect(() => {
         // Register Service Worker
