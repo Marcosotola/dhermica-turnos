@@ -32,7 +32,8 @@ import {
     Zap,
     TrendingDown,
     Heart,
-    Gift
+    Gift,
+    Megaphone
 } from 'lucide-react';
 
 import Link from 'next/link';
@@ -218,6 +219,12 @@ export default function DashboardPage() {
                                 <p className="hidden md:block text-gray-500 text-sm mt-2 text-center">Gestionar ofertas especiales.</p>
                             </Link>
 
+                            <Link href="/redes" className="flex flex-col items-center justify-center bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-all group">
+                                <Megaphone className="w-10 h-10 text-[#34baab] mb-4 group-hover:scale-110 transition-transform" />
+                                <span className="text-xl font-bold text-gray-900 text-center">Redes</span>
+                                <p className="hidden md:block text-gray-500 text-sm mt-2 text-center">Publicar en Instagram y Facebook.</p>
+                            </Link>
+
                             <Link href="/tratamientos" className="flex flex-col items-center justify-center bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-all group">
                                 <Sparkles className="w-10 h-10 text-purple-500 mb-4 group-hover:scale-110 transition-transform" />
                                 <span className="text-xl font-bold text-gray-900 text-center">Servicios</span>
@@ -317,6 +324,12 @@ export default function DashboardPage() {
                                 <Zap className="w-10 h-10 text-cyan-500 mb-4 group-hover:scale-110 transition-transform" />
                                 <span className="text-xl font-bold text-gray-900 text-center">Aparatos</span>
                                 <p className="hidden md:block text-gray-500 text-sm mt-2 text-center">Ver mis sesiones de aparatos.</p>
+                            </Link>
+
+                            <Link href="/redes" className="flex flex-col items-center justify-center bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-all group">
+                                <Megaphone className="w-10 h-10 text-[#34baab] mb-4 group-hover:scale-110 transition-transform" />
+                                <span className="text-xl font-bold text-gray-900 text-center">Redes</span>
+                                <p className="hidden md:block text-gray-500 text-sm mt-2 text-center">Publicar en Instagram y Facebook.</p>
                             </Link>
                         </>
                     )}

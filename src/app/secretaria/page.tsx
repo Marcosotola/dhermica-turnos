@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
-import { Calendar, TrendingUp, Sparkles, ShoppingBag, BookOpen, Bell, MapPin, Users, Truck, DollarSign, Zap, TrendingDown } from 'lucide-react';
+import { Calendar, TrendingUp, Sparkles, ShoppingBag, BookOpen, Bell, MapPin, Users, Truck, DollarSign, Zap, TrendingDown, Megaphone } from 'lucide-react';
 import { ProfileSection } from '@/components/dashboard/ProfileSection';
 import { EditProfileModal } from '@/components/dashboard/EditProfileModal';
 import { OrphanAlertBanner } from '@/components/dashboard/OrphanAlertBanner';
@@ -107,6 +107,16 @@ export default function SecretariaPage() {
                         <TrendingUp className="w-10 h-10 text-pink-600 group-hover:scale-110 transition-transform mb-4" />
                         <h2 className="text-xl font-bold text-gray-900">Promos</h2>
                         <p className="hidden md:block text-sm text-gray-500 mt-2">Gestionar ofertas y cupones</p>
+                    </button>
+
+                    {/* Redes */}
+                    <button
+                        onClick={() => router.push('/redes')}
+                        className="flex flex-col items-center justify-center bg-white rounded-3xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-all text-center group"
+                    >
+                        <Megaphone className="w-10 h-10 text-[#34baab] group-hover:scale-110 transition-transform mb-4" />
+                        <h2 className="text-xl font-bold text-gray-900">Redes</h2>
+                        <p className="hidden md:block text-sm text-gray-500 mt-2">Publicar en Instagram y Facebook</p>
                     </button>
 
                     {/* Servicios */}
