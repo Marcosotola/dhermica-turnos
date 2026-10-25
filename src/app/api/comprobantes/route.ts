@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { randomUUID, timingSafeEqual } from 'crypto';
+import { randomUUID } from 'crypto';
 import { getStorage } from 'firebase-admin/storage';
 import { adminDb } from '@/lib/firebase/admin';
-import { AVISOS_SECRET_HEADER } from '@/lib/notifications/avisos';
+import { hasValidAvisosSecret } from '@/lib/notifications/avisos';
 import { BANK_ACCOUNTS, BankAccount } from '@/lib/types/bankAccount';
 import type {
     DepositReceipt,
@@ -24,14 +24,7 @@ const MAX_FILE_BYTES = 8 * 1024 * 1024;
 const LABELS = ['Seña', 'Saldo', 'Pago Total', 'Pago Parcial'];
 const ACCOUNTS: BankAccount[] = BANK_ACCOUNTS.map(a => a.value);
 
-function hasValidSecret(req: NextRequest): boolean {
-    const expected = process.env.N8N_AVISOS_SECRET;
-    const received = req.headers.get(AVISOS_SECRET_HEADER);
-    if (!expected || !received) return false;
-    const a = Buffer.from(received);
-    const b = Buffer.from(expected);
-    return a.length === b.length && timingSafeEqual(a, b);
-}
+const hasValidSecret = hasValidAvisosSecret;
 
 const str = (v: unknown, max = 300) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
 const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : Number(v) || 0);
