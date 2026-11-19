@@ -67,7 +67,8 @@ export default function DashboardPage() {
                     // Fetch by ID (registered) and Name (legacy)
                     data = await getAppointmentsByClientId(user.uid, profile.fullName);
                 } else if (profile.role === 'professional') {
-                    data = await getAppointmentsByProfessionalId(user.uid);
+                    // profile.uid (no user.uid): en "ver como profesional" es el uid del profesional
+                    data = await getAppointmentsByProfessionalId(profile.uid);
                 }
                 setAppointments(data);
             } catch (error) {

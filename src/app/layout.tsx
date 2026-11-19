@@ -36,6 +36,7 @@ export const metadata: Metadata = {
 import { BottomNav } from "@/components/navigation/BottomNav";
 import { TopNavbar } from "@/components/navigation/TopNavbar";
 import { ContentWrapper } from "@/components/navigation/ContentWrapper";
+import { ViewAsBanner } from "@/components/navigation/ViewAsBanner";
 import { PWAProvider } from "@/components/pwa/PWAProvider";
 import { AuthProvider } from "@/lib/contexts/AuthContext";
 import { BirthdayLauncher } from "@/components/dashboard/BirthdayLauncher";
@@ -60,6 +61,7 @@ export default function RootLayout({
               <div className="flex min-h-screen">
                 <TopNavbar />
                 <ContentWrapper>
+                  <ViewAsBanner />
                   <BirthdayLauncher />
                   <main className="flex-1">
                     {children}

@@ -31,7 +31,7 @@ import { ChevronDown, ChevronUp } from 'lucide-react';
 export default function ProfessionalDetailPage() {
     const { id } = useParams();
     const router = useRouter();
-    const { profile } = useAuth();
+    const { profile, startViewAs } = useAuth();
     const [professional, setProfessional] = useState<Professional | null>(null);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<'overview' | 'finance' | 'appointments' | 'schedule' | 'attendance' | 'config'>('finance');
@@ -151,7 +151,10 @@ export default function ProfessionalDetailPage() {
                         {(profile?.role === 'admin' || profile?.role === 'secretary') && professional.type !== 'apoyo' && (
                             <button
                                 type="button"
-                                onClick={() => router.push(`/profesional/turnos?prof=${professional.id}`)}
+                                onClick={() => {
+                                    startViewAs({ professionalId: professional.id, userId: professional.userId, name: professional.name });
+                                    router.push('/dashboard');
+                                }}
                                 className="flex items-center justify-center gap-2 px-5 py-3 bg-white/10 hover:bg-white/20 border border-white/20 rounded-2xl font-black uppercase tracking-widest text-[10px] transition-colors w-fit"
                             >
                                 <Eye className="w-4 h-4" /> Ver como profesional

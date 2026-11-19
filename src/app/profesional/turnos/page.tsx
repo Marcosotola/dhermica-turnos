@@ -1,10 +1,10 @@
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/contexts/AuthContext';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { Appointment } from '@/lib/types/appointment';
-import { Calendar, Search, ChevronLeft, Eye } from 'lucide-react';
+import { Calendar, Search, ChevronLeft } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { toast, Toaster } from 'sonner';
 import { updateAppointment } from '@/lib/firebase/appointments';
@@ -24,21 +24,11 @@ function formatDuration(hours: number): string {
 }
 
 export default function ProfesionalTurnosPage() {
-    return (
-        <Suspense fallback={null}>
-            <ProfesionalTurnosContent />
-        </Suspense>
-    );
-}
-
-function ProfesionalTurnosContent() {
-    const { user, profile, loading: authLoading } = useAuth();
+    const { user, profile, viewAs, loading: authLoading } = useAuth();
     const router = useRouter();
-    const searchParams = useSearchParams();
-    // Admin/secretaria pueden ver la pantalla tal cual la ve un profesional: /profesional/turnos?prof=<professionalId>
-    const isManager = profile?.role === 'admin' || profile?.role === 'secretary';
-    const viewAsProfessionalId = isManager ? searchParams.get('prof') : null;
-    const canView = profile?.role === 'professional' || !!viewAsProfessionalId;
+    // En "ver como profesional" (admin/secretaria) el profesional viene del contexto
+    const viewAsProfessionalId = viewAs?.professionalId ?? null;
+    const canView = profile?.role === 'professional';
 
     const [appointments, setAppointments] = useState<Appointment[]>([]);
     const [filteredAppointments, setFilteredAppointments] = useState<Appointment[]>([]);
@@ -47,7 +37,6 @@ function ProfesionalTurnosContent() {
     const [selectedDate, setSelectedDate] = useState('');
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editData, setEditData] = useState({ notes: '', price: 0 });
-    const [viewedProfessionalName, setViewedProfessionalName] = useState('');
 
     useEffect(() => {
         if (!authLoading && (!user || !canView)) {
@@ -68,7 +57,6 @@ function ProfesionalTurnosContent() {
                     : await getProfessionalByUserId(user.uid);
 
                 if (professionalDoc) {
-                    if (viewAsProfessionalId) setViewedProfessionalName(professionalDoc.name);
                     // Los turnos cancelados no se le muestran al profesional (igual que en la grilla del admin)
                     const data = (await getAppointmentsByProfessionalId(professionalDoc.id)).filter(apt => !isCancelled(apt));
                     setAppointments(data);
@@ -176,16 +164,6 @@ function ProfesionalTurnosContent() {
                     </div>
                 </div>
             </div>
-
-            {viewAsProfessionalId && (
-                <div className="bg-amber-50 border-b border-amber-200">
-                    <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-2 text-amber-800 text-sm font-bold">
-                        <Eye className="w-4 h-4 shrink-0" />
-                        Estás viendo el panel como lo ve {viewedProfessionalName || 'el profesional'}.
-                    </div>
-                </div>
-            )}
-
             <div className="max-w-7xl mx-auto px-4 py-8 space-y-6">
                 <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
