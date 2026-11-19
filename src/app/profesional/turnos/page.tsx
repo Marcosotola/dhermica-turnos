@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { Appointment } from '@/lib/types/appointment';
-import { Calendar, Search, ChevronLeft } from 'lucide-react';
+import { Calendar, Search, ChevronLeft, Plus } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { toast, Toaster } from 'sonner';
 import { updateAppointment } from '@/lib/firebase/appointments';
@@ -24,7 +24,8 @@ function formatDuration(hours: number): string {
 }
 
 export default function ProfesionalTurnosPage() {
-    const { user, profile, viewAs, loading: authLoading } = useAuth();
+    const { user, profile, viewAs, ownProfessional, loading: authLoading } = useAuth();
+    const canManageOwn = !!ownProfessional?.canManageOwnAppointments;
     const router = useRouter();
     // En "ver como profesional" (admin/secretaria) el profesional viene del contexto
     const viewAsProfessionalId = viewAs?.professionalId ?? null;
@@ -149,18 +150,30 @@ export default function ProfesionalTurnosPage() {
 
             <div className="bg-[#484450] text-white">
                 <div className="max-w-7xl mx-auto px-4 py-8">
-                    <div className="flex items-center gap-4 mb-4">
-                        <button
-                            aria-label="Volver"
-                            onClick={() => router.back()}
-                            className="p-2 hover:bg-white/10 rounded-xl transition-colors"
-                        >
-                            <ChevronLeft className="w-6 h-6" />
-                        </button>
-                        <div>
-                            <h1 className="text-3xl font-black tracking-tight">Mis Turnos</h1>
-                            <p className="text-gray-300 font-medium opacity-80">Gestión de citas y pacientes.</p>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+                        <div className="flex items-center gap-4">
+                            <button
+                                aria-label="Volver"
+                                onClick={() => router.back()}
+                                className="p-2 hover:bg-white/10 rounded-xl transition-colors"
+                            >
+                                <ChevronLeft className="w-6 h-6" />
+                            </button>
+                            <div>
+                                <h1 className="text-3xl font-black tracking-tight">Mis Turnos</h1>
+                                <p className="text-gray-300 font-medium opacity-80">Gestión de citas y pacientes.</p>
+                            </div>
                         </div>
+                        {/* Con permiso de gestionar sus turnos: se crean y gestionan desde la agenda */}
+                        {canManageOwn && (
+                            <button
+                                type="button"
+                                onClick={() => router.push(selectedDate ? `/turnos?date=${selectedDate}` : '/turnos')}
+                                className="flex items-center justify-center gap-2 px-5 py-3 bg-[#34baab] hover:bg-[#2aa89a] rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg transition-colors w-full sm:w-fit"
+                            >
+                                <Plus className="w-4 h-4" /> Nuevo turno / Agenda
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>
