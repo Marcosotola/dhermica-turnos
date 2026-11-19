@@ -183,7 +183,8 @@ export function AppointmentTable({
                                                 />
                                             ) : isAbsence ? (
                                                 <div className="group/absence relative flex flex-col items-center justify-center h-full bg-slate-100 rounded-2xl border-2 border-slate-200 border-dashed p-4 shadow-inner min-h-[60px] animate-in zoom-in duration-500" title={reason}>
-                                                    {/* Menú de acción para excepciones */}
+                                                    {/* Menú de acción para excepciones (solo si se puede editar/eliminar) */}
+                                                    {(onExceptionEdit || onExceptionDelete) && (
                                                     <div className="absolute top-2 right-2 z-30">
                                                         <button 
                                                             onClick={(e) => {
@@ -240,6 +241,7 @@ export function AppointmentTable({
                                                             </>
                                                         )}
                                                     </div>
+                                                    )}
 
                                                     <ShieldAlert className="w-6 h-6 text-slate-400 mb-2 opacity-50" />
                                                     <span className="text-xs font-black uppercase tracking-tight text-slate-600 text-center leading-tight break-words max-w-[180px]">

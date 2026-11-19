@@ -3,13 +3,13 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
-import { Calendar, TrendingUp, Sparkles, BookOpen, ShoppingBag, MapPin, Users } from 'lucide-react';
+import { Calendar, CalendarPlus, TrendingUp, Sparkles, BookOpen, ShoppingBag, MapPin, Users } from 'lucide-react';
 import { ProfileSection } from '@/components/dashboard/ProfileSection';
 import { EditProfileModal } from '@/components/dashboard/EditProfileModal';
 import { toast, Toaster } from 'sonner';
 
 export default function ProfesionalPage() {
-    const { user, profile, loading: authLoading } = useAuth();
+    const { user, profile, ownProfessional, loading: authLoading } = useAuth();
     const router = useRouter();
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
@@ -75,6 +75,20 @@ export default function ProfesionalPage() {
                         <h2 className="text-xl font-black text-gray-900 mb-1">Mis Turnos</h2>
                         <p className="hidden md:block text-xs text-gray-400 font-bold uppercase tracking-wider">Citas hoy y mañana</p>
                     </button>
+
+                    {/* Agenda: solo si el admin le dio permiso de gestionar sus turnos */}
+                    {ownProfessional?.canManageOwnAppointments && (
+                        <button
+                            onClick={() => router.push('/turnos')}
+                            className="flex flex-col items-center justify-center bg-white rounded-[2rem] shadow-sm border border-gray-100 p-8 hover:shadow-xl hover:-translate-y-1 transition-all text-center group"
+                        >
+                            <div className="w-16 h-16 bg-teal-50 rounded-2xl flex items-center justify-center mb-6 group-hover:bg-[#34baab] transition-colors">
+                                <CalendarPlus className="w-8 h-8 text-[#34baab] group-hover:text-white transition-colors" />
+                            </div>
+                            <h2 className="text-xl font-black text-gray-900 mb-1">Agenda</h2>
+                            <p className="hidden md:block text-xs text-gray-400 font-bold uppercase tracking-wider">Crear y gestionar turnos</p>
+                        </button>
+                    )}
 
                     {/* Fichas */}
                     <button

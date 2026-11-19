@@ -15,7 +15,7 @@ import { IOSInstallModal } from '../pwa/IOSInstallModal';
 
 
 export function TopNavbar() {
-    const { user, profile, logout, loading: authLoading } = useAuth();
+    const { user, profile, logout, ownProfessional, loading: authLoading } = useAuth();
     const [isOpen, setIsOpen] = useState(false);
     const [scrolled, setScrolled] = useState(false);
     const pathname = usePathname();
@@ -92,6 +92,7 @@ export function TopNavbar() {
         ] : []),
         // Professional only
         ...(role === 'professional' ? [
+            ...(ownProfessional?.canManageOwnAppointments ? [{ href: '/turnos', label: 'Agenda', icon: CalendarPlus }] : []),
             { href: '/profesional', label: 'Mis Turnos', icon: Calendar },
             { href: '/finanzas', label: 'Mis Finanzas', icon: DollarSign },
             { href: '/agenda', label: 'Fichas', icon: BookOpen },

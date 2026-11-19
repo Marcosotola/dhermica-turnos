@@ -19,13 +19,16 @@ interface NavTab {
 
 export function BottomNav() {
     const pathname_real = usePathname();
-    const { user, profile } = useAuth();
+    const { user, profile, ownProfessional } = useAuth();
     const router = useRouter();
 
     if (!user) return null;
 
     const role = profile?.role || 'client';
     const isManagement = role === 'admin' || role === 'professional' || role === 'secretary';
+    // Profesional con permiso de gestionar sus turnos: usa la agenda (/turnos) con su columna
+    const profManagesOwn = role === 'professional' && !!ownProfessional?.canManageOwnAppointments;
+    const profAgendaPath = profManagesOwn ? '/turnos' : '/profesional/turnos';
 
 
     const tabs: NavTab[] = [
@@ -42,10 +45,10 @@ export function BottomNav() {
                 label: 'Fecha',
                 icon: Calendar,
                 action: () => {
-                    if (pathname_real === '/profesional/turnos') {
+                    if (pathname_real === profAgendaPath) {
                         window.dispatchEvent(new CustomEvent('toggle-datepicker'));
                     } else {
-                        router.push('/profesional/turnos?action=datepicker');
+                        router.push(`${profAgendaPath}?action=datepicker`);
                     }
                 },
                 active: false
@@ -57,11 +60,11 @@ export function BottomNav() {
                 active: pathname_real === '/agenda'
             },
             {
-                label: 'Turnos',
+                label: profManagesOwn ? 'Agenda' : 'Turnos',
                 icon: ClipboardList,
-                href: '/profesional/turnos',
+                href: profAgendaPath,
                 primary: true,
-                active: pathname_real === '/profesional/turnos'
+                active: pathname_real === profAgendaPath
             },
             {
                 label: 'Comunidad',

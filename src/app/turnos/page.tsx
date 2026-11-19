@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, Suspense } from 'react';
+import { useEffect, useMemo, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { AppointmentTable } from '@/components/appointments/AppointmentTable';
@@ -26,7 +26,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 
 function TurnosContent() {
-    const { user, profile, loading: authLoading } = useAuth();
+    const { user, profile, ownProfessional, ownProfessionalLoading, loading: authLoading } = useAuth();
     const router = useRouter();
     const searchParams = useSearchParams();
     const dateParam = searchParams.get('date');
@@ -34,14 +34,19 @@ function TurnosContent() {
 
     const [selectedDate, setSelectedDate] = useState(dateParam || '');
 
+    // Profesional con permiso "gestionar sus propios turnos": ve y opera solo su columna
+    const isProfessional = profile?.role === 'professional';
+    const ownMode = isProfessional && !!ownProfessional?.canManageOwnAppointments;
+    const ownProfessionalId = ownMode ? ownProfessional!.id : null;
+
     useEffect(() => {
         if (!authLoading && !user) {
             router.push('/');
         }
-        if (!authLoading && profile?.role === 'professional') {
+        if (!authLoading && isProfessional && !ownProfessionalLoading && !ownMode) {
             router.push('/profesional');
         }
-    }, [user, profile, authLoading, router]);
+    }, [user, isProfessional, ownMode, ownProfessionalLoading, authLoading, router]);
     const [mounted, setMounted] = useState(false);
     const [modalOpen, setModalOpen] = useState(false);
     const [detailModalOpen, setDetailModalOpen] = useState(false);
@@ -58,8 +63,17 @@ function TurnosContent() {
     const [exceptionModalOpen, setExceptionModalOpen] = useState(false);
     const [selectedExceptionProfessional, setSelectedExceptionProfessional] = useState<Professional | null>(null);
 
-    const { professionals, reload: reloadProfessionals } = useProfessionals();
-    const { appointments, loading } = useAppointments(selectedDate, professionals);
+    const { professionals: allProfessionals, reload: reloadProfessionals } = useProfessionals();
+    const professionals = useMemo(
+        () => ownProfessionalId ? allProfessionals.filter(p => p.id === ownProfessionalId) : allProfessionals,
+        [allProfessionals, ownProfessionalId]
+    );
+    const { appointments: allAppointments, loading } = useAppointments(selectedDate, professionals);
+    // La colección principal trae los turnos de todos: en modo propio quedan solo los suyos
+    const appointments = useMemo(
+        () => ownProfessionalId ? allAppointments.filter(apt => apt.professionalId === ownProfessionalId) : allAppointments,
+        [allAppointments, ownProfessionalId]
+    );
 
     useEffect(() => {
         setMounted(true);
@@ -250,6 +264,16 @@ function TurnosContent() {
         }
     };
 
+    // Un profesional no ve la agenda hasta confirmar que tiene el permiso (evita mostrar la grilla de todos)
+    if (isProfessional && !ownMode) {
+        return (
+            <div className="flex flex-col items-center justify-center py-24 min-h-screen">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#45a049] mb-4"></div>
+                <p className="text-gray-500 font-medium">Cargando...</p>
+            </div>
+        );
+    }
+
     return (
         <div className="min-h-screen bg-white md:bg-gray-50 pb-32">
             <Toaster position="top-center" richColors />
@@ -285,7 +309,8 @@ function TurnosContent() {
 
                     {/* Desktop Actions */}
                     <div className="hidden md:flex items-center gap-4">
-                        <AppointmentSearch onSelectAppointment={handleSearchSelect} />
+                        {/* El buscador recorre los turnos de todos: no se muestra en modo propio */}
+                        {!ownMode && <AppointmentSearch onSelectAppointment={handleSearchSelect} />}
                         <Button 
                             variant="ghost" 
                             className="text-white hover:bg-white/10 border border-white/20 p-6 rounded-xl font-bold transition-all"
@@ -299,11 +324,13 @@ function TurnosContent() {
                         >
                             <Calendar className="w-5 h-5 text-[#34baab]" />
                         </Button>
-                        <Link href="/profesionales">
-                            <Button variant="ghost" className="text-white hover:bg-white/10 border border-white/20 px-8 py-6 rounded-xl font-bold transition-all">
-                                <Users className="w-5 h-5 mr-3 text-[#34baab]" /> Profesionales
-                            </Button>
-                        </Link>
+                        {!ownMode && (
+                            <Link href="/profesionales">
+                                <Button variant="ghost" className="text-white hover:bg-white/10 border border-white/20 px-8 py-6 rounded-xl font-bold transition-all">
+                                    <Users className="w-5 h-5 mr-3 text-[#34baab]" /> Profesionales
+                                </Button>
+                            </Link>
+                        )}
                     </div>
                 </div>
 
@@ -375,7 +402,7 @@ function TurnosContent() {
                     {/* Main Content: Table */}
                     <div className="flex-1">
                         <div className="bg-white rounded-2xl shadow-xl md:shadow-lg overflow-hidden border border-gray-100 min-h-[400px]">
-                            {isSearchOpen && (
+                            {isSearchOpen && !ownMode && (
                                 <div className="p-6 animate-in fade-in slide-in-from-top-4 duration-300">
                                     <div className="flex items-center justify-between mb-6">
                                         <h2 className="text-xl font-bold text-gray-900">Buscar Turno</h2>
@@ -394,7 +421,7 @@ function TurnosContent() {
                                 </div>
                             )}
 
-                            {!isSearchOpen && (loading ? (
+                            {(!isSearchOpen || ownMode) && (loading ? (
                                 <div className="flex flex-col items-center justify-center py-24">
                                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#45a049] mb-4"></div>
                                     <p className="text-gray-500 animate-pulse font-medium">Cargando turnos...</p>
@@ -438,8 +465,8 @@ function TurnosContent() {
                                         onCancelClick={handleCancelClick}
                                         onDetailClick={handleDetailClick}
                                         onQuickPaymentClick={handleQuickPaymentClick}
-                                        onExceptionEdit={handleExceptionEdit}
-                                        onExceptionDelete={handleExceptionDelete}
+                                        onExceptionEdit={ownMode ? undefined : handleExceptionEdit}
+                                        onExceptionDelete={ownMode ? undefined : handleExceptionDelete}
                                     />
                                 </>
                             ))}
@@ -492,7 +519,7 @@ function TurnosContent() {
                 professionals={professionals}
                 onEdit={handleEditClick}
                 onCancel={handleCancelClick}
-                onDelete={handleDeleteClick}
+                onDelete={ownMode ? undefined : handleDeleteClick}
                 onQuickPayment={handleQuickPaymentClick}
             />
 

@@ -30,7 +30,8 @@ interface AppointmentDetailModalProps {
     professionals: Professional[];
     onEdit: (appointment: Appointment) => void;
     onCancel: (appointment: Appointment) => void;
-    onDelete: (appointment: Appointment) => void;
+    /** Sin onDelete no se muestra el botón de eliminar (ej: profesional gestionando sus turnos). */
+    onDelete?: (appointment: Appointment) => void;
     onQuickPayment?: (appointment: Appointment) => void;
 }
 
@@ -96,16 +97,18 @@ export function AppointmentDetailModal({
                         >
                             <Ban className="w-4 h-4" /> Cancelar
                         </Button>
-                        <Button
-                            onClick={() => {
-                                onClose();
-                                onDelete(appointment);
-                            }}
-                            className="py-3 px-4 bg-red-500 hover:bg-red-600 font-bold flex items-center justify-center gap-2 text-white shadow-lg shadow-red-500/10"
-                            title="Eliminar permanentemente"
-                        >
-                            <Trash2 className="w-4 h-4" />
-                        </Button>
+                        {onDelete && (
+                            <Button
+                                onClick={() => {
+                                    onClose();
+                                    onDelete(appointment);
+                                }}
+                                className="py-3 px-4 bg-red-500 hover:bg-red-600 font-bold flex items-center justify-center gap-2 text-white shadow-lg shadow-red-500/10"
+                                title="Eliminar permanentemente"
+                            >
+                                <Trash2 className="w-4 h-4" />
+                            </Button>
+                        )}
                     </div>
                     {onQuickPayment && (
                         <Button

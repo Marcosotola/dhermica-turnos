@@ -33,6 +33,7 @@ export function ProfessionalConfig({ professional, onUpdate }: ProfessionalConfi
     const [professionalPrices, setProfessionalPrices] = useState<ProfessionalPrice[]>(professional.professionalPrices || []);
     const [whatsappAvisos, setWhatsappAvisos] = useState(professional.whatsappAvisos || false);
     const [whatsappPhone, setWhatsappPhone] = useState(professional.whatsappPhone || '');
+    const [canManageOwnAppointments, setCanManageOwnAppointments] = useState(professional.canManageOwnAppointments || false);
 
     const [treatments, setTreatments] = useState<Treatment[]>([]);
     const [expandedTreatments, setExpandedTreatments] = useState<Set<string>>(new Set());
@@ -98,6 +99,7 @@ export function ProfessionalConfig({ professional, onUpdate }: ProfessionalConfi
                     professionalPrices: serviceCommissionMode === 'fixed' ? professionalPrices : [],
                     whatsappAvisos,
                     whatsappPhone: phone,
+                    canManageOwnAppointments,
                 });
             if (!isStaff) setWhatsappPhone(phone);
             toast.success('Configuración guardada');
@@ -337,6 +339,24 @@ export function ProfessionalConfig({ professional, onUpdate }: ProfessionalConfi
                             </div>
                         )}
                     </div>
+                    )}
+
+                    {!isStaff && (
+                        <div className="pt-4 border-t border-gray-100">
+                            <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mb-4">Permisos</p>
+                            <label className="flex items-center gap-3 cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={canManageOwnAppointments}
+                                    onChange={(e) => setCanManageOwnAppointments(e.target.checked)}
+                                    className="w-4 h-4 accent-[#34baab]"
+                                />
+                                <span className="text-sm font-bold text-gray-900">Puede gestionar sus propios turnos</span>
+                            </label>
+                            <p className="text-[10px] text-gray-400 font-bold mt-1">
+                                Usa la agenda con solo su columna: crea, edita/reprograma, cancela y cobra sus turnos. No puede eliminarlos ni ver los de otros profesionales.
+                            </p>
+                        </div>
                     )}
 
                     {!isStaff && (

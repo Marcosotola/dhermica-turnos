@@ -6,6 +6,8 @@ import { onAuthChange, logout as firebaseLogout } from '@/lib/firebase/auth';
 import { auth } from '@/lib/firebase/config';
 import { getUserProfile } from '@/lib/firebase/users';
 import { UserProfile } from '@/lib/types/user';
+import { Professional } from '@/lib/types/professional';
+import { getProfessionalById, getProfessionalByUserId } from '@/lib/firebase/professionals';
 
 /**
  * "Ver como profesional": admin/secretaria navegan toda la app tal cual la ve un profesional.
@@ -27,6 +29,9 @@ interface AuthContextType {
     viewAs: ViewAsProfessional | null;
     startViewAs: (prof: ViewAsProfessional) => void;
     stopViewAs: () => void;
+    /** Ficha (colección professionals) del profesional efectivo; null si el perfil no es profesional. */
+    ownProfessional: Professional | null;
+    ownProfessionalLoading: boolean;
     loading: boolean;
     logout: () => Promise<void>;
     refreshProfile: () => Promise<void>;
@@ -41,6 +46,8 @@ const AuthContext = createContext<AuthContextType>({
     viewAs: null,
     startViewAs: () => { },
     stopViewAs: () => { },
+    ownProfessional: null,
+    ownProfessionalLoading: false,
     loading: true,
     logout: async () => { },
     refreshProfile: async () => { },
@@ -130,6 +137,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return () => { cancelled = true; };
     }, [viewAsActive, viewAs?.professionalId, viewAs?.userId, profile?.uid]);
 
+    const effectiveProfile = viewAsActive ? viewAsProfile : profile;
+
+    // Ficha del profesional efectivo (para permisos como canManageOwnAppointments)
+    const [ownProfessional, setOwnProfessional] = useState<Professional | null>(null);
+    const [ownProfessionalLoading, setOwnProfessionalLoading] = useState(false);
+
+    useEffect(() => {
+        if (effectiveProfile?.role !== 'professional' || !user) {
+            setOwnProfessional(null);
+            setOwnProfessionalLoading(false);
+            return;
+        }
+        let cancelled = false;
+        setOwnProfessionalLoading(true);
+        const load = viewAsActive && viewAs
+            ? getProfessionalById(viewAs.professionalId)
+            : getProfessionalByUserId(user.uid);
+        load
+            .then(p => { if (!cancelled) setOwnProfessional(p); })
+            .catch(error => {
+                console.error('Error cargando la ficha del profesional:', error);
+                if (!cancelled) setOwnProfessional(null);
+            })
+            .finally(() => { if (!cancelled) setOwnProfessionalLoading(false); });
+        return () => { cancelled = true; };
+    }, [effectiveProfile?.role, effectiveProfile?.uid, user?.uid, viewAsActive, viewAs?.professionalId]);
+
     const startViewAs = (prof: ViewAsProfessional) => {
         try { sessionStorage.setItem(VIEW_AS_KEY, JSON.stringify(prof)); } catch { }
         setViewAs(prof);
@@ -164,11 +198,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return (
         <AuthContext.Provider value={{
             user,
-            profile: viewAsActive ? viewAsProfile : profile,
+            profile: effectiveProfile,
             realProfile: profile,
             viewAs: viewAsActive ? viewAs : null,
             startViewAs,
             stopViewAs,
+            ownProfessional,
+            ownProfessionalLoading,
             loading: effectiveLoading,
             logout,
             refreshProfile,

@@ -36,6 +36,9 @@ export interface Professional {
     // Avisos por WhatsApp (los manda n8n): turno asignado, cancelado o anulado
     whatsappAvisos?: boolean;
     whatsappPhone?: string; // Formato +549...
+    // Si está activo, el profesional usa la agenda (/turnos) con solo su columna:
+    // crea, edita/reprograma, cancela y cobra sus propios turnos (no puede eliminarlos).
+    canManageOwnAppointments?: boolean;
     workingHours?: {
         [key: string]: { // key is day index 0-6 or name
             start: string;
