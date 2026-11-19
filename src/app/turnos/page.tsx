@@ -192,7 +192,12 @@ function TurnosContent() {
     const countsByProfessional = professionals.map(prof => ({
         name: prof.name,
         color: prof.color,
-        count: appointments.filter(apt => apt.professionalId === prof.id).length
+        // Los cancelados no se muestran en la grilla, así que tampoco cuentan en el resumen
+        count: appointments.filter(apt =>
+            apt.professionalId === prof.id &&
+            apt.status !== 'cancelled' &&
+            apt.status !== 'cancelado'
+        ).length
     })).filter(p => p.count > 0);
 
     const handleExceptionEdit = (professionalId: string, date: string) => {

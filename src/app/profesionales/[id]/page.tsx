@@ -15,6 +15,7 @@ import {
     TrendingUp,
     Check,
     Settings2,
+    Eye,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { toast, Toaster } from 'sonner';
@@ -147,6 +148,15 @@ export default function ProfessionalDetailPage() {
                                 </div>
                             </div>
                         </div>
+                        {(profile?.role === 'admin' || profile?.role === 'secretary') && professional.type !== 'apoyo' && (
+                            <button
+                                type="button"
+                                onClick={() => router.push(`/profesional/turnos?prof=${professional.id}`)}
+                                className="flex items-center justify-center gap-2 px-5 py-3 bg-white/10 hover:bg-white/20 border border-white/20 rounded-2xl font-black uppercase tracking-widest text-[10px] transition-colors w-fit"
+                            >
+                                <Eye className="w-4 h-4" /> Ver como profesional
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>

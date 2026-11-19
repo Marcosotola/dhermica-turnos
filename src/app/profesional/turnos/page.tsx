@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useAuth } from '@/lib/contexts/AuthContext';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Appointment } from '@/lib/types/appointment';
-import { Calendar, Search, ChevronLeft } from 'lucide-react';
+import { Calendar, Search, ChevronLeft, Eye } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { toast, Toaster } from 'sonner';
 import { updateAppointment } from '@/lib/firebase/appointments';
@@ -12,9 +12,34 @@ import { Button } from '@/components/ui/Button';
 import { CurrencyInput } from '@/components/ui/CurrencyInput';
 import { formatCurrencyWithSymbol } from '@/lib/utils/currency';
 
+const isCancelled = (apt: Appointment) => apt.status === 'cancelled' || apt.status === 'cancelado';
+
+/** `duration` se guarda en horas (0.5, 1, 1.5...). */
+function formatDuration(hours: number): string {
+    const totalMinutes = Math.round((Number(hours) || 0) * 60);
+    if (totalMinutes < 60) return `${totalMinutes} min`;
+    const h = Math.floor(totalMinutes / 60);
+    const m = totalMinutes % 60;
+    return m ? `${h} h ${m} min` : `${h} h`;
+}
+
 export default function ProfesionalTurnosPage() {
+    return (
+        <Suspense fallback={null}>
+            <ProfesionalTurnosContent />
+        </Suspense>
+    );
+}
+
+function ProfesionalTurnosContent() {
     const { user, profile, loading: authLoading } = useAuth();
     const router = useRouter();
+    const searchParams = useSearchParams();
+    // Admin/secretaria pueden ver la pantalla tal cual la ve un profesional: /profesional/turnos?prof=<professionalId>
+    const isManager = profile?.role === 'admin' || profile?.role === 'secretary';
+    const viewAsProfessionalId = isManager ? searchParams.get('prof') : null;
+    const canView = profile?.role === 'professional' || !!viewAsProfessionalId;
+
     const [appointments, setAppointments] = useState<Appointment[]>([]);
     const [filteredAppointments, setFilteredAppointments] = useState<Appointment[]>([]);
     const [loading, setLoading] = useState(true);
@@ -22,12 +47,13 @@ export default function ProfesionalTurnosPage() {
     const [selectedDate, setSelectedDate] = useState('');
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editData, setEditData] = useState({ notes: '', price: 0 });
+    const [viewedProfessionalName, setViewedProfessionalName] = useState('');
 
     useEffect(() => {
-        if (!authLoading && (!user || profile?.role !== 'professional')) {
+        if (!authLoading && (!user || !canView)) {
             router.push('/dashboard');
         }
-    }, [user, profile, authLoading, router]);
+    }, [user, canView, authLoading, router]);
 
     useEffect(() => {
         const fetchAppointments = async () => {
@@ -35,15 +61,20 @@ export default function ProfesionalTurnosPage() {
 
             setLoading(true);
             try {
-                const { getProfessionalByUserId } = await import('@/lib/firebase/professionals');
+                const { getProfessionalByUserId, getProfessionalById } = await import('@/lib/firebase/professionals');
                 const { getAppointmentsByProfessionalId } = await import('@/lib/firebase/appointments');
-                const professionalDoc = await getProfessionalByUserId(user.uid);
+                const professionalDoc = viewAsProfessionalId
+                    ? await getProfessionalById(viewAsProfessionalId)
+                    : await getProfessionalByUserId(user.uid);
 
                 if (professionalDoc) {
-                    const data = await getAppointmentsByProfessionalId(professionalDoc.id);
+                    if (viewAsProfessionalId) setViewedProfessionalName(professionalDoc.name);
+                    // Los turnos cancelados no se le muestran al profesional (igual que en la grilla del admin)
+                    const data = (await getAppointmentsByProfessionalId(professionalDoc.id)).filter(apt => !isCancelled(apt));
                     setAppointments(data);
                     setFilteredAppointments(data);
                 } else {
+                    if (viewAsProfessionalId) toast.error('Profesional no encontrado');
                     setAppointments([]);
                     setFilteredAppointments([]);
                 }
@@ -55,10 +86,10 @@ export default function ProfesionalTurnosPage() {
             }
         };
 
-        if (user && profile?.role === 'professional') {
+        if (user && canView) {
             fetchAppointments();
         }
-    }, [user, profile]);
+    }, [user, canView, viewAsProfessionalId]);
 
     useEffect(() => {
         let filtered = appointments;
@@ -120,7 +151,7 @@ export default function ProfesionalTurnosPage() {
         );
     }
 
-    if (!user || profile?.role !== 'professional') {
+    if (!user || !canView) {
         return null;
     }
 
@@ -145,6 +176,15 @@ export default function ProfesionalTurnosPage() {
                     </div>
                 </div>
             </div>
+
+            {viewAsProfessionalId && (
+                <div className="bg-amber-50 border-b border-amber-200">
+                    <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-2 text-amber-800 text-sm font-bold">
+                        <Eye className="w-4 h-4 shrink-0" />
+                        Estás viendo el panel como lo ve {viewedProfessionalName || 'el profesional'}.
+                    </div>
+                </div>
+            )}
 
             <div className="max-w-7xl mx-auto px-4 py-8 space-y-6">
                 <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6">
@@ -199,7 +239,7 @@ export default function ProfesionalTurnosPage() {
                                     <div className="text-right">
                                         <p className="text-2xl font-black text-violet-600 leading-none mb-1">{appointment.time}</p>
                                         <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">
-                                            {appointment.duration} min
+                                            {formatDuration(appointment.duration)}
                                         </p>
                                     </div>
                                 </div>
