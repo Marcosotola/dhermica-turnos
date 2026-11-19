@@ -39,6 +39,29 @@ service cloud.firestore {
       return signedIn() && myRole() in ['admin', 'secretary', 'professional', 'promotor', 'contador'];
     }
 
+    function isProfessional() {
+      return signedIn() && myRole() == 'professional';
+    }
+
+    function professionalDoc(profId) {
+      return get(/databases/$(database)/documents/professionals/$(profId));
+    }
+
+    // El turno es del profesional logueado: professionalId es el ID de su ficha en
+    // `professionals` (cuyo userId es él), o directamente su uid (turnos viejos).
+    function isMyProfessionalId(profId) {
+      return profId is string && profId != '' && (
+        profId == request.auth.uid ||
+        (exists(/databases/$(database)/documents/professionals/$(profId))
+          && professionalDoc(profId).data.get('userId', '') == request.auth.uid)
+      );
+    }
+
+    // Permiso "Puede gestionar sus propios turnos" (lo activa admin/secretaria en Configuración)
+    function canManageOwnAppointments(profId) {
+      return professionalDoc(profId).data.get('canManageOwnAppointments', false) == true;
+    }
+
     // El turno pertenece al cliente logueado (por ID, o por nombre en turnos cargados sin ID)
     function isMyAppointment(data) {
       return data.get('clientId', '') == request.auth.uid
@@ -119,16 +142,37 @@ service cloud.firestore {
     // ------------------------------------------------------------------
     // Agenda
     // ------------------------------------------------------------------
+    // Fichas de profesionales: solo admin y secretaria (si no, un profesional podría
+    // darse a sí mismo permisos como canManageOwnAppointments o cambiar sus comisiones).
     match /professionals/{professionalId} {
       allow read: if signedIn();
-      allow write: if isTeam();
+      allow write: if isStaff();
     }
 
     match /appointments/{appointmentId} {
       allow read: if signedIn();
-      allow create, delete: if isTeam();
-      // El cliente solo puede cancelar su propio turno
-      allow update: if isTeam()
+
+      // Profesional: solo turnos propios y solo con el permiso "gestionar sus propios turnos"
+      allow create: if isStaff()
+        || (isProfessional()
+            && isMyProfessionalId(request.resource.data.get('professionalId', ''))
+            && canManageOwnAppointments(request.resource.data.professionalId));
+
+      // Eliminar definitivamente: solo admin y secretaria
+      allow delete: if isStaff();
+
+      allow update: if isStaff()
+        // Profesional: el turno es suyo antes y después (no puede pasárselo a otro)...
+        || (isProfessional()
+            && isMyProfessionalId(resource.data.get('professionalId', ''))
+            && isMyProfessionalId(request.resource.data.get('professionalId', ''))
+            && (
+              // ...con permiso: edita, reprograma, cancela y cobra
+              canManageOwnAppointments(resource.data.professionalId)
+              // ...sin permiso: solo precio y notas (pantalla "Mis Turnos")
+              || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['price', 'notes', 'updatedAt'])
+            ))
+        // El cliente solo puede cancelar su propio turno
         || (signedIn()
             && isMyAppointment(resource.data)
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])

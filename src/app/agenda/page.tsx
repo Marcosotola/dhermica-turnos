@@ -30,7 +30,14 @@ import { getGiftCardsByPurchaser, getGiftCardsByRecipient } from '@/lib/firebase
 import { GiftCardSection } from '@/components/clients/GiftCardSection';
 
 export default function AgendaPage() {
-    const { user, profile, loading: authLoading } = useAuth();
+    const { user, profile, ownProfessional, loading: authLoading } = useAuth();
+    // Mismos permisos que firestore.rules: admin/secretaria todo; el profesional solo
+    // edita/cancela SUS turnos y solo si tiene "gestionar sus propios turnos"; eliminar, nunca.
+    const isProfessional = profile?.role === 'professional';
+    const canEditApt = (apt: Appointment) => !isProfessional || (
+        !!ownProfessional?.canManageOwnAppointments && apt.professionalId === ownProfessional.id
+    );
+    const canDeleteApt = !isProfessional;
     const router = useRouter();
 
     // Registered clients — loaded once at init
@@ -695,27 +702,33 @@ export default function AgendaPage() {
                                                                         )}
                                                                     </div>
                                                                     <div className="flex gap-1">
-                                                                        <button
-                                                                            onClick={() => handleEditClick(apt)}
-                                                                            className="p-1.5 bg-white border border-gray-100 rounded-lg text-gray-400 hover:text-[#34baab] hover:border-[#34baab]/30 transition-all shadow-sm"
-                                                                            title="Editar Turno"
-                                                                        >
-                                                                            <Pencil className="w-3.5 h-3.5" />
-                                                                        </button>
-                                                                        <button
-                                                                            onClick={() => handleCancelClick(apt)}
-                                                                            className="p-1.5 bg-white border border-gray-100 rounded-lg text-gray-400 hover:text-amber-500 hover:border-amber-100 transition-all shadow-sm"
-                                                                            title="Cancelar Turno"
-                                                                        >
-                                                                            <Ban className="w-3.5 h-3.5" />
-                                                                        </button>
-                                                                        <button
-                                                                            onClick={() => handleDeleteClick(apt)}
-                                                                            className="p-1.5 bg-white border border-gray-100 rounded-lg text-gray-400 hover:text-red-500 hover:border-red-100 transition-all shadow-sm"
-                                                                            title="Eliminar Turno"
-                                                                        >
-                                                                            <Trash2 className="w-3.5 h-3.5" />
-                                                                        </button>
+                                                                        {canEditApt(apt) && (
+                                                                            <>
+                                                                                <button
+                                                                                    onClick={() => handleEditClick(apt)}
+                                                                                    className="p-1.5 bg-white border border-gray-100 rounded-lg text-gray-400 hover:text-[#34baab] hover:border-[#34baab]/30 transition-all shadow-sm"
+                                                                                    title="Editar Turno"
+                                                                                >
+                                                                                    <Pencil className="w-3.5 h-3.5" />
+                                                                                </button>
+                                                                                <button
+                                                                                    onClick={() => handleCancelClick(apt)}
+                                                                                    className="p-1.5 bg-white border border-gray-100 rounded-lg text-gray-400 hover:text-amber-500 hover:border-amber-100 transition-all shadow-sm"
+                                                                                    title="Cancelar Turno"
+                                                                                >
+                                                                                    <Ban className="w-3.5 h-3.5" />
+                                                                                </button>
+                                                                            </>
+                                                                        )}
+                                                                        {canDeleteApt && (
+                                                                            <button
+                                                                                onClick={() => handleDeleteClick(apt)}
+                                                                                className="p-1.5 bg-white border border-gray-100 rounded-lg text-gray-400 hover:text-red-500 hover:border-red-100 transition-all shadow-sm"
+                                                                                title="Eliminar Turno"
+                                                                            >
+                                                                                <Trash2 className="w-3.5 h-3.5" />
+                                                                            </button>
+                                                                        )}
                                                                     </div>
                                                                 </div>
                                                             </div>
@@ -792,7 +805,8 @@ export default function AgendaPage() {
                     }}
                     appointment={selectedAppointment}
                     date={selectedAppointment.date}
-                    professionals={professionals}
+                    // El profesional no puede pasarle su turno a otro (Firebase lo rechaza)
+                    professionals={isProfessional && ownProfessional ? professionals.filter(p => p.id === ownProfessional.id) : professionals}
                     existingAppointments={editDayAppointments}
                 />
             )}
